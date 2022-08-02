@@ -2211,6 +2211,47 @@
                 ]
             }
         },
+        "/api/global/procedure_qr/{module_id}/{uuid}": {
+            "get": {
+                "tags": [
+                    "TRÁMITES"
+                ],
+                "summary": "TRÁMITE DE ACUERDO AL MÓDULO Y UUID SOLICITADO",
+                "operationId": "getProcedureQRByModuleAndUuid",
+                "parameters": [
+                    {
+                        "name": "module_id",
+                        "in": "path",
+                        "description": "",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        },
+                        "example": 6
+                    },
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "description": "",
+                        "required": true,
+                        "example": "cc2f6a58-9ea8-46f3-94df-c3e61aa3bbcc"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/temporary/upload_copy_person_senasir": {
             "post": {
                 "tags": [
