@@ -1224,6 +1224,141 @@
                 ]
             }
         },
+        "/api/contribution/import_contribution_eco_com": {
+            "post": {
+                "tags": [
+                    "IMPORTACIÓN-APORTES-COMPLEMENTO-ECONÓMICO"
+                ],
+                "summary": "IMPORTACIÓN DE APORTES POR EL DESCUENTOS DE COMPLEMENTO ECONÓMICO POR SEMESTRE",
+                "description": "Registro de contribuciones de los descuentos por semestre para el auxilio mortuorio",
+                "operationId": "import_contribution_eco_com",
+                "requestBody": {
+                    "description": "Provide auth credentials",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "procedure_id": {
+                                        "description": "Id del semestre del Complemento Económico",
+                                        "type": "numeric",
+                                        "example": 21
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/contribution/change_state_contribution_paid_eco_com": {
+            "post": {
+                "tags": [
+                    "IMPORTACIÓN-APORTES-COMPLEMENTO-ECONÓMICO"
+                ],
+                "summary": "CAMBIO DE ESTADO DE LA CONTRIBUCIÓN DE EN PROCESO A PAGODO ",
+                "description": "Cambio de estado en la tabla contribution_passives a pagado siempre y cuando el estado del trámite de economic_complement cambie de 'En proceso' a 'Pagado'",
+                "operationId": "change_state_contribution_paid_eco_com",
+                "requestBody": {
+                    "description": "Provide auth credentials",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "economic_complemnt_id": {
+                                        "description": "Id del Complemento Económico",
+                                        "type": "numeric",
+                                        "example": 89556
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/contribution/change_state_contribution_process_eco_com": {
+            "post": {
+                "tags": [
+                    "IMPORTACIÓN-APORTES-COMPLEMENTO-ECONÓMICO"
+                ],
+                "summary": "CAMBIO DE ESTADO DE LA CONTRIBUCIÓN DE PAGADO A EN PROCESO",
+                "description": "Cambio de estado en la tabla contribution_passives en proceso siempre y cuando el estado trámite de economic_complement cambia de 'Pagado' a 'En proceso'",
+                "operationId": "change_state_contribution_process_eco_com",
+                "requestBody": {
+                    "description": "Provide auth credentials",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "economic_complemnt_id": {
+                                        "description": "Id del Complemento Económico",
+                                        "type": "numeric",
+                                        "example": 89556
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/contribution/list_months_import_contribution_senasir": {
             "post": {
                 "tags": [
@@ -2210,6 +2345,33 @@
                 "summary": "PASO 5 ACTUALIZACIÓN DE DATOS DEL AFILIADO",
                 "description": "Actualización de datos del afiliado, matricula, fecha de nacimiento, fecha de fallecimiento, ente gestor, y el estado del afiliado",
                 "operationId": "update_affiliate_data",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/temporary/tmp_import_contribution_eco_com": {
+            "post": {
+                "tags": [
+                    "IMPORTACIÓN-APORTES-COMPLEMENTO-ECONÓMICO"
+                ],
+                "summary": "IMPORTACIÓN DE APORTES POR LOS DESCUENTOS YA REALIZADO POR COMPLEMENTO ECONÓMICO",
+                "description": "Registro de contribuciones de los descuentos ya realizados para el auxilio mortuorio",
+                "operationId": "tmp_import_contribution_eco_com",
                 "responses": {
                     "200": {
                         "description": "Success",
