@@ -8,6 +8,8 @@ use App\Models\Loan\Loan;
 use App\Models\Loan\LoanBorrower;
 use App\Models\Loan\LoanState;
 use App\Models\Procedure\ProcedureModality;
+use App\Models\Procedure\ProcedureState;
+use App\Models\QuotaAidMortuary\QuotaAidBeneficiary;
 use App\Models\QuotaAidMortuary\QuotaAidMortuary;
 use App\Models\RetirementFund\RetFunBeneficiary;
 use App\Models\RetirementFund\RetFunState;
@@ -97,7 +99,35 @@ class ProcedureQRController extends Controller
                 break;
 
             case 4:
-                
+                $request->validate([
+                    'uuid' => 'required|uuid|exists:quota_aid_mortuaries,uuid'
+                ]);
+                $person = collect();
+                $module = Module::find($module_id);
+                $data = QuotaAidMortuary::where('uuid',$uuid)->first();
+                $state = ProcedureState::find($data->procedure_state_id);
+                $procedure = ProcedureModality::find($data->procedure_modality_id);
+                $type = QuotaAidMortuary::find($data->id)->procedure_modality->procedure_type->name;
+                $title = "Beneficiario(s)";
+
+                $beneficiaries = QuotaAidBeneficiary::where('quota_aid_mortuary_id',$data->id)->get();
+                foreach($beneficiaries as $beneficiary){
+                    $person->push([
+                        'full_name' => $beneficiary->fullName,
+                        'identity_card' => $beneficiary->identity_card,                     
+                    ]);  
+                }
+
+                $wfstate = WfState::find($data->wf_state_current_id);
+                $data->module_display_name = $module->display_name;
+                $data->code = $data->code;
+                $data->state_name = $state->name;
+                $data->procedure_modality_name = $procedure->name;
+                $data->procedure_type_name = $type;
+                $data->title = $title;
+                $data->person = $person;
+                $data->location = $wfstate->name;
+                $data->validated = $data->inbox_state;
                 break;
             
             case 3:
@@ -130,10 +160,6 @@ class ProcedureQRController extends Controller
                 $data->person = $person;
                 $data->location = $wfstate->name;
                 $data->validated = $data->inbox_state;
-                break;
-
-            case 2:
-                $data = 'Complemento Económico';
                 break;
 
             default:

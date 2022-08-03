@@ -64,4 +64,8 @@ class QuotaAidBeneficiary extends Model
     {
         return $this->belongsToMany(Testimony::class)->withTimestamps();
     }
+    public function getFullNameAttribute()
+    {
+      return rtrim(preg_replace('/[[:blank:]]+/', ' ', join(' ', [$this->first_name, $this->second_name, $this->last_name, $this->mothers_last_name,$this->surname_husband])));
+    }
 }
