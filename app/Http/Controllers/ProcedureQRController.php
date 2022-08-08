@@ -63,7 +63,7 @@ class ProcedureQRController extends Controller
      * @param Request $request
      * @return void
      */
-    public static function prueba($id,$state){
+    public static function get_porcentage($id,$state){
         if ($state!=90) {
             $flujo=RoleSequence::Where('procedure_type_id',$id)->where('role_id',$state)->first();
             $cant_flujos = count(RoleSequence::where('procedure_type_id',$id)->get())+1;
@@ -116,7 +116,7 @@ class ProcedureQRController extends Controller
                 $data->title = $title;
                 $data->person = $person;
                 $data->location =$role->display_name;
-                $data->porcentage= $this->prueba($RoleSeq,$role->id);
+                $data->porcentage= $this->get_porcentage($RoleSeq,$role->id);
                 break;
 
             case 4:
@@ -139,15 +139,15 @@ class ProcedureQRController extends Controller
                     ]);
                 }
 
-                $wfstate = WfState::find($data->wf_state_current_id);
+                $wfstate = WfState::find($data->wf_state_current_id)->role_id;
+                $role = Role::find($wfstate);
                 $data->module_display_name = $module->display_name;
-                $data->code = $data->code;
                 $data->state_name = $state->name;
                 $data->procedure_modality_name = $procedure->name;
                 $data->procedure_type_name = $type;
                 $data->title = $title;
                 $data->person = $person;
-                $data->location = $wfstate->name;
+                $data->location = $role->display_name;
                 $data->validated = $data->inbox_state;
                 break;
 
@@ -170,16 +170,15 @@ class ProcedureQRController extends Controller
                         'identity_card' => $beneficiary->identity_card,
                     ]);
                 }
-
-                $wfstate = WfState::find($data->wf_state_current_id);
+                $wfstate = WfState::find($data->wf_state_current_id)->role_id;
+                $role = Role::find($wfstate);
                 $data->module_display_name = $module->display_name;
-                $data->code = $data->code;
                 $data->state_name = $state->name;
                 $data->procedure_modality_name = $procedure->name;
                 $data->procedure_type_name = $type;
                 $data->title = $title;
                 $data->person = $person;
-                $data->location = $wfstate->name;
+                $data->location = $role->display_name;
                 $data->validated = $data->inbox_state;
                 break;
 
