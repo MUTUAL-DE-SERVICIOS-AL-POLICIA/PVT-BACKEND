@@ -6,12 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Admin\User;
 use App\Models\Affiliate\Affiliate;
+use App\Models\Affiliate\Breakdown;
 use App\Models\Affiliate\Category;
 use App\Models\Affiliate\Degree;
-use App\Models\Contribution\PayrollCommand;
-use App\Models\Contribution\Contribution;
+use App\Models\Affiliate\Unit;
 use App\Models\Contribution\ContributionRate;
-
 class Contribution extends Model
 {
     use HasFactory;
@@ -63,6 +62,10 @@ class Contribution extends Model
     {
         return $this->belongsTo(Degree::class);
     }
+    public function unit()
+    {
+        return $this->belongsTo(Unit::class);
+    }
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -70,6 +73,10 @@ class Contribution extends Model
     public function contributionable()
     {
         return $this->morphTo();
+    }
+    public function breakdown()
+    {
+        return $this->belongsTo(Breakdown::class);
     }
 
     public static function data_period_command($month_year)
@@ -94,4 +101,5 @@ class Contribution extends Model
     {
         return ContributionRate::whereMonth_year($month_year)->get()->first()? true:false;
     }
+
 }

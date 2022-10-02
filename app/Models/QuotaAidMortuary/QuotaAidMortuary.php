@@ -81,7 +81,7 @@ class QuotaAidMortuary extends Model
     {
         return $this->belongsTo(WfState::class, 'wf_state_current_id', 'id');
     }
-    public function tags()      //revisar
+    public function tags()     
     {
         return $this->morphToMany(Tag::class, 'taggable')->withPivot(['user_id','date'])->withTimestamps();
     }
@@ -93,7 +93,7 @@ class QuotaAidMortuary extends Model
     {
         return $this->hasMany(QuotaAidCorrelative::class);
     }
-    public function wf_records()        //revisar
+    public function wf_records()        
     {
         return $this->morphMany(WfRecord::class, 'recordable');
     }

@@ -939,6 +939,278 @@
                 ]
             }
         },
+        "/api/affiliate/affiliate/{affiliate_id}": {
+            "get": {
+                "tags": [
+                    "AFILIADO"
+                ],
+                "summary": "DETALLE DEL AFILIADO",
+                "operationId": "getAffiliate",
+                "parameters": [
+                    {
+                        "name": "affiliate_id",
+                        "in": "path",
+                        "description": "",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "AFILIADO"
+                ],
+                "summary": "ACTUALIZAR AFILIADO",
+                "description": "Actualizar afiliado",
+                "operationId": "ActualizarAfiliado",
+                "parameters": [
+                    {
+                        "name": "affiliate_id",
+                        "in": "path",
+                        "description": "",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        },
+                        "example": 1
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "first_name": {
+                                        "description": "primer nombre",
+                                        "type": "string",
+                                        "example": "GARY"
+                                    },
+                                    "second_name": {
+                                        "description": "segundo nombre",
+                                        "type": "string",
+                                        "example": ""
+                                    },
+                                    "last_name": {
+                                        "description": "apellido paterno",
+                                        "type": "string",
+                                        "example": "ALVAREZ"
+                                    },
+                                    "mothers_last_name": {
+                                        "description": "apellido materno",
+                                        "type": "string",
+                                        "example": "CURCUY"
+                                    },
+                                    "surname_husband": {
+                                        "description": "apellido de casada",
+                                        "type": "string",
+                                        "example": ""
+                                    },
+                                    "gender": {
+                                        "description": "género",
+                                        "type": "string",
+                                        "example": "M"
+                                    },
+                                    "civil_status": {
+                                        "description": "estado civil",
+                                        "type": "string",
+                                        "example": "C"
+                                    },
+                                    "birth_date": {
+                                        "description": "fecha de nacimiento",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "1944-08-08"
+                                    },
+                                    "city_birth_id": {
+                                        "description": "id de la ciudad de nacimiento",
+                                        "type": "integer",
+                                        "example": 4
+                                    },
+                                    "affiliate_state_id": {
+                                        "description": "estado civil",
+                                        "type": "integer",
+                                        "example": 5
+                                    },
+                                    "date_entry": {
+                                        "description": "Fecha de ingreso a la policía",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2010-07-01"
+                                    },
+                                    "degree_id": {
+                                        "description": "id del grado policial",
+                                        "type": "integer",
+                                        "example": 5
+                                    },
+                                    "unit_id": {
+                                        "description": "id de la unidad de destino",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "unit_police_description": {
+                                        "description": "descripcion de la unidad policial",
+                                        "type": "string",
+                                        "example": ""
+                                    },
+                                    "category_id": {
+                                        "description": "id de la categoría",
+                                        "type": "integer",
+                                        "example": "8"
+                                    },
+                                    "pension_entity_id": {
+                                        "description": "id de la entidad de pensiones",
+                                        "type": "integer",
+                                        "example": "1"
+                                    },
+                                    "date_derelict": {
+                                        "description": "fecha de baja de la policía",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2017-04-01"
+                                    },
+                                    "city_identity_card_id": {
+                                        "description": "id de la ciudad del CI",
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "identity_card": {
+                                        "description": "carnet de identidad",
+                                        "type": "string",
+                                        "example": "1020566"
+                                    },
+                                    "registration": {
+                                        "description": "matrícula",
+                                        "type": "string",
+                                        "example": "440808ACG"
+                                    },
+                                    "date_death": {
+                                        "description": "fecha de fallecimiento",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2022-02-02"
+                                    },
+                                    "reason_death": {
+                                        "description": "causa de fallecimiento",
+                                        "type": "string",
+                                        "example": ""
+                                    },
+                                    "due_date": {
+                                        "description": "fecha de vencimiento del CI",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": ""
+                                    },
+                                    "is_duedate_undefined": {
+                                        "description": "si la fecha de vencimiento de CI es indefinido",
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "nua": {
+                                        "description": "número de NUA",
+                                        "type": "integer",
+                                        "example": 1301101
+                                    },
+                                    "account_number": {
+                                        "description": "número de cuenta del afiliado",
+                                        "type": "integer",
+                                        "example": 10000017711404
+                                    },
+                                    "financial_entity_id": {
+                                        "description": "id de la entidad financiera de la cuenta del afiliado",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "sigep_status": {
+                                        "description": "estado de la cuenta SIGEP",
+                                        "type": "string",
+                                        "example": "ACTIVO"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/affiliate/credential_status/{id}": {
+            "get": {
+                "tags": [
+                    "AFILIADO"
+                ],
+                "summary": "ESTADO DE CREDENCIALES - OFICINA VIRTUAL",
+                "operationId": "getStatus",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/auth/auth_user": {
             "get": {
                 "tags": [

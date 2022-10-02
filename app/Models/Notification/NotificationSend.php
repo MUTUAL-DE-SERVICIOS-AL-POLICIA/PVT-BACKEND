@@ -11,6 +11,7 @@ use App\Models\Admin\User;
 class NotificationSend extends Model
 {
     use HasFactory;
+    protected $guarded = [];
 
     public function number(){
         return $this->belongsTo(NotificationNumber::class);
@@ -22,5 +23,9 @@ class NotificationSend extends Model
     
     public function user(){
         return $this->belongsTo(User::class);
+    }
+
+    public function sendable(){
+        return $this->morphTo();
     }
 }

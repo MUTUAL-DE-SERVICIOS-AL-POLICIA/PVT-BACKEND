@@ -1,6 +1,8 @@
 <?php
 
 namespace App\Helpers;
+
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -70,4 +72,98 @@ class Util
         return "dbname=$dbname_input port=$port_input host=$host_input user=$user_input password=$password_input";
     }
 
+    public static function trim_spaces($string)
+    {
+        return preg_replace('/[[:blank:]]+/', ' ', $string);
+    }
+
+    public static function male_female($gender, $capìtalize = false)
+    {
+        if ($gender) {
+            $ending = strtoupper($gender) == 'M' ? 'o' : 'a';
+        } else {
+            $ending = strtoupper($gender) == 'M' ? 'el' : 'la';
+        }
+        if ($capìtalize) $ending = strtoupper($ending);
+        return $ending;
+    }
+
+    public static function get_civil_status($status, $gender = null)
+    {
+        $status = self::trim_spaces($status);
+        switch ($status) {
+            case 'S':
+            case 's':
+                $status = 'solter';
+                break;
+            case 'D':
+            case 'd':
+                $status = 'divorciad';
+                break;
+            case 'C':
+            case 'c':
+                $status = 'casad';
+                break;
+            case 'V':
+            case 'v':
+                $status = 'viud';
+                break;
+            default:
+                return '';
+                break;
+        }
+        if (is_null($gender) || is_bool($gender) || $gender == '') {
+            $status .= 'o(a)';
+        } else {
+            switch ($gender) {
+                case 'M':
+                case 'm':
+                case 'F':
+                case 'f':
+                    $status .= self::male_female($gender);
+                    break;
+                default:
+                    return '';
+                    break;
+            }
+        }
+        return $status;
+    }
+
+    public static function full_name($object, $style = "uppsercase"){
+        $name = null;
+        switch($style) {
+            case 'uppercase':
+                $name = mb_strtoupper($object->first_name ?? '').' '.mb_strtoupper($object->second_name ?? '').' '.mb_strtoupper($object->last_name ?? '')
+                .' '.mb_strtoupper($object->mothers_last_name ?? '').' '.mb_strtoupper($object->surname_husband ?? '');
+                break;
+            case 'lowercase':
+                $name = mb_strtolower($object->first_name ?? '').' '.mb_strtolower($object->second_name ?? '').' '.mb_strtolower($object->last_name ?? '')
+                .' '.mb_strtolower($object->mothers_last_name ?? '').' '.mb_strtolower($object->surname_husband ?? '');
+                break;
+            case 'capitalize':
+                $name = ucfirst(mb_strtolower($object->first_name ?? '')).' '.ucfirst(mb_strtolower($object->second_name ?? '')).' '.ucfirst(mb_strtolower($object->last_name))
+                .' '.ucfirst(mb_strtolower($object->mothers_last_name)).' '.ucfirst(mb_strtolower($object->surname_husband ?? ''));
+                break;
+        }
+        // $name = self::removeSpaces($name);
+        return $name;
+    }
+    public static function money_format($value, $literal = false)
+    {
+        if ($literal) {
+            $f = new \NumberFormatter('es', \NumberFormatter::SPELLOUT);
+            $data = $f->format(intval($value)) . ' ' . explode('.', number_format(round($value, 2), 2))[1] . '/100';
+            $mil = explode(" ",$data);
+            $mil = $mil[0] == "mil" ? 'un ':"";
+            $data =   $mil.$data;
+        } else {
+            $data = number_format($value, 2, ',', '.');
+        }
+        return $data;
+    }
+    public static function round2($value)
+    {
+        return round($value, 2, PHP_ROUND_HALF_EVEN);
+    }
 }

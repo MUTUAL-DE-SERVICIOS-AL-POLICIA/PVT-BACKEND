@@ -547,7 +547,7 @@ class UserController extends Controller
             $ldap_entries = $ldap->list_entries();
             $users_ldap = array();
             foreach($ldap_entries as $ldap_entry){
-                $entry = Http::get(env('MIX_RRHH_URL').'employee/'.$ldap_entry->employeeNumber)->json();
+                $entry = json_decode(file_get_contents(env("MIX_RRHH_URL")."employee/".$ldap_entry->employeeNumber));
                 $user = User::where('username', $ldap_entry->uid)->first();
                 if(!$user)
                 {
@@ -556,20 +556,20 @@ class UserController extends Controller
                         "first_name" => trim($ldap_entry->givenName),
                         "last_name" => trim($ldap_entry->sn),
                         "position" => trim($ldap_entry->title),
-                        "identity_card" => trim($entry['identity_card']),
-                        "phone" => trim($entry['phone_number'])
+                        "identity_card" => trim($entry->identity_card),
+                        "phone" => trim($entry->phone_number)
                     );
                     array_push($users_ldap,$user);
                 }
-                elseif(User::where('identity_card',$entry['identity_card'])->count() == 0)
+                elseif(User::where('identity_card',$entry->identity_card)->count() == 0)
                 {
                     $user = array(
                         "username" => trim($ldap_entry->uid),
                         "first_name" => trim($ldap_entry->givenName),
                         "last_name" => trim($ldap_entry->sn),
                         "position" => trim($ldap_entry->title),
-                        "identity_card" => trim($entry['identity_card']),
-                        "phone" => trim($entry['phone_number'])
+                        "identity_card" => trim($entry->identity_card),
+                        "phone" => trim($entry->phone_number)
                     );
                     array_push($users_ldap,$user);
                 }
@@ -656,11 +656,11 @@ class UserController extends Controller
             $ldap_entries = $ldap->list_entries();
             $c = 0;
             foreach($ldap_entries as $ldap_entry){
-                $entry = Http::get(env('MIX_RRHH_URL').'employee/'.$ldap_entry->employeeNumber)->json();
+                $entry = json_decode(file_get_contents(env("MIX_RRHH_URL")."employee/".$ldap_entry->employeeNumber));
                 $user = User::where('username', $ldap_entry->uid)->first();
                 if($user)
                 {
-                    $user->identity_card = trim($entry['identity_card']);
+                    $user->identity_card = trim($entry->identity_card);
                     $user->position = trim($ldap_entry->title);
                     $user->save();
                     $c++;

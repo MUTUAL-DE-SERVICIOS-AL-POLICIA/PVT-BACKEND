@@ -32,11 +32,11 @@ class RetFunBeneficiary extends Model
     {
         return $this->belongsToMany(RetFunAdvisor::class,'ret_fun_advisor_beneficiary','ret_fun_beneficiary_id','ret_fun_advisor_id');
     }
-    public function legal_guardian()     //revisar
+    public function legal_guardians()     //revisar
     {
         return $this->belongsToMany(RetFunLegalGuardian::class, 'ret_fun_legal_guardian_beneficiary', 'ret_fun_beneficiary_id', 'ret_fun_legal_guardian_id');
     }
-    public function address()       //revisar
+    public function address()   
     {
         return $this->morphToMany(Address::class, 'addressable')->withTimestamps();
     }

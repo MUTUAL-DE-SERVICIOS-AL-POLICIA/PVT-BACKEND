@@ -41,11 +41,11 @@ class LoanContributionAdjust extends Model
     {
         return $this->belongsTo(Affiliate::class);
     }
-    public function adjustable()    //revisar
+    public function adjustable()    
     {
         return $this->morphTo();
     }
-    public function records()       //revisar
+    public function records()     
     {
         return $this->morphMany(Record::class, 'recordable');
     }

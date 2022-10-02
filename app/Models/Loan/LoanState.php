@@ -14,7 +14,7 @@ class LoanState extends Model
     public $fillable = ['name', 'description'];
 
     public function loans()
-	{
-		return $this->hasMany(Loan::class);
+    {
+        return $this->hasMany(Loan::class, 'state_id', 'id');
     }
 }

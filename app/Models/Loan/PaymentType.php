@@ -9,6 +9,10 @@ use Illuminate\Database\Eloquent\Model;
 class PaymentType extends Model
 {
     use HasFactory;
+    
+    public $timestamps = true;
+    public $fillable = ['name'];
+    public $guarded = ['id'];
 
     public function loans()
     {

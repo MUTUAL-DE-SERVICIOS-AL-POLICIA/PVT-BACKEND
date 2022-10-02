@@ -2,6 +2,7 @@
 
 namespace App\Models\Admin;
 
+use App\Models\Loan\Record;
 use Laratrust\Models\LaratrustRole;
 use Fico7489\Laravel\Pivot\Traits\PivotEventTrait;
 use App\Models\Workflow\WfState;

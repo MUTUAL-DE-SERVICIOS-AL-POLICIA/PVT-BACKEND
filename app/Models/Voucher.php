@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Loan\Record;
+use App\Models\VoucherType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 

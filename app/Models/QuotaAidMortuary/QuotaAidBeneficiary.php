@@ -48,7 +48,7 @@ class QuotaAidBeneficiary extends Model
     {
         return $this->belongsTo(Kinship::class);
     }
-    public function address()     //revisar
+    public function address() 
     {
         return $this->morphToMany(Address::class, 'addressable')->withTimestamps();
     }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Admin\Module;
 use App\Models\Admin\Role;
+use App\Models\Admin\RoleSequence;
 use App\Models\Loan\Loan;
 use App\Models\Loan\LoanBorrower;
 use App\Models\Loan\LoanState;
@@ -19,6 +20,17 @@ use Illuminate\Http\Request;
 
 class ProcedureQRController extends Controller
 {
+    public static function get_porcentage_loan($id,$state){
+        if ($state!=90) {
+            $flow=RoleSequence::Where('procedure_type_id',$id)->where('role_id',$state)->first();
+            $number_flows = count(RoleSequence::where('procedure_type_id',$id)->get())+1;
+            $porcentage=(100*$flow->sequence_number_flow)/$number_flows;
+        }
+        else {
+            $porcentage=100;
+        }
+        return $porcentage;
+    }
  /**
      * @OA\Get(
      *     path="/api/global/procedure_qr/{module_id}/{uuid}",
@@ -30,7 +42,7 @@ class ProcedureQRController extends Controller
      *         in="path",
      *         description="",
      *         example=6,
-     * 
+     *
      *         required=true,
      *         @OA\Schema(
      *             type="integer",
@@ -44,7 +56,7 @@ class ProcedureQRController extends Controller
      *         example="cc2f6a58-9ea8-46f3-94df-c3e61aa3bbcc",
      *         required=true,
      *       ),
-     * 
+     *
      *     @OA\Response(
      *         response=200,
      *         description="Success",
@@ -59,8 +71,9 @@ class ProcedureQRController extends Controller
      * @param Request $request
      * @return void
      */
+
     public function procedure_qr(Request $request,$module_id,$uuid)
-    {   
+    {
         $request['module_id'] = $module_id;
         $request['uuid'] = $uuid;
         $request->validate([
@@ -79,23 +92,24 @@ class ProcedureQRController extends Controller
                 $procedure = ProcedureModality::find($data->procedure_modality_id);
                 $type = Loan::find($data->id)->modality->procedure_type->name;
                 $title = "Prestatario(a)";
-                
+
                 $borrower = LoanBorrower::where('loan_id',$data->id)->first();
 
                     $person->push([
                         'full_name' => $borrower->fullName,
-                        'identity_card' => $borrower->identity_card,                     
-                    ]);  
+                        'identity_card' => $borrower->identity_card,
+                    ]);
 
                 $role = Role::find($data->role_id);
+                $RoleSeq=Loan::find($data->id)->modality->procedure_type->id;
                 $data->module_display_name = $module->display_name;
-                $data->code = $data->code;
                 $data->state_name = $state->name;
                 $data->procedure_modality_name = $procedure->name;
                 $data->procedure_type_name = $type;
                 $data->title = $title;
                 $data->person = $person;
                 $data->location =$role->display_name;
+                $data->porcentage= $this->get_porcentage_loan($RoleSeq,$role->id);
                 break;
 
             case 4:
@@ -114,22 +128,24 @@ class ProcedureQRController extends Controller
                 foreach($beneficiaries as $beneficiary){
                     $person->push([
                         'full_name' => $beneficiary->fullName,
-                        'identity_card' => $beneficiary->identity_card,                     
-                    ]);  
+                        'identity_card' => $beneficiary->identity_card,
+                    ]);
                 }
 
-                $wfstate = WfState::find($data->wf_state_current_id);
+                $wfstate = WfState::find($data->wf_state_current_id)->role_id;
+                $wfseq = WfState::find($data->wf_state_current_id)->sequence_number;
+                $role = Role::find($wfstate);
                 $data->module_display_name = $module->display_name;
-                $data->code = $data->code;
                 $data->state_name = $state->name;
                 $data->procedure_modality_name = $procedure->name;
                 $data->procedure_type_name = $type;
                 $data->title = $title;
                 $data->person = $person;
-                $data->location = $wfstate->name;
+                $data->location = $role->display_name;
                 $data->validated = $data->inbox_state;
+                $data->porcentage = $this->getPercentage($module_id, $wfseq);
                 break;
-            
+
             case 3:
                 $request->validate([
                     'uuid' => 'required|uuid|exists:retirement_funds,uuid'
@@ -146,20 +162,21 @@ class ProcedureQRController extends Controller
                 foreach($beneficiaries as $beneficiary){
                     $person->push([
                         'full_name' => $beneficiary->fullName,
-                        'identity_card' => $beneficiary->identity_card,                     
-                    ]);  
+                        'identity_card' => $beneficiary->identity_card,
+                    ]);
                 }
-
-                $wfstate = WfState::find($data->wf_state_current_id);
+                $wfstate = WfState::find($data->wf_state_current_id)->role_id;
+                $wfseq = WfState::find($data->wf_state_current_id)->sequence_number;
+                $role = Role::find($wfstate);
                 $data->module_display_name = $module->display_name;
-                $data->code = $data->code;
                 $data->state_name = $state->name;
                 $data->procedure_modality_name = $procedure->name;
                 $data->procedure_type_name = $type;
                 $data->title = $title;
                 $data->person = $person;
-                $data->location = $wfstate->name;
+                $data->location = $role->display_name;
                 $data->validated = $data->inbox_state;
+                $data->porcentage = $this->getPercentage($module_id, $wfseq);
                 break;
 
             default:
@@ -176,10 +193,20 @@ class ProcedureQRController extends Controller
                 'procedure_modality_name' => $data->procedure_modality_name,
                 'procedure_type_name' => $data->procedure_type_name,
                 'location' => $data->location,
-                'validated' => $data-> validated,
-                'state_name' => $data->state_name
+                'validated' => $data->validated,
+                'state_name' => $data->state_name,
+                'porcentage' => $data->porcentage
             ],
         ]);
     }
- 
+
+    public function getPercentage($module_id, $wfseq)
+    {
+        $list = WfState::where('module_id', $module_id)
+            ->where('sequence_number', '<>', 0)
+            ->get();
+        $count = $list->count() - 1;
+        $percentage = round((100 * $wfseq) / $count);
+        return $percentage;
+    }
 }

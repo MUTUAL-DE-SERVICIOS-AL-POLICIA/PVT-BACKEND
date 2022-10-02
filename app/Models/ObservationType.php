@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Admin\Module;
+use App\Models\EconomicComplement\EconomicComplement;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -13,5 +14,9 @@ class ObservationType extends Model
     public function module()
     {
         return $this->belongsTo(Module::class);
+    }
+
+    public function economic_complements() {
+        return $this->morphedByMany(EconomicComplement::class, 'observable');
     }
 }

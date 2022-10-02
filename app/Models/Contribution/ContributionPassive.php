@@ -2,12 +2,10 @@
 
 namespace App\Models\Contribution;
 
+use App\Models\Affiliate\Affiliate;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User;
-use App\Models\Contribution\PayrollSenasir;
-use App\Models\Contribution\ContributionPassive;
-
 class ContributionPassive extends Model
 {
     use HasFactory;
@@ -23,25 +21,27 @@ class ContributionPassive extends Model
         'dignity_rent',
         'interest',
         'total',
-        'affiliate_contribution',
-        'mortuary_aid',
         'affiliate_rent_class',
         'contribution_state_id',
         'contributionable_type',
         'contributionable_id'
-
     ];
+    
     public function affiliate()
     {
-        //return $this->belongsTo(Affiliate::class);
+        return $this->belongsTo(Affiliate::class);
     }
-
-    public function user(){
+    public function user()
+    {
         return $this->hasOne(User::class,'id','user_id');
     }
     public function contributionable()
     {
         return $this->morphTo();
+    }
+    public function contribution_state()
+    {
+        return $this->belongsTo(ContributionState::class);
     }
 
     public static function data_period_senasir($month_year)

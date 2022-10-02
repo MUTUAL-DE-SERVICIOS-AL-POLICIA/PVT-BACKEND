@@ -16,7 +16,7 @@ class RetFunObservation extends Model
     {
         return $this->belongsTo(User::class);
     }
-    public function ret_fun()   //revisar
+    public function ret_fun()  
     {
         return $this->belongsTo(RetirementFund::class,'retirement_fund_id','id');
     }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Admin\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -17,5 +18,9 @@ class Note extends Model
     public function annotable()
     {
         return $this->morphTo();
+    }
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\Procedure\ProcedureType;
 use App\Models\Workflow\Workflow;
 use App\Models\Workflow\WfState;
+use App\Models\ObservationType;
 
 class Module extends Model
 {
@@ -32,5 +33,9 @@ class Module extends Model
 	{
 		return $this->hasMany(WfState::class);
     }    
+    public function observation_types()
+    {
+        return $this->hasMany(ObservationType::class);
+    }
 
 }

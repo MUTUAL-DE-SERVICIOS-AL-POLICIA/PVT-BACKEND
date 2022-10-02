@@ -2,20 +2,24 @@
 
 namespace App\Models\Loan;
 
+use App\Helpers\Util;
 use App\Models\Admin\Role;
 use App\Models\Affiliate\Affiliate;
 use App\Models\City;
 use App\Models\FinancialEntity;
+use App\Models\Note;
+use App\Models\Observation;
 use App\Models\PersonalReference;
 use App\Models\Procedure\ProcedureDocument;
 use App\Models\Procedure\ProcedureModality;
 use App\Models\Tag;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Loan extends Model
 {
-    use HasFactory;
+    use SoftDeletes;
 
     protected $dates = [
         'request_date'
@@ -69,11 +73,11 @@ class Loan extends Model
     {
         return $this->belongsTo(LoanProperty::class, 'property_id','id');
     }
-    public function notes()     //revisar
+    public function notes()
     {
         return $this->morphMany(Note::class, 'annotable');
     }
-    public function tags()      //revisar
+    public function tags()
     {
         return $this->morphToMany(Tag::class, 'taggable')->withPivot('user_id', 'date')->withTimestamps();
     }
@@ -83,7 +87,7 @@ class Loan extends Model
     }
     public function state()
     {
-      return $this->belongsTo(LoanState::class, 'state_id','id'); 
+      return $this->belongsTo(LoanState::class, 'state_id','id');
     }
     public function city()
     {
@@ -139,7 +143,7 @@ class Loan extends Model
     }
     public function observations()
     {
-        return $this->morphMany(Observation::class, 'observable')->latest('updated_at');
+        return $this->morphMany(Observation::class, 'observable');
     }
     public function disbursable()
     {
@@ -156,6 +160,15 @@ class Loan extends Model
     public function loan_guarantee_registers()
     {
         return $this->hasMany(LoanGuaranteeRegister::class);
+    }
+    public function borrower(){
+        return $this->hasOne(LoanBorrower::class);
+    }
+    public function getEstimatedQuotaAttribute()
+    {
+        $monthly_interest = $this->interest->monthly_current_interest;
+        unset($this->interest);
+        return Util::round2($monthly_interest * $this->amount_approved / (1 - 1 / pow((1 + $monthly_interest), $this->loan_term)));
     }
 
 }
