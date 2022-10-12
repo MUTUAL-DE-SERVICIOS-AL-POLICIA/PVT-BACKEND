@@ -16,6 +16,7 @@ use App\Models\Affiliate\AffiliateToken;
 use App\Models\City;
 use App\Models\Contribution\PayrollCommand;
 use App\Models\Observation;
+use App\Models\Notification\NotificationSend;
 
 class Affiliate extends Model
 {
@@ -153,5 +154,9 @@ class Affiliate extends Model
             $data .= ' ' . $this->city_identity_card->first_shortened;
         }
         return rtrim($data);
+    }
+    
+    public function sends() {
+        return $this->morphMany(NotificationSend::class, 'sendable');
     }
 }

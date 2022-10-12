@@ -16,10 +16,6 @@ class NotificationCarrier extends Model
     }
 
     public function send() {
-        return $this->hasOne(NotificationSend::class);
-    }
-
-    public function sends(){
-        return $this->morphMany(NotificationSend::class, 'sendable');
+        return $this->hasMany(NotificationSend::class, 'carrier_id');
     }
 }

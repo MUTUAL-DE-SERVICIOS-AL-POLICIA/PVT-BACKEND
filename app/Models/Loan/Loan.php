@@ -16,6 +16,7 @@ use App\Models\Tag;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Notification\NotificationSend;
 
 class Loan extends Model
 {
@@ -169,6 +170,10 @@ class Loan extends Model
         $monthly_interest = $this->interest->monthly_current_interest;
         unset($this->interest);
         return Util::round2($monthly_interest * $this->amount_approved / (1 - 1 / pow((1 + $monthly_interest), $this->loan_term)));
+    }
+
+    public function sends() {
+        return $this->morphMany(NotificationSend::class, 'sendable');
     }
 
 }

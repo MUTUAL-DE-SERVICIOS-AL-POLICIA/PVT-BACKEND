@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Affiliate\Affiliate;
 use App\Models\ObservationType;
+use App\Models\Notification\NotificationSend;
 
 class EconomicComplement extends Model
 {
@@ -35,4 +36,7 @@ class EconomicComplement extends Model
         return $this->belongsTo(EcoComState::class);
     }
 
+    public function sends() {
+        return $this->morphMany(NotificationSend::class, 'sendable');
+    }
 }
