@@ -138,7 +138,7 @@ class AffiliateUserController extends Controller
             if ($state=='Pendiente') {
                 if (Hash::check($request->password,$password)) {
                     return response()->json([
-                        "error"=> 'false',
+                        "error"=> false,
                         'message' => 'Acceso Correcto cambie la password',
                         'data'=> [
                             'status'=> $state
@@ -147,7 +147,7 @@ class AffiliateUserController extends Controller
                 }
                 else {
                     return response()->json([
-                        "error"=> 'true',
+                        "error"=> true,
                         'message' => 'El pin es incorrecto',
                         'data'=> [
                             'status'=> $state
@@ -163,21 +163,29 @@ class AffiliateUserController extends Controller
                 $token=$AffiliateToken;
                 $AffiliateToken->firebase_token=$request->firebase_token;
                 $AffiliateToken->save();
+                $affiliate=Affiliate::where('identity_card',$request->username)->first();
                 return response()->json(
                     [
-                        "error"=> 'false',
+                        'error' => false,
                         'message' => 'Acceso Correcto',
                         'data'=> [
-                            'user'=>$token,
-                            'status'=> $state
-                        ]
-                        ]
+                            'api_token'=>$token->api_token,
+                            'status'=> $state,
+                            "user"=> [
+                                "id" => $affiliate->id,
+                                "full_name"=> $affiliate->FullName,
+                                "degree"=> $affiliate->degree->name,
+                                "identity_card"=> $affiliate->identity_card,
+                                "category"=> $affiliate->category->name,
+                            ],
+                        ],
+                    ]
                     );
                 }
 
                 else {
                     return response()->json([
-                        "error"=> 'true',
+                        "error"=> true,
                         'message' => 'El password es incorrecto',
                         'data'=> [
                             'status'=> $state
@@ -188,7 +196,7 @@ class AffiliateUserController extends Controller
         }
         else{
             return response()->json([
-                "error"=> 'true',
+                "error"=> true,
                 'message' => 'El username es incorrecto',
                 'data'=> [
 
@@ -214,7 +222,6 @@ class AffiliateUserController extends Controller
             $AffiliateUser->save();
             $AffiliateToken=AffiliateToken::find($AffiliateUser->affiliate_token_id);
             $AffiliateToken->api_token=Hash::make($request->device_id);
-            $AffiliateToken->firebase_token=$request->firebase_token;
             $AffiliateToken->save();
             return response()->json(
                 [

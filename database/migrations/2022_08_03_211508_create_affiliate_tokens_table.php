@@ -14,13 +14,12 @@ return new class extends Migration
     public function up()
     {
         Schema::create('affiliate_tokens', function (Blueprint $table) {
-            $table->id()->comment('id affiliate tokens');
-            $table->timestamps();
+            $table->bigIncrements('id')->comment('id affiliate tokens');
             $table->bigInteger('affiliate_id');
             $table->foreign('affiliate_id')->references('id')->on('affiliates')->comment('llave foranea de affiliates');
-            $table->string('api_token', 80)->unique()->nullable()->default(null)->comment('token para la aplicacion');
-            $table->string('device_id')->unique()->nullable()->comment('Id del dispositivo vinculado');
-            $table->string('firebase_token', 80)->unique()->nullable()->default(null)->comment('token generado en firebase');
+            $table->string('api_token')->unique()->nullable()->default(null)->comment('token para la aplicacion');
+            $table->string('firebase_token')->nullable()->default(null)->comment('token generado en firebase');
+            $table->timestamps();
         });
     }
 
