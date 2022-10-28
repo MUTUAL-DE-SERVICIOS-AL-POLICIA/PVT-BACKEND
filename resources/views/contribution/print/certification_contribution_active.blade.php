@@ -35,7 +35,7 @@
                     <th class="data-row py-2">AÑO</th>
                     <th class="data-row py-2">MES</th>
                     <th class="data-row py-2">AP. FONDO DE RETIRO</th>
-                    <th class="data-row py-2">AP. QUOTA MORTUORIA</th>
+                    <th class="data-row py-2">AP. CUOTA MORTUORIA</th>
                     <th class="data-row py-2">TOTAL COTIZABLE</td>
                     <th class="data-row py-2">APORTE</td>
                 </tr>

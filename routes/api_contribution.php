@@ -14,6 +14,7 @@ Route::group([
         'middleware' => ['auth:sanctum']
     ], function () {
         Route::get('/list_years', [App\Http\Controllers\Contribution\ImportationController::class, 'list_years']);
+        Route::apiResource('/contribution', App\Http\Controllers\Contribution\ContributionController::class)->only(['index','show']);
 
         Route::group([
             'middleware' => 'permission:read-import-payroll|create-import-payroll-senasir|create-import-payroll-command'
