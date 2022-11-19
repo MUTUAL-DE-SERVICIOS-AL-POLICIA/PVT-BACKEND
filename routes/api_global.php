@@ -15,6 +15,7 @@ Route::group([
         'middleware' => ['auth:sanctum']
     ], function () {
         Route::apiResource('city', App\Http\Controllers\CityController::class)->only(['index', 'show']);
+        Route::apiResource('financial_entity', App\Http\Controllers\FinancialEntityController::class)->only(['index', 'show']);
     });
 });
 

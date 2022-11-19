@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests\Affiliate;
 
+use BinaryCats\Sanitizer\Laravel\SanitizesInput;
 use Illuminate\Foundation\Http\FormRequest;
 
 class AddressRequest extends FormRequest
 {
+    use SanitizesInput;
+
     /**
      * Determine if the user is authorized to make this request.
      *
@@ -17,9 +20,9 @@ class AddressRequest extends FormRequest
     }
 
     /**
-     * Get the validation rules that apply to the request.
+     *  Validation rules to be applied to the input.
      *
-     * @return array<string, mixed>
+     *  @return array
      */
     public function rules()
     {
@@ -42,6 +45,12 @@ class AddressRequest extends FormRequest
                 }
         }
     }
+
+    /**
+     *  Filters to be applied to the input.
+     *
+     *  @return array
+     */
     public function filters()
     {
         return [

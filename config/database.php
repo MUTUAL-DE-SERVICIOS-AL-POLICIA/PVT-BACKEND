@@ -85,7 +85,14 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
         ],
-
+        'mysql' => [
+            'driver' => 'mysql',
+            'host' => env('DB_HOST_MYSQL', 'localhost'),
+            'port' => env('DB_PORT_MYSQL', '3306'),
+            'database' => env('DB_DATABASE_MYSQL', 'goip'),
+            'username' => env('DB_USERNAME_MYSQL', 'goip'),
+            'password' => env('DB_PASSWORD_MYSQL', 'goip'),
+        ],
     ],
 
     /*

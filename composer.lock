@@ -140,6 +140,70 @@
             "time": "2022-07-06T11:12:10+00:00"
         },
         {
+            "name": "binary-cats/sanitizer",
+            "version": "9.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/binary-cats/sanitizer.git",
+                "reference": "1e15f5980786a0eb8eb32fb888a45dabdea71f71"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/binary-cats/sanitizer/zipball/1e15f5980786a0eb8eb32fb888a45dabdea71f71",
+                "reference": "1e15f5980786a0eb8eb32fb888a45dabdea71f71",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/support": "^8.0|^9.0",
+                "illuminate/validation": "^8.0|^9.0",
+                "nesbot/carbon": "^2.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "BinaryCats\\Sanitizer\\Laravel\\SanitizerServiceProvider"
+                    ],
+                    "aliases": {
+                        "Sanitizer": "BinaryCats\\Sanitizer\\Laravel\\Facade"
+                    }
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "BinaryCats\\Sanitizer\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Cyrill Kalita",
+                    "email": "cyrill.kalita@gmail.com"
+                }
+            ],
+            "description": "Data sanitizer and Laravel form requests with input sanitation.",
+            "keywords": [
+                "binary cats",
+                "input",
+                "input filter",
+                "input sanitation",
+                "input sanitizer",
+                "laravel",
+                "sanitation",
+                "transform input"
+            ],
+            "support": {
+                "source": "https://github.com/binary-cats/sanitizer/tree/9.0.0"
+            },
+            "time": "2022-01-18T20:33:46+00:00"
+        },
+        {
             "name": "brick/math",
             "version": "0.10.2",
             "source": {

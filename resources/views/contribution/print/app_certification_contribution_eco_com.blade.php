@@ -27,9 +27,7 @@
 
         @if ($value)
             <div>
-                <p class="font-bold">
-                    DATOS DEL(A) VIUDO(A)
-                </p>
+                <p class="font-bold">DATOS DEL(A) VIUDO(A)</p>
                 @include('spouse.spouse_info')
             </div>
         @endif
@@ -92,7 +90,7 @@
     </div>
     <br>
     <div>
-        @include('partials.signature_footer')
+        @include('partials.footer_app', $header)
     </div>
 </body>
 

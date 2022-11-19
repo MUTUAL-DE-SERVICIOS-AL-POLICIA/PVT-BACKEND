@@ -7,6 +7,7 @@
     "require": {
         "php": "^7.3|^8.1",
         "barryvdh/laravel-dompdf": "^2.0",
+        "binary-cats/sanitizer": "^9.0",
         "darkaonline/l5-swagger": "^8.0",
         "directorytree/ldaprecord": "^2.8",
         "fruitcake/laravel-cors": "^2.0",

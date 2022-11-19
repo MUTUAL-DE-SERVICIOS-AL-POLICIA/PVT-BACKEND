@@ -175,6 +175,16 @@ class Loan extends Model
         }
         return $data;
     }
+    public function getBalanceAttribute()
+    {
+       $balance = $this->amount_approved;
+        $loan_states = LoanPaymentState::where('name', 'Pagado')->orWhere('name', 'Pendiente por confirmar')->get();
+        if ($this->payments()->count() > 0) {
+            $balance -= $this->payments()->where('state_id', $loan_states->first()->id)->sum('capital_payment');
+            $balance -= $this->payments()->where('state_id', $loan_states->last()->id)->sum('capital_payment');
+        }
+        return Util::round($balance);
+    }
     public function getEstimatedQuotaAttribute()
     {
         $monthly_interest = $this->interest->monthly_current_interest;

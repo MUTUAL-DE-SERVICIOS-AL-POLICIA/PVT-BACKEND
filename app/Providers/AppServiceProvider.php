@@ -54,7 +54,6 @@ class AppServiceProvider extends ServiceProvider
             'vouchers' => 'App\Models\Voucher',
             'aid_contributions' => 'App\Models\Contribution\AidContribution',
             'loan_contribution_adjusts' => 'App\Models\Loan\LoanContributionAdjust',
-
             'retirement_funds' => 'App\Models\RetirementFund\RetirementFund',
             'quota_aid_mortuaries' => 'App\Models\QuotaAidMortuary\QuotaAidMortuary',
             'contribution_processes' => 'App\Models\Contribution\ContributionProcess',

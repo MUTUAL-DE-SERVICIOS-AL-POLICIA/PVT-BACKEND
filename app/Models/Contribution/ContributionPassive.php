@@ -24,7 +24,13 @@ class ContributionPassive extends Model
         'affiliate_rent_class',
         'contribution_state_id',
         'contributionable_type',
-        'contributionable_id'
+        'contributionable_id',
+        'aps_total_cc',
+        'aps_total_fsa',
+        'aps_total_fs',
+        'aps_total_death',
+        'aps_disability',
+        'aps_reimbursement'
     ];
     
     public function affiliate()

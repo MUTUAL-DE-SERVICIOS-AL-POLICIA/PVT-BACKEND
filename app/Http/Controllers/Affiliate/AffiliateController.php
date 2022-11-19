@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Models\Affiliate\Affiliate;
 use App\Models\Affiliate\AffiliateToken;
 use App\Models\Affiliate\AffiliateUser;
+use App\Models\Affiliate\Spouse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -319,7 +320,7 @@ class AffiliateController extends Controller
     public function update(AffiliateRequest $request, $id)
     {
         if (!Auth::user()->can('update-affiliate-primary')) {
-            $update = $request->except('first_name', 'second_name', 'last_name', 'mothers_last_name', 'surname_husband', 'identity_card');
+            $update = $request->except('first_name', 'second_name', 'last_name', 'mothers_last_name', 'surname_husband', 'identity_card','category_id','degree_id','affiliate_state_id');
         } else {
             $update = $request->all();
         }
@@ -391,7 +392,7 @@ class AffiliateController extends Controller
     {
         return $affiliate->addresses;
     }
-     /**
+    /**
      * @OA\Patch(
      *      path="/api/affiliate/affiliate/{affiliate}/address",
      *      tags={"AFILIADO"},
@@ -496,19 +497,111 @@ class AffiliateController extends Controller
             'id' => 'required|integer|exists:affiliates,id'
         ]);
 
-        $data = Affiliate::find($id);
         $affiliate_token = AffiliateToken::whereAffiliateId($id)->first();
+        $affiliate = Affiliate::find($id);
         if (isset($affiliate_token)) {
-
             $affiliate_user = AffiliateUser::where('affiliate_token_id', $affiliate_token->id)->first();
             if ($affiliate_user == NULL) {
-                $access = "No asignadas";
+                $access_status = "No asignadas";
+                $account_type = null;
+                $created_at = null;
+                $updated_at = null;
             } else {
-                $access = $affiliate_user->access_status;
+                $access_status = $affiliate_user->access_status;
+                $account_type = ($affiliate_user->username == $affiliate->identity_card) ? 'Titular' : 'Viudedad';
+                $created_at = $affiliate_user->created_at;
+                $updated_at = $affiliate_user->updated_at;
             }
         } else {
-            $access = "No asignadas";
+            $access_status = "No asignadas";
+            $account_type = null;
+            $created_at = null;
+            $updated_at = null;
         }
-        return $data->access_status = $access;
+        return [
+            'access_status' => $access_status,
+            'account_type' => $account_type,
+            'created_at' => $created_at,
+            'updated_at' => $updated_at
+        ];
+    }
+    /**
+     * @OA\Get(
+     *     path="/api/affiliate/affiliate_record/{affiliate}",
+     *     tags={"AFILIADO"},
+     *     summary="RECORDS",
+     *     operationId="getRecord",
+     * @OA\Parameter(
+     *         name="affiliate",
+     *         in="path",
+     *         description="",
+     *         required=true,
+     *         example=1,
+     *         @OA\Schema(
+     *             type="integer",
+     *             format = "int64"
+     *         )
+     *       ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Success",
+     *         @OA\JsonContent(
+     *         type="object"
+     *         )
+     *     ),
+     *     security={
+     *         {"bearerAuth": {}}
+     *     }
+     * )
+     *
+     * Get status of virtual office.
+     *
+     * @param Request $request
+     * @return void
+     */
+    public function get_record(Affiliate $affiliate)
+    {
+        $affiliate_records = $affiliate->affiliate_records_pvt()->with(['user:id,username'])->orderByDesc('created_at')->get();
+        $records = $affiliate->records()->with(['user:id,username'])->get();
+        $affiliate_activities = $affiliate->activities()->with('user:id,username')->orderByDesc('created_at')->get();
+        return compact('affiliate_records','records','affiliate_activities');
+    }
+    /**
+     * @OA\Get(
+     *     path="/api/affiliate/affiliate/{affiliate}/spouse",
+     *     tags={"AFILIADO"},
+     *     summary="CONYUGUE DE AFILIADO",
+     *     operationId="getSpouse",
+     *     description="Obtener datos conyugue",
+     * @OA\Parameter(
+     *         name="affiliate",
+     *         in="path",
+     *         description="",
+     *         required=true,
+     *         example=1,
+     *         @OA\Schema(
+     *             type="integer",
+     *             format = "int64"
+     *         )
+     *       ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Success",
+     *         @OA\JsonContent(
+     *         type="object"
+     *         )
+     *     ),
+     *     security={
+     *         {"bearerAuth": {}}
+     *     }
+     * )
+     *
+     * Get status of virtual office.
+     *
+     * @param Request $request
+     * @return void
+    */
+    public function get_spouse(Affiliate $affiliate) {
+        return response()->json($affiliate->spouse);
     }
 }

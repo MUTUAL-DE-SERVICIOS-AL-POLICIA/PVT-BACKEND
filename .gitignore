@@ -16,6 +16,7 @@
 /laradock
 /app/storage/
 /resources/docs/
+/storage/api-docs/api-docs.json
 .env
 .phpunit.result.cache
 yarn-error.log

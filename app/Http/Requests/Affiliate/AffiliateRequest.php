@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests\Affiliate;
 
+use BinaryCats\Sanitizer\Laravel\SanitizesInput;
 use Illuminate\Foundation\Http\FormRequest;
 
 class AffiliateRequest extends FormRequest
 {
+    use SanitizesInput;
+    
     /**
      * Determine if the user is authorized to make this request.
      *
@@ -67,22 +70,63 @@ class AffiliateRequest extends FormRequest
         }
         return $rules;
     }
-    public function filters()
+    protected function prepareForValidation()
     {
-        return [
-            'first_name' => 'trim|uppercase',
-            'second_name' => 'trim|uppercase',
-            'last_name' => 'trim|uppercase',
-            'mothers_last_name' => 'trim|uppercase',
-            'reason_death' => 'trim|uppercase',
-            'identity_card' => 'trim|uppercase',
-            'surname_husband' => 'trim|uppercase',
-            'gender' => 'trim|uppercase',
-            'civil_status' => 'trim|uppercase',
-            'sigep_status' => 'trim|uppercase',
-            'cell_phone_number' => 'cast:string',
-            'unit_police_description' => 'trim|uppercase'
-        ];
+        if (isset($this->first_name)) {
+            $this->merge([
+                'first_name' => trim(mb_strtoupper($this->first_name)),
+            ]);
+        }
+        if (isset($this->second_name)) {
+            $this->merge([
+                'second_name' => trim(mb_strtoupper($this->second_name)),
+            ]);
+        }
+        if (isset($this->last_name)) {
+            $this->merge([
+                'last_name' => trim(mb_strtoupper($this->last_name)),
+            ]);
+        }
+        if (isset($this->mothers_last_name)) {
+            $this->merge([
+                'mothers_last_name' => trim(mb_strtoupper($this->mothers_last_name)),
+            ]);
+        }
+        if (isset($this->reason_death)) {
+            $this->merge([
+                'reason_death' => trim(mb_strtoupper($this->reason_death)),
+            ]);
+        }
+        if (isset($this->identity_card)) {
+            $this->merge([
+                'identity_card' => trim(mb_strtoupper($this->identity_card)),
+            ]);
+        }
+        if (isset($this->surname_husband)) {
+            $this->merge([
+                'surname_husband' => trim(mb_strtoupper($this->surname_husband)),
+            ]);
+        }
+        if (isset($this->gender)) {
+            $this->merge([
+                'gender' => trim(mb_strtoupper($this->gender)),
+            ]);
+        }
+        if (isset($this->civil_status)) {
+            $this->merge([
+                'civil_status' => trim(mb_strtoupper($this->civil_status)),
+            ]);
+        }
+        if (isset($this->sigep_status)) {
+            $this->merge([
+                'sigep_status' => trim(mb_strtoupper($this->sigep_status)),
+            ]);
+        }
+        if (isset($this->unit_police_description)) {
+            $this->merge([
+                'unit_police_description' => trim(mb_strtoupper($this->unit_police_description)),
+            ]);
+        }
     }
 
     public function messages()

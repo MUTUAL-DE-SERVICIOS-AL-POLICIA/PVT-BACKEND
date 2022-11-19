@@ -34,9 +34,9 @@
                     <th class="data-row py-2">N°</th>
                     <th class="data-row py-2">AÑO</th>
                     <th class="data-row py-2">MES</th>
-                    <th class="data-row py-2">AP. FONDO DE RETIRO</th>
-                    <th class="data-row py-2">AP. QUOTA MORTUORIA</th>
                     <th class="data-row py-2">TOTAL COTIZABLE</td>
+                    <th class="data-row py-2">AP. FONDO DE RETIRO</th>
+                    <th class="data-row py-2">AP. CUOTA MORTUORIA</th>
                     <th class="data-row py-2">APORTE</td>
                 </tr>
             </thead>
@@ -46,25 +46,25 @@
                         <td class="data-row py-2">{{ $num = $num + 1 }}</td>
                         <td class="data-row py-2">{{ date('Y', strtotime($contribution->month_year)) }}</td>
                         <td class="data-row py-2">{{ date('m', strtotime($contribution->month_year)) }}</td>
+                        <td class="data-row py-2">{{ Util::money_format($contribution->quotable) }}</td>
                         <td class="data-row py-2">{{ Util::money_format($contribution->retirement_fund) }}</td>
                         <td class="data-row py-2">{{ Util::money_format($contribution->mortuary_quota) }}</td>
-                        <td class="data-row py-2">{{ Util::money_format($contribution->quotable) }}</td>
                         <td class="data-row py-2">{{ Util::money_format($contribution->total) }}</td>
                     </tr>
                     @foreach ($reimbursements as $reimbursement)
                         @if ($contribution->month_year == $reimbursement->month_year)
-                        <tr>
-                            <td class="data-row py-2"></td>
-                            <td class="data-row py-2">Ri</td>
-                            <td class="data-row py-2">{{ date('m', strtotime($reimbursement->month_year)) }}</td>                            
-                            <td class="data-row py-2">{{ Util::money_format($reimbursement->retirement_fund) }}</td>
-                            <td class="data-row py-2">{{ Util::money_format($reimbursement->mortuary_quota) }}</td>
-                            <td class="data-row py-2">{{ Util::money_format($reimbursement->quotable) }}</td>
-                            <td class="data-row py-2">{{ Util::money_format($reimbursement->total) }}</td>                            
-                        </tr>
+                            <tr>
+                                <td class="data-row py-2"></td>
+                                <td class="data-row py-2">Ri</td>
+                                <td class="data-row py-2">{{ date('m', strtotime($reimbursement->month_year)) }}</td>
+                                <td class="data-row py-2">{{ Util::money_format($reimbursement->quotable) }}</td>
+                                <td class="data-row py-2">{{ Util::money_format($reimbursement->retirement_fund) }}
+                                </td>
+                                <td class="data-row py-2">{{ Util::money_format($reimbursement->mortuary_quota) }}</td>
+                                <td class="data-row py-2">{{ Util::money_format($reimbursement->total) }}</td>
+                            </tr>
                         @endif
                     @endforeach
-
                 @endforeach
             </tbody>
         </table>
@@ -76,9 +76,9 @@
                 <tr class="bg-grey-darker text-xxs text-white">
                     <th class="w-10 text-justify">
                         <p>NOTA: Toda vez que, la presente certificación detalla información referencial
-                            respecto a los aportes para el beneficio del Auxulio Mortuorio, se requiere al solicitante
-                            efectuar la verificación correspondiente de los datos, a fin de no existir reclamos
-                            posteriores.</p>
+                            respecto a los aportes para los beneficios del Fondo de Retiro y Cuota Mortuoria,
+                            se requiere al solicitante efectuar la verificación correspondiente de los datos,
+                            a fin de no existir reclamos posteriores.</p>
                     </th>
                 </tr>
             </thead>
@@ -95,7 +95,7 @@
     </div>
     <br>
     <div>
-        @include('partials.footer_app', $header)
+        @include('partials.signature_footer')
     </div>
 </body>
 

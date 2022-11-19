@@ -177,12 +177,16 @@ return [
         // App\Providers\BroadcastServiceProvider::class,
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
-
+        App\Providers\AffiliateModelServiceProvider::class,
+        App\Providers\AffiliateUserModelServiceProvider::class,
+        App\Providers\SpouseModelServiceProvider::class,
         //libreria para generar PDF
         // Barryvdh\DomPDF\ServiceProvider::class,
         Barryvdh\DomPDF\ServiceProvider::class,
         // Barcode
         Milon\Barcode\BarcodeServiceProvider::class,
+        // Sanitizer
+        BinaryCats\Sanitizer\Laravel\SanitizerServiceProvider::class,
     ],
 
     /*
@@ -247,6 +251,8 @@ return [
         // Barcode
         'DNS1D' => Milon\Barcode\Facades\DNS1DFacade::class,
         'DNS2D' => Milon\Barcode\Facades\DNS2DFacade::class,
+        // Sanitizer
+        'Sanitizer' => BinaryCats\Sanitizer\Laravel\Facade::class,
     ],
 
 ];

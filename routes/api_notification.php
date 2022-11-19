@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 Route::group([
     'middleware' => 'api', 
@@ -24,4 +25,12 @@ Route::group([
     Route::post('send_mass_notification', [App\Http\Controllers\Notification\NotificationController::class, 'send_mass_notification']);
     // Ruta provisional para envio de notificaciones
     Route::post('send_notifications', [App\Http\Controllers\Notification\NotificationController::class, 'send_notifications']);
+
+    // Ruta para el envío de credenciales
+    Route::post('send_credentials', [App\Http\Controllers\Notification\SMSController::class, 'send_credentials']);
+    // Ruta para enviar SMS's desde un archivo para préstamos en Mora
+    Route::post('file', [App\Http\Controllers\Notification\SMSController::class, 'send_from_a_file']);
+    // Ruta para consultar saldo
+    Route::get('balance', [App\Http\Controllers\Notification\SMSController::class, 'check_balance']);
+
 });

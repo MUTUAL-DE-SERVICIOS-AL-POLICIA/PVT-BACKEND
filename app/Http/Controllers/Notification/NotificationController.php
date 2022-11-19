@@ -24,9 +24,10 @@ use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\Affiliate\Affiliate;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class NotificationController extends Controller
-{
+{    
     /**
      * @OA\Get(
      *     path="/api/notification/get_semesters",
@@ -53,7 +54,7 @@ class NotificationController extends Controller
      */
     public function get_semesters(){
         $semesters = EcoComProcedure::select(['id', 'year', 'semester'])
-        ->orderBy('year')
+        ->orderBy('year', 'desc')
         ->get();
         $results = [];
         foreach($semesters as $semester) {
@@ -100,7 +101,7 @@ class NotificationController extends Controller
      * @return void
      */
     public function get_observations($module_id){
-        $observation_types = Module::find($module_id)->observation_types;
+        $observation_types = Module::find($module_id)->observation_types()->where('type', 'AT')->get();
         return response()->json([
             'observations' => $observation_types
         ]);
@@ -141,7 +142,7 @@ class NotificationController extends Controller
      * @return void
      */
     public function get_modalities_payment($eco_com_state_type_id) {
-        $modalities_payment = EcoComStateType::find($eco_com_state_type_id)->eco_com_state;
+        $modalities_payment = EcoComStateType::find($eco_com_state_type_id)->eco_com_state()->whereIn('id', [24, 25, 29])->get();
         return response()->json([
             'modalities_payment' => $modalities_payment
         ]);
@@ -411,25 +412,58 @@ class NotificationController extends Controller
     }
 
     // Para la tabla 
-    public function shippable_list($query, $filters) {
+    public function shippable_list($query, $filters, $request) {
+        
+        // Paginado
+        $page = $request->get('page', 1);
+        $per_page = $request->get('per_page', 8);
+        
+        // consulta
         $base = collect(DB::select($query));
+        
+        if($request->has('first') && $request->first) {
+            $paginate = new LengthAwarePaginator($base->forPage($page, $per_page)->values(), $base->count(), $per_page, $page);
+            return response()->json([
+                'error' => false,
+                'message' => 'Listado de personas a notificar',
+                'data' => $paginate,
+                'all' => $base
+            ]);
+        } 
+        // filtros        
+        intval($filters[4]);
+        intval($filters[5]);
         $result = $base->filter(function ($value, $key) use ($filters) {
-            return str_contains($value->last_name, $filters[0])
-                && str_contains($value->mothers_last_name, $filters[1])
-                && str_contains($value->first_name, $filters[2])
-                && str_contains($value->second_name, $filters[3])
-                && str_contains($value->identity_card, $filters[4]);
+            return stripos($value->last_name, $filters[0]) !== false 
+                && stripos($value->mothers_last_name, $filters[1]) !== false
+                && stripos($value->first_name, $filters[2]) !== false
+                && stripos($value->second_name, $filters[3]) !== false
+                && stripos($value->identity_card, $filters[4]) !== false
+                && stripos($value->affiliate_id, $filters[5]) !== false;            
         });
-        $response = array();
-        foreach($result as $key => $value) {
-            $value->send = false;
-            array_push($response, $value);
-        }
+
+        $all = collect($result); 
+        $paginate = new LengthAwarePaginator($all->forPage($page, $per_page)->values(), $all->count(), $per_page, $page);
+
+        $body = [
+            'error' => false,
+            'message' => 'Listado de personas a notificar',
+            'data' => $paginate
+        ];
+    
+        // if($request->has('filter') && $request->filter) 
+        //     $body['all'] = $all->values();
+        // else 
+        //     $body['all'] = [];
+
+        // logger($body);
+            
         return response()->json([
             'error' => false,
             'message' => 'Listado de personas a notificar',
-            'data' => $response
+            'data' => $paginate
         ]);
+        // return response()->json($body);
     }
 
     // Proceso de consulta 
@@ -510,7 +544,7 @@ class NotificationController extends Controller
      * @param Request $request
      * @return void
      */
-    public function list_to_notify(Request $request) {
+    public function list_to_notify(Request $request) {        
 
         $validator = Validator::make($request->all(), [
             'action' => [
@@ -532,18 +566,17 @@ class NotificationController extends Controller
                 }
             ],
             'modality' => [
-                'exclude_if:action3,1',
+                'exclude_if:action,3,1',
                 'exclude_if:payment_method,0',
                 'numeric',
                 function($attribute, $value, $fail) {
-                    if(!in_array($value, [29, 30, 31]))
+                    if(!in_array($value, [0, 29, 30, 31]))
                     $fail('El '.$attribute. ' (modalidad) es incorrecto');
                 }
             ],
             'type_observation' => 'required_if:action,3|numeric',
             'hierarchies' => 'numeric',
-            'year' => 'required_if:action,3',
-            'semester' => 'required_if:action,3|string'
+            'semester_id' => 'required_if:action,3|integer'
         ]);
 
         if($validator->fails()) {
@@ -561,25 +594,16 @@ class NotificationController extends Controller
         try {
             $action = $request->action;
             if($action === 1) { // recepción de requisitos
-                $query = "select at2.affiliate_id, eca.last_name, eca.mothers_last_name, eca.first_name, eca.second_name, eca.identity_card
+                logger("recepción de requisitos");
+                $query = "select at2.affiliate_id, a.last_name, a.mothers_last_name, a.first_name, a.second_name, a.identity_card
                         from affiliate_tokens at2
-                        inner join economic_complements ec
-                        on at2.affiliate_id = ec.affiliate_id
-                        inner join eco_com_applicants eca
-                        on ec.id = eca.economic_complement_id
-                        inner join eco_com_procedures ecp
-                        on ec.eco_com_procedure_id = ecp.id
-                        where ec.eco_com_procedure_id in (
-                                select ecp.id
-                                from eco_com_procedures ecp
-                                order by ecp.id desc
-                                offset 0 rows
-                                fetch first 1 row only
-                        )
-                        --and at2.api_token is not null
-                        --and at2.firebase_token is not null";
+                        inner join affiliates a
+                        on at2.affiliate_id = a.id
+                        where at2.api_token is not null
+                        and at2.firebase_token is not null
+                        order by at2.affiliate_id asc";
             } else {
-                if($action === 2) { 
+                if($action === 2) { // Pago de complemento económico
                     $payment_method = $request->payment_method;
                     $this->create_temporary_tables_payments(); 
                     if($payment_method == 0) { // A todos los habilitados para pago de complemento económico
@@ -596,27 +620,52 @@ class NotificationController extends Controller
                             if($request->has('hierarchies')){
                                 $hierarchies = $request->hierarchies;
                                 logger("Al método de pago $payment_method con su modalidad de $modality y con la jerarquia $hierarchies");
-                                $query = "select ta.affiliate_id, eca.last_name, eca.mothers_last_name, eca.first_name, eca.second_name, eca.identity_card
-                                        from tmp_affiliates ta
-                                        left join eco_com_applicants eca
-                                        on ta.economic_complement_id = eca.economic_complement_id
-                                        inner join affiliates a
-                                        on ta.affiliate_id = a.id
-                                        inner join degrees d
-                                        on a.degree_id = d.id
-                                        inner join hierarchies h
-                                        on d.hierarchy_id = h.id
-                                        where payment_id = $payment_method
-                                        and ta.modality_id = $modality
-                                        and h.id = $hierarchies";
+                                if($hierarchies == 0) {
+                                    $query = "select ta.affiliate_id, eca.last_name, eca.mothers_last_name, eca.first_name, eca.second_name, eca.identity_card
+                                                from tmp_affiliates ta
+                                                left join eco_com_applicants eca
+                                                on ta.economic_complement_id = eca.economic_complement_id
+                                                inner join affiliates a
+                                                on ta.affiliate_id = a.id
+                                                inner join degrees d
+                                                on a.degree_id = d.id
+                                                inner join hierarchies h
+                                                on d.hierarchy_id = h.id
+                                                where payment_id = $payment_method
+                                                and ta.modality_id = $modality";
+                                } else {
+                                    $query = "select ta.affiliate_id, eca.last_name, eca.mothers_last_name, eca.first_name, eca.second_name, eca.identity_card
+                                                from tmp_affiliates ta
+                                                left join eco_com_applicants eca
+                                                on ta.economic_complement_id = eca.economic_complement_id
+                                                inner join affiliates a
+                                                on ta.affiliate_id = a.id
+                                                inner join degrees d
+                                                on a.degree_id = d.id
+                                                inner join hierarchies h
+                                                on d.hierarchy_id = h.id
+                                                where payment_id = $payment_method
+                                                and ta.modality_id = $modality
+                                                and h.id = $hierarchies";
+                                }
+                                
                             } else {
                                 logger("Al método de pago $payment_method con su modalidad de $modality");
-                                $query = "select distinct ta.affiliate_id, eca.last_name, eca.mothers_last_name, eca.first_name, eca.second_name, eca.identity_card
+                                if($modality == 0) {
+                                    $query = "select distinct ta.affiliate_id, eca.last_name, eca.mothers_last_name, eca.first_name, eca.second_name, eca.identity_card
                                         from tmp_affiliates ta
                                         inner join eco_com_applicants eca
                                         on ta.economic_complement_id = eca.economic_complement_id
-                                        where payment_id = $payment_method
-                                        and modality_id = $modality";
+                                        where payment_id = $payment_method";
+                                } else {
+                                    $query = "select distinct ta.affiliate_id, eca.last_name, eca.mothers_last_name, eca.first_name, eca.second_name, eca.identity_card
+                                            from tmp_affiliates ta
+                                            inner join eco_com_applicants eca
+                                            on ta.economic_complement_id = eca.economic_complement_id
+                                            where payment_id = $payment_method
+                                            and modality_id = $modality";
+                                }
+                                
                             }
                         } else {
                             logger("Solo a su método de pago $payment_method");
@@ -627,9 +676,11 @@ class NotificationController extends Controller
                                     where payment_id = $payment_method";
                         }
                     }
-                } elseif($action === 3) {
-                    $year = $request->year;
-                    $semester = $request->semester;
+                } elseif($action === 3) { // Observaciones
+                    $eco_com_procedure= EcoComProcedure::find($request->semester_id);
+                    $year = $eco_com_procedure->year;
+                    $semester = $eco_com_procedure->semester;
+
                     $this->create_temporary_table_observation($year, $semester); 
                     $type = $request->type_observation;
                     logger("observación del $year año, con $semester semestre y tipo de observación $type");
@@ -652,7 +703,10 @@ class NotificationController extends Controller
             $filters[2] = $request->first_name ?? "";
             $filters[3] = $request->second_name ?? "";
             $filters[4] = $request->identity_card ?? "";
-            return $this->shippable_list($query, $filters);
+            $filters[5] = $request->affiliate_id ?? "";
+            // logger($filters);
+
+            return $this->shippable_list($query, $filters, $request);
         } catch(\Exception $e) {
             return response()->json([
                 'error' => true,
@@ -698,12 +752,12 @@ class NotificationController extends Controller
      * @param Request $request
      * @return void
      */
-    public function send_mass_notification($request)
+    public function send_mass_notification(Request $request)
     {
-        $validator = Validator::make($request, [
+        $validator = Validator::make($request->all(), [
             'title' => 'required|string',
             'message' => 'required|string',
-            'sends' => 'required|array|min:0',
+            'sends' => 'required|array|min:1',
         ]);
 
         if($validator->fails()) {
@@ -745,7 +799,7 @@ class NotificationController extends Controller
             $i = 0;
             do {
                 $i++;
-                foreach($sends[0] as $send) {
+                foreach($sends as $send) { //$sends[0]
                     if($send['send']) {
                         $firebase_token = AffiliateToken::whereAffiliateId($send['affiliate_id'])->select('firebase_token')->get()[0];
                         array_push($params['tokens'], $firebase_token['firebase_token']);

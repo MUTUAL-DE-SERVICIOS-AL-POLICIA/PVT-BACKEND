@@ -2,9 +2,20 @@
 
 namespace App\Helpers;
 
+use App\Models\Admin\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Models\Affiliate\AffiliateRecord;
+use App\Models\Affiliate\Affiliate;
+use Auth;
+use Config;
+
+use Illuminate\Support\Facades\Http;
+use App\Models\Notification\NotificationCarrier;
+use App\Models\Notification\NotificationNumber;
+use App\Models\Notification\NotificationSend;
+use App\Models\Loan\Loan;
 
 class Util
 {
@@ -165,5 +176,191 @@ class Util
     public static function round2($value)
     {
         return round($value, 2, PHP_ROUND_HALF_EVEN);
+    }
+    public static function save_record_affiliate($object,$action)
+    {
+        if(!empty($action) && $action != 'modificó' && $action != 'modificó cónyugue'){
+            $user= Auth::user()?? User::find(171);
+            $old = Affiliate::find($object->id);
+            $message = 'El usuario '.$user->username.' ';
+            $affiliate_record = new AffiliateRecord;
+            $affiliate_record->user_id = $user->id;
+            $affiliate_record->affiliate_id = $object->id;
+            $affiliate_record->message = $message.$action;
+            $affiliate_record->save();
+        }
+    }
+    public static function concat_action($object, $message = 'modificó')//aqui
+    {
+        $old = app(get_class($object));
+        $old->fill($object->getOriginal());
+        $action = $message;
+        $updated_values = $object->getDirty();
+        try {
+            $relationships = $object->relationships();
+        } catch (\Exception $e) {
+            $relationships = [];
+        }
+        foreach ($updated_values as $key => $value) {
+            $concat = false;
+            if (substr($key, -3, 3) != '_id' && substr($key, -3, 3) != '_at') {
+                $action .= ' [' . self::translate($key) . '] ';
+                if (!$concat) {
+                    $action .= self::bool_to_string($old[$key]) . ' a ' . self::bool_to_string($object[$key]);
+                }
+                if (next($updated_values)) {
+                    $action .= ', ';
+                }
+            }
+        }
+        return $action;
+    }
+    public static function translate($string)
+    {
+        $translation = static::translate_table($string);
+        if ($translation) {
+            return $translation;
+        } else {
+            return static::translate_attribute($string);
+        }
+    }
+
+    public static function translate_table($string)
+    {
+        if (array_key_exists($string, Config::get('translations'))) {
+            return Config::get('translations')[$string];
+        } else {
+            return null;
+        }
+    }
+
+    public static function translate_attribute($string)
+    {
+        $path = app_path() . '/resources/lang/es/validation.php';
+        if(@include $path) {
+            $translations_file = include(app_path().'/resources/lang/es/validation.php');
+        }
+        if (isset($translations_file)) {
+            if (array_key_exists($string, $translations_file['attributes'])) {
+                return $translations_file['attributes'][$string];
+            }
+        }
+        return $string;
+    }
+    public static function bool_to_string($value)
+    {
+        if (is_bool($value)) {
+            if ($value) {
+                $value = 'SI';
+            } else {
+                $value = 'NO';
+            }
+        } else {
+            try {
+                $value = Carbon::createFromFormat('Y-m-d', $value)->format('d-m-Y');
+            } catch (\Exception $e) {}
+        }
+        return $value;
+    }
+
+     // Enviar un array de objetos
+     public static function delegate_shipping($shipments, $user_id, $transmitter_id=1, $morph_type=null) {
+
+        try{
+            $sms_server_url = env('SMS_SERVER_URL', 'localhost');
+            $root = env('SMS_SERVER_ROOT', 'root');
+            $password = env('SMS_SERVER_PASSWORD', 'root');
+            $sms_provider = env('SMS_PROVIDER', 1);
+            $user_id = $user_id; // usuario que envío la notificación
+            $transmitter_id = $transmitter_id; // id del número telefónico que envía el sms
+            $issuer_number = NotificationNumber::find($transmitter_id)->number;
+            $flag = false;
+
+            foreach($shipments as $shipping) {
+                $shipping['sms_num'] = Util::remove_special_char($shipping['sms_num']);
+                $code_num = '591' . $shipping['sms_num'];
+                $message = $shipping['message'];
+                logger("==================================");
+                logger($shipping['sms_num']);
+                logger($shipping['message']);
+                logger("==================================");
+                $response = Http::get($sms_server_url . "dosend.php?USERNAME=$root&PASSWORD=$password&smsprovider=$sms_provider&smsnum=$code_num&method=2&Memo=$message");
+
+                if($response->successful()) {
+                    $clipped_chain = substr($response, strrpos($response, "id=") + 3);
+                    $end_of_chain = substr($clipped_chain,  strrpos($clipped_chain, "&U"));
+                    $id = substr($clipped_chain, 0, -strlen($end_of_chain));
+                    $result = Http::timeout(60)->get($sms_server_url . "resend.php?messageid=$id&USERNAME=$root&PASSWORD=$password");
+                    if($result->successful()) {
+                        $var = $result->getBody();
+                        if(strpos($var, "ERROR") === false || strpos($var, "logout,") === false) {
+                            $flag = true;
+                            $obj = $morph_type ? new Affiliate() : new Loan();
+                            $alias = $obj->getMorphClass();
+                            $notification_send = new NotificationSend();
+                            $notification_send->create([
+                                'user_id' => $user_id,
+                                'carrier_id' => NotificationCarrier::whereName('SMS')->first()->id,
+                                'number_id' => NotificationNumber::whereNumber($issuer_number)->first()->id,
+                                'sendable_type' => $alias,
+                                'sendable_id' => $shipping['id'],
+                                'send_date' => Carbon::now(),
+                                'delivered' => true,
+                                'message' => json_encode(['data' => $shipping['message']]),
+                                'subject' => null
+                            ]);
+                        }
+                        else $flag = false;
+                    }
+                    else $flag = false;
+                }
+                else $flag = false;
+            }
+            return $flag;
+        }catch(\Exception $e) {
+            logger($e->getMessage());
+        }
+    }
+
+    public static function remove_special_char($string) {
+        return preg_replace('/[\(\)\-]+/', '', $string);
+    }
+
+    public static function check_balance() {
+
+        $sms_server_url = env('SMS_SERVER_URL', 'localhost');
+        $root = env('SMS_SERVER_ROOT', 'root');
+        $password = env('SMS_SERVER_PASSWORD', 'root');
+        $sms_provider = env('SMS_PROVIDER', 1);
+        $flag = false;
+
+        $response = Http::get($sms_server_url . "dosend.php?USERNAME=$root&PASSWORD=$password&smsprovider=$sms_provider&smsnum=330&method=2&Memo=Saldo");
+
+        if($response->successful()) {
+            $clipped_chain = substr($response, strrpos($response, "id=") + 3);
+            $end_of_chain = substr($clipped_chain,  strrpos($clipped_chain, "&U"));
+            $id = substr($clipped_chain, 0, -strlen($end_of_chain));
+            $result = Http::timeout(60)->get($sms_server_url . "resend.php?messageid=$id&USERNAME=$root&PASSWORD=$password");
+            if($result->successful()) {
+                $var = $result->getBody();
+                if(strpos($var, "ERROR") === false) {
+                    $flag = true;
+                }
+            }
+        }
+        if($flag) {
+            sleep(7);
+            $message = DB::connection('mysql')->table('receive')->select('msg')->where('srcnum', 330)->orderBY('id', 'desc')->first();
+            $clipped_chain = substr($message->msg, strrpos($message->msg, "Bs.") + 4);
+            $end_of_chain = substr($clipped_chain, strrpos($clipped_chain, "Paq"));
+            $balance = substr($clipped_chain, 0, -strlen($end_of_chain));
+            $balance = floatval($balance);
+            return $balance;
+        }
+        return 0;
+    }
+    public static function round($value)
+    {
+        return round($value, 4, PHP_ROUND_HALF_EVEN);
     }
 }
