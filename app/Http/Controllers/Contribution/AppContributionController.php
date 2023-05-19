@@ -206,7 +206,7 @@ class AppContributionController extends Controller
                 'year' => $year,
                 'rent_class' => $rent_class,
                 'description' => $text,
-                'quotable' => $contributions_passive->quotable,
+                'rent_pension' => $contributions_passive->rent_pension,
                 'retirement_fund' => null,
                 'mortuary_quota' => null,
                 'total' => $contributions_passive->total,

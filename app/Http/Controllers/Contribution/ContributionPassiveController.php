@@ -383,7 +383,7 @@ class ContributionPassiveController extends Controller
                 'year' => $year,
                 'rent_class' => $rent_class,
                 'description' => $text,
-                'quotable' => $contributions_passive->quotable,
+                'rent_pension' => $contributions_passive->rent_pension,
                 'total' => $contributions_passive->total,
                 'type' => $contributions_passive->contributionable_type
             ]);

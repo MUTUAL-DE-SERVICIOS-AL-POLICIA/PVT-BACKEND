@@ -58,7 +58,7 @@
                         <td class="data-row py-2">{{ $contribution['month'] }}</td>
                         <td class="data-row py-2">{{ $contribution['rent_class'] }}</td>
                         <td class="data-row py-2" colspan="2">{{ $contribution['description'] }}</td>
-                        <td class="data-row py-2">{{ Util::money_format($contribution['quotable']) }}</td>
+                        <td class="data-row py-2">{{ Util::money_format($contribution['rent_pension']) }}</td>
                         <td class="data-row py-2">{{ Util::money_format($contribution['total']) }}</td>
                     </tr>
                 @endforeach
