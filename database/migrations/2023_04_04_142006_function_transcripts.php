@@ -88,10 +88,10 @@ return new class extends Migration
                  cant varchar ;
                 ---------------------------------
               -- Declaración EXPLICITA del cursor
-              cur_payroll CURSOR for (select * from dblink(db_name_intext,'SELECT id,obs,uni,mes,a_o,car,pat,mat,nom,nom2,niv,gra,sue,cat,gan,mus,est,carg,fro,ori,nac,ing,affiliate_id,state,criteria FROM  payroll_copy_transcripts where state = ''unrealized'' and mes='||month||' and a_o='||year||'')
+              cur_payroll CURSOR for (select * from dblink(db_name_intext,'SELECT id,obs,uni,mes,a_o,car,pat,mat,nom,nom2,niv,gra,sue,cat,gan,mus,est,carg,fro,ori,affiliate_id,state,criteria FROM  payroll_copy_transcripts where state = ''unrealized'' and mes='||month||' and a_o='||year||'')
               as  payroll_copy_transcripts(id integer,obs character varying(250),uni character varying(250),mes integer,a_o integer,car character varying(250),pat character varying(250),mat character varying(250),nom character varying(250),nom2 character varying(250),
               niv character varying(250),gra  character varying(250),sue decimal(13,2),cat decimal(13,2),gan decimal(13,2) ,mus decimal(13,2) ,est decimal(13,2),carg decimal(13,2),fro decimal(13,2),ori decimal(13,2),
-              nac date,ing date,affiliate_id integer,state character varying(250) ,criteria character varying(250)));
+              affiliate_id integer,state character varying(250) ,criteria character varying(250)));
               begin
                    --************************************************************
                    --*Funcion busqueda de afiliados transcripciones
