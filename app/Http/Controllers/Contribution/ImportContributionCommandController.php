@@ -248,7 +248,8 @@ class ImportContributionCommandController extends Controller
 
         DB::beginTransaction();
         $message = "No hay datos";
-        ini_set('max_execution_time', '300');
+        //ini_set('max_execution_time', '300');
+        ini_set('memory_limit', '1024M');
         $date_contribution_format = $request->date_contribution;
 
         $data_cabeceras=array(array("PERIODO","TIPO","ID_AFILIADO","CÉDULA_DE_IDENTIDAD","UNIDAD","DESGLOSE","PATERNO",
@@ -275,8 +276,8 @@ class ImportContributionCommandController extends Controller
         on d.id = c.degree_id
         inner join categories c3 
         on c3.id = c.category_id 
-        and c.month_year = '$date_contribution'
-        and c.type = 'Planilla'";
+        where c.month_year = '$date_contribution'
+        and c.type = 'Planilla' and contributionable_type = 'payroll_commands'";
                     $data_contribution_command = DB::select($data_contribution_command);
 
                             if(count($data_contribution_command)> 0){

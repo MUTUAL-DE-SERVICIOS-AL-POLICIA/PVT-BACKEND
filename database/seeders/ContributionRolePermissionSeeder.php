@@ -28,7 +28,7 @@ class ContributionRolePermissionSeeder extends Seeder
             ]
         ];
 
-        $permissions_payroll = ['read-import-payroll','create-import-payroll-senasir','download-report-payroll-senasir','create-import-payroll-command','download-report-payroll-command'];//
+        $permissions_payroll = ['read-import-payroll','create-import-payroll-senasir','download-report-payroll-senasir','create-import-payroll-command','download-report-payroll-command','create-import-payroll-transcript','download-report-payroll-transcript'];//
         $permissions_senasir = ['read-import-contribution','create-import-senasir','download-report-senasir'];
         $permissions_command = ['read-import-contribution','create-import-command','download-report-command'];
         $permissions_global = ['read-import-contribution'];

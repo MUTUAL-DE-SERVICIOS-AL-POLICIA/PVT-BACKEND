@@ -151,12 +151,14 @@ class ContributionController extends Controller
                 retirement_fund,
                 mortuary_quota,
                 total,
-                breakdown_id,
                 'RE' as con_re,
                 type,
-                breakdowns.id as breakdown_id,
-                breakdowns.name as breakdown_name"
+                breakdowns.name as breakdown_name,
+                units.code as unit_code,
+                degrees.shortened as degree_shortened"
             )->leftjoin("breakdowns", "breakdowns.id", "=", "reimbursements.breakdown_id")
+            ->leftjoin("units", "units.id", "=", "reimbursements.unit_id")
+            ->leftjoin("degrees", "degrees.id", "=", "reimbursements.degree_id")
                 ->where($conditions)
                 ->orderBy('month_year', $order_year)
                 ->paginate($per_page);
@@ -185,12 +187,15 @@ class ContributionController extends Controller
                 retirement_fund,
                 mortuary_quota,
                 total,
-                breakdown_id,
                 'CON' as con_re,
                 type,
                 breakdowns.id as breakdown_id,
-                breakdowns.name as breakdown_name"
+                breakdowns.name as breakdown_name,
+                units.code as unit_code,
+                degrees.shortened as degree_shortened"
             )->leftjoin("breakdowns", "breakdowns.id", "=", "contributions.breakdown_id")
+            ->leftjoin("units", "units.id", "=", "contributions.unit_id")
+            ->leftjoin("degrees", "degrees.id", "=", "contributions.degree_id")
                 ->where($conditions)
                 ->orderBy('month_year', $order_year)
                 ->paginate($per_page);
@@ -223,12 +228,15 @@ class ContributionController extends Controller
                 retirement_fund,
                 mortuary_quota,
                 total,
-                null,
                 'RE' as con_re,
                 type,
                 breakdowns.id as breakdown_id,
-                breakdowns.name as breakdown_name"
+                breakdowns.name as breakdown_name,
+                units.code as unit_code,
+                degrees.shortened as degree_shortened"
             )->leftjoin("breakdowns", "breakdowns.id", "=", "reimbursements.breakdown_id")
+            ->leftjoin("units", "units.id", "=", "reimbursements.unit_id")
+            ->leftjoin("degrees", "degrees.id", "=", "reimbursements.degree_id")
                 ->where($conditions)
                 ->orderBy('month_year', $order_year);
 
@@ -253,12 +261,15 @@ class ContributionController extends Controller
                 retirement_fund,
                 mortuary_quota,
                 total,
-                breakdown_id,
                 'CON' as con_re,
                 type,
                 breakdowns.id as breakdown_id,
-                breakdowns.name as breakdown_name"
+                breakdowns.name as breakdown_name,
+                units.code as unit_code,
+                degrees.shortened as degree_shortened"
             )->leftjoin("breakdowns", "breakdowns.id", "=", "contributions.breakdown_id")
+            ->leftjoin("units", "units.id", "=", "contributions.unit_id")
+            ->leftjoin("degrees", "degrees.id", "=", "contributions.degree_id")
                 ->union($reimbursements)
                 ->where($conditions)
                 ->orderBy('month_year', $order_year)

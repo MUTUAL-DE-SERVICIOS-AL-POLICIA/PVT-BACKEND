@@ -13,7 +13,7 @@ Route::group([
     Route::group([
         'middleware' => ['auth:sanctum']
     ], function () {
-        Route::get('/list_years', [App\Http\Controllers\Contribution\ImportationController::class, 'list_years']);
+        Route::get('/list_years/{type}', [App\Http\Controllers\Contribution\ImportationController::class, 'list_years']);
         Route::post('/active_affiliate_contribution', [App\Http\Controllers\Contribution\ContributionController::class, 'show']);
         Route::post('/passive_affiliate_contribution', [App\Http\Controllers\Contribution\ContributionPassiveController::class, 'show']);
         Route::get('/search_passive_affiliate_contribution', [App\Http\Controllers\Contribution\ContributionPassiveController::class, 'SearchContributionPassive']);
@@ -34,12 +34,11 @@ Route::group([
         ], function () {
             Route::get('/print_contributions_passive/{affiliate_id}', [App\Http\Controllers\Contribution\ContributionPassiveController::class, 'printCertificationContributionPassive']);
             Route::get('/print_contributions_active/{affiliate_id}', [App\Http\Controllers\Contribution\ContributionController::class, 'printCertificationContributionActive']);
-            
             Route::post('/get_report_certificate', [App\Http\Controllers\Contribution\ContributionController::class, 'get_report_certificate']);
         });
 
         Route::group([
-            'middleware' => 'permission:read-import-payroll|create-import-payroll-senasir|create-import-payroll-command'
+            'middleware' => 'permission:read-import-payroll|create-import-payroll-senasir|create-import-payroll-command|create-import-payroll-transcript'
         ], function () {
             Route::post('/list_months_validate_senasir', [App\Http\Controllers\Contribution\ImportPayrollSenasirController::class, 'list_months_validate_senasir']);
             Route::post('/upload_copy_payroll_senasir', [App\Http\Controllers\Contribution\ImportPayrollSenasirController::class, 'upload_copy_payroll_senasir']);
@@ -54,12 +53,23 @@ Route::group([
             Route::post('/rollback_payroll_copy_command', [App\Http\Controllers\Contribution\ImportPayrollCommandController::class, 'rollback_payroll_copy_command']);
             Route::post('/import_payroll_command_progress_bar', [App\Http\Controllers\Contribution\ImportPayrollCommandController::class, 'import_payroll_command_progress_bar']);
             Route::post('/download_new_affiliates_payroll_command', [App\Http\Controllers\Contribution\ImportPayrollCommandController::class, 'download_new_affiliates_payroll_command']);
+
+            Route::post('/upload_copy_payroll_transcript', [App\Http\Controllers\Contribution\ImportPayrollTranscriptController::class, 'upload_copy_payroll_transcript']);
+            Route::post('/validation_affiliate_transcript', [App\Http\Controllers\Contribution\ImportPayrollTranscriptController::class, 'validation_affiliate_transcript']);
+            Route::post('/download_error_data_archive', [App\Http\Controllers\Contribution\ImportPayrollTranscriptController::class, 'download_error_data_archive']);
+            Route::post('/download_data_revision', [App\Http\Controllers\Contribution\ImportPayrollTranscriptController::class, 'download_data_revision']);
+            Route::post('/list_months_import_contribution_transcript', [App\Http\Controllers\Contribution\ImportPayrollTranscriptController::class, 'list_months_import_contribution_transcript']);
+            Route::post('/rollback_payroll_copy_transcripts', [App\Http\Controllers\Contribution\ImportPayrollTranscriptController::class, 'rollback_payroll_copy_transcripts']);
+            Route::post('/import_payroll_transcript_progress_bar', [App\Http\Controllers\Contribution\ImportPayrollTranscriptController::class, 'import_payroll_transcript_progress_bar']);
+            Route::post('/import_payroll_transcript', [App\Http\Controllers\Contribution\ImportPayrollTranscriptController::class, 'import_payroll_transcript']);
+            Route::post('/import_contribution_transcript', [App\Http\Controllers\Contribution\ImportPayrollTranscriptController::class, 'import_contribution_transcript']);
         });
         Route::group([
-            'middleware' => 'permission:download-report-payroll-senasir|download-report-payroll-command'
+            'middleware' => 'permission:download-report-payroll-senasir|download-report-payroll-command|download-report-payroll-transcript'
         ], function () {
             Route::post('/report_payroll_senasir', [App\Http\Controllers\Contribution\ImportPayrollSenasirController::class, 'report_payroll_senasir']);
             Route::post('/report_payroll_command', [App\Http\Controllers\Contribution\ImportPayrollCommandController::class, 'report_payroll_command']);
+            Route::post('/report_import_contribution_transcript', [App\Http\Controllers\Contribution\ImportPayrollTranscriptController::class, 'report_import_contribution_transcript']);
         });
         Route::group([
             'middleware' => 'permission:read-import-contribution|create-import-senasir|create-import-command'
@@ -82,4 +92,3 @@ Route::group([
         Route::post('/change_state_contribution_process_eco_com', [App\Http\Controllers\Contribution\ImportContributionEcoComController::class, 'change_state_contribution_process_eco_com']);
     });
 });
-
