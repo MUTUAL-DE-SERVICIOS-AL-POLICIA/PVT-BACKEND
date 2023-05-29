@@ -14,6 +14,7 @@ use App\Models\Procedure\ProcedureState;
 use App\Models\QuotaAidMortuary\QuotaAidMortuary;
 use App\Models\RetirementFund\RetFunState;
 use App\Models\RetirementFund\RetirementFund;
+use App\Models\EconomicComplement\EconomicComplement;
 use App\Models\Workflow\WfState;
 use Illuminate\Http\Request;
 
@@ -181,7 +182,36 @@ class ProcedureQRController extends Controller
                 $data->observations_title = "Observaciones";
                 $data->observations = $this->getObservations($data);
                 break;
-
+            case 2:
+                $request->validate([
+                    'uuid' => 'required|uuid|exists:economic_complements,uuid'
+                ]);
+                $person = collect();
+                $module = Module::find($module_id);
+                $data = EconomicComplement::where('uuid', $uuid)->first();
+                $state = $data->eco_com_state;
+                $procedure = $data->eco_com_modality;
+                $type = $data->eco_com_procedure->semester;
+                $title = "BENEFICIARIO";
+                $person->push([
+                    'full_name' => $data->eco_com_beneficiary->fullName. "\n" .$data->eco_com_beneficiary->identity_card,
+                    'identity_card' => $data->eco_com_beneficiary->identity_card,
+                ]);
+                $wfstate = WfState::find($data->wf_current_state_id)->name;
+                $wfseq = WfState::find($data->wf_current_state_id)->sequence_number;
+                $data->module_display_name = $module->display_name;
+                $data->state_name = $state->name;
+                $data->procedure_modality_name = $procedure->shortened;
+                $data->procedure_type_name = $type;
+                $data->title = $title;
+                $data->person = $person;
+                $data->location =  $wfstate;
+                $data->validated = $data->inbox_state;
+                $data->porcentage = $this->getPercentage($module_id, $wfseq);
+                $data->flow = null;
+                $data->observations_title = null;
+                $data->observations = null;
+                break;
             default:
                 return 'Trámite no encontrado';
         }
