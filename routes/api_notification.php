@@ -44,4 +44,6 @@ Route::group([
     // Ruta para obtener los tipos de notificación
     Route::get('get_type_notification', [App\Http\Controllers\Notification\NotificationController::class, 'get_type_notification']);
 
+    Route::post('report_notifications', [App\Http\Controllers\Notification\NotificationController::class, 'get_report_notifications']);
+
 });
