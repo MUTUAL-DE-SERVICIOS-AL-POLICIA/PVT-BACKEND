@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Affiliate\Affiliate;
 use App\Models\Contribution\ContributionPassive;
-use App\Models\Contribution\PayrollSenasir;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PayrollSenasir extends Model
@@ -76,7 +75,7 @@ class PayrollSenasir extends Model
     {
         $data = collect([]);
         $exists_data = true;
-        $payroll =  PayrollSenasir::whereMonth_p($month)->whereYear_p($year)->count();
+        $payroll =  PayrollSenasir::whereMonth_p($month)->whereYear_p($year)->count('id');
         if($payroll == 0) $exists_data = false;
 
         $data['exist_data'] = $exists_data;

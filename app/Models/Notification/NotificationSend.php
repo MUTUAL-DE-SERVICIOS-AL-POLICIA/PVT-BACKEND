@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\Notification\NotificationNumber;
 use App\Models\Notification\NotificationCarrier;
 use App\Models\Admin\User;
+use App\Models\Notification\NotificationType;
 
 class NotificationSend extends Model
 {
@@ -20,12 +21,16 @@ class NotificationSend extends Model
     public function carrier(){
         return $this->belongsTo(NotificationCarrier::class);
     }
-    
+
     public function user(){
         return $this->belongsTo(User::class);
     }
 
     public function sendable(){
         return $this->morphTo();
+    }
+
+    public function notification_type() {
+        return $this->belongsTo(NotificationType::class);
     }
 }

@@ -11,6 +11,6 @@ class NotificationNumber extends Model
     protected $guarded = [];
 
     public function send(){
-        return $this->hasMany(NotificationSend::class, 'number_id');
+        return $this->hasMany(NotificationSend::class, 'sender_number');
     }
 }

@@ -17,9 +17,12 @@ use App\Models\Affiliate\AffiliateRecord;
 use App\Models\Loan\Record;
 use App\Models\City;
 use App\Models\Activities;
+use App\Models\Contribution\ContributionPassive;
 use App\Models\Contribution\PayrollCommand;
 use App\Models\Observation;
 use App\Models\Notification\NotificationSend;
+use Carbon\Carbon;
+use App\Models\EconomicComplement\EconomicComplement;
 
 class Affiliate extends Model
 {
@@ -102,6 +105,10 @@ class Affiliate extends Model
     {
         return $this->hasMany(Contribution::class);
     }
+    public function contribution_passives()
+    {
+        return $this->hasMany(ContributionPassive::class);
+    }
     public function reimbursements()
     {
         return $this->hasMany(Reimbursement::class);
@@ -170,13 +177,51 @@ class Affiliate extends Model
         }
         return rtrim($data);
     }
+    public function getMinimumYearContributionPassiveAttribute()
+    {
+        $minimum_year = $this->contribution_passives()->min('month_year');
+        $minimum_year_contribution_passive = Carbon::parse($minimum_year)->format('Y');
+
+        return (int)$minimum_year_contribution_passive;
+    }
+    public function getMaximumYearContributionPassiveAttribute()
+    {
+        $maximum_year_contribution_passive = 0;
+        $maximum_year = $this->contribution_passives()->max('month_year');
+        if ($maximum_year != null) {
+            $maximum_year_contribution_passive = Carbon::parse($maximum_year)->format('Y');
+        }
+        return (int)$maximum_year_contribution_passive;
+    }
+    public function getMinimumYearContributionActiveAttribute()
+    {
+        $minimum_year = $this->contributions()->min('month_year');
+        $minimum_year_contribution_active = Carbon::parse($minimum_year)->format('Y');
+
+        return (int)$minimum_year_contribution_active;
+    }
+    public function getMaximumYearContributionActiveAttribute()
+    {
+        $maximum_year_contribution_active = 0;
+        $maximum_year = $this->contributions()->max('month_year');
+        if ($maximum_year != null) {
+            $maximum_year_contribution_active = Carbon::parse($maximum_year)->format('Y');
+        }
+        return (int)$maximum_year_contribution_active;
+    }
+
     public function getTitleAttribute()
     {
       $data = "";
       if ($this->degree) $data = $this->degree->shortened;;
       return $data;
     }
+
     public function sends() {
         return $this->morphMany(NotificationSend::class, 'sendable');
+    }
+
+    public function economic_complements() {
+        return $this->hasMany(EconomicComplement::class);
     }
 }

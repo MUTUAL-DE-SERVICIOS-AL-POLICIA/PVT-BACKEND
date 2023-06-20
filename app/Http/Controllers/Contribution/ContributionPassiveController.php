@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Contribution;
 
+use App\Helpers\Util;
 use App\Http\Controllers\Controller;
 use App\Models\Affiliate\Affiliate;
+use App\Models\Affiliate\AffiliateRecord;
 use App\Models\Affiliate\Degree;
 use App\Models\Contribution\ContributionPassive;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -79,57 +81,62 @@ class ContributionPassiveController extends Controller
 
     public function show(Request $request)
     {
-        $request->validate([
-            'affiliate_id' => 'required|integer|exists:contribution_passives,affiliate_id'
-        ]);
-
         $affiliate = Affiliate::find($request->affiliate_id);
-        $year_min = $this->get_minimum_year($request->affiliate_id);
-        $year_max = $this->get_maximum_year($request->affiliate_id);
+        $hasContributionPassives = $affiliate->contribution_passives;
+        if (sizeof($hasContributionPassives) > 0) {
+            $year_min = $affiliate->minimum_year_contribution_passive;
+            $year_max = $affiliate->maximum_year_contribution_passive;
 
-        $all_contributions = collect();
-        $months = DB::table('months')->get();
+            $all_contributions = collect();
+            $months = DB::table('months')->get();
 
-        for ($i = $year_max; $i >= $year_min; $i--) {
-            $contributions = collect();
-            $contribution_passives = ContributionPassive::whereAffiliateId($request->affiliate_id)
-                ->whereYear('month_year', $i)
-                ->orderBy('month_year', 'asc')
-                ->get();
+            for ($i = $year_max; $i >= $year_min; $i--) {
+                $contributions = collect();
+                $contribution_passives = ContributionPassive::whereAffiliateId($request->affiliate_id)
+                    ->whereYear('month_year', $i)
+                    ->orderBy('month_year', 'asc')
+                    ->get();
 
-            foreach ($months as $month) {
-                $mes = (string)$month->id;
-                $detail = collect();
-                foreach ($contribution_passives as $contributions_passive) {
-                    $m = ltrim(Carbon::parse($contributions_passive->month_year)->format('m'), "0");
-                    if ($m == $mes) {
-                        $detail->push(
-                            $contributions_passive
-                        );
+                foreach ($months as $month) {
+                    $mes = (string)$month->id;
+                    $detail = collect();
+                    foreach ($contribution_passives as $contributions_passive) {
+                        $m = ltrim(Carbon::parse($contributions_passive->month_year)->format('m'), "0");
+                        if ($m == $mes) {
+                            $detail->push(
+                                $contributions_passive
+                            );
+                        }
                     }
+                    $contributions->push([
+                        'month' => $month->name,
+                        'detail' => (object)$detail->first()
+                    ]);
                 }
-                $contributions->push([
-                    'month' => $month->name,
-                    'detail' => (object)$detail->first()
+                $all_contributions->push([
+                    'year' => (string)$i,
+                    'contributions' => $contributions
                 ]);
             }
-            $all_contributions->push([
-                'year' => (string)$i,
-                'contributions' => $contributions
+
+            return response()->json([
+                'hasContributionPassives' => true,
+                'payload' => [
+                    'first_name' => $affiliate->first_name,
+                    'second_name' => $affiliate->second_name,
+                    'last_name' => $affiliate->last_name,
+                    'mothers_last_name' => $affiliate->mothers_last_name,
+                    'surname_husband' => $affiliate->surname_husband,
+                    'identity_card' => $affiliate->identity_card,
+                    'all_contributions' => $all_contributions
+                ],
+            ]);
+        } else {
+            return response()->json([
+                'hasContributionPassives' => false,
+                'payload' => []
             ]);
         }
-
-        return response()->json([
-            'payload' => [
-                'first_name' => $affiliate->first_name,
-                'second_name' => $affiliate->second_name,
-                'last_name' => $affiliate->last_name,
-                'mothers_last_name' => $affiliate->mothers_last_name,
-                'surname_husband' => $affiliate->surname_husband,
-                'identity_card' => $affiliate->identity_card,
-                'all_contributions' => $all_contributions
-            ],
-        ]);
     }
 
     /**
@@ -177,6 +184,18 @@ class ContributionPassiveController extends Controller
      *         description="Filtro por Mes",
      *         required=false,
      *     ),
+     *    @OA\Parameter(
+     *         name="contribution_state_id",
+     *         in="query",
+     *         description="id del estado del aporte",
+     *         required=false,
+     *     ),
+     *    @OA\Parameter(
+     *         name="affiliate_rent_class",
+     *         in="query",
+     *         description="tipo de aporte VEJEZ, VIUDEDAD, VEJEZ/VIUDEDAD",
+     *         required=false,
+     *     ),
      *     @OA\Response(
      *         response=200,
      *         description="Success",
@@ -200,10 +219,14 @@ class ContributionPassiveController extends Controller
 
         $request->validate([
             'affiliate_id' => 'required|integer|exists:contribution_passives,affiliate_id',
+            'contribution_state_id' => 'nullable|integer|exists:contribution_states,id',
+            'affiliate_rent_class' => 'nullable|in:VEJEZ,VIUDEDAD,VEJEZ/VIUDEDAD'
         ]);
         $year = request('year') ?? '';
         $month = request('month') ?? '';
         $contributionable_type = request('contributionable_type') ?? '';
+        $contribution_state_id = request('contribution_state_id') ?? '';
+        $affiliate_rent_class = request('affiliate_rent_class') ?? '';
         $order = request('sortDesc') ?? '';
         if ($order != '') {
             if ($order) {
@@ -225,12 +248,18 @@ class ContributionPassiveController extends Controller
         if ($contributionable_type != '') {
             array_push($conditions, array('contributionable_type', 'like', "%{$contributionable_type}%"));
         }
+        if ($contribution_state_id != '') {
+            array_push($conditions, array('contribution_state_id', "{$contribution_state_id}"));
+        }
+        if ($affiliate_rent_class != '') {
+            array_push($conditions, array('affiliate_rent_class', 'ilike', "%{$affiliate_rent_class}%"));
+        }
         $per_page = $request->per_page ?? 10;
         $contributions_passives = ContributionPassive::whereAffiliateId($request->affiliate_id)->where($conditions)->orderBy('month_year', $order_year)->paginate($per_page);
 
         foreach ($contributions_passives as $contributions_passive) {
             $year = Carbon::parse($contributions_passive->month_year)->format('Y');
-            $month = Carbon::parse($contributions_passive->month_year)->format('m');
+            $month = ltrim(Carbon::parse($contributions_passive->month_year)->format('m'), "0");
             if ($contributions_passive->contributionable_type == "discount_type_economic_complement") {
                 $contributions_passive->contributionable_type_name = "Complemento Economico";
             } else {
@@ -242,54 +271,92 @@ class ContributionPassiveController extends Controller
             }
             $contributions_passive->year = $year;
             $contributions_passive->month = $month;
+            $contributions_passive->contribution_state;
+            $contributions_passive->can_deleted = $contributions_passive->can_deleted();
         }
         return $contributions_passives;
     }
 
-    public function get_minimum_year($id)
-    {
-        $data = DB::table('contribution_passives')->where('affiliate_id', $id)->min('month_year');
-        $min = Carbon::parse($data)->format('Y');
-
-        return $min;
-    }
-
-    public function get_maximum_year($id)
-    {
-        $data = DB::table('contribution_passives')->where('affiliate_id', $id)->max('month_year');
-        $max = Carbon::parse($data)->format('Y');
-
-        return $max;
-    }
-
+    /**
+     * @OA\Get(   
+     *     path="/api/contribution/print_contributions_passive/{affiliate_id}",
+     *     tags={"CONTRIBUCION"},
+     *     summary="Impresión de certificado de contribuciones - Sector Pasivo",
+     *     operationId="getCertificateContributionPassive",
+     *      @OA\Parameter(
+     *         name="affiliate_id",
+     *         in="path",
+     *         description="Id del afiliado",
+     *         example=210,
+     *
+     *         required=true,
+     *         @OA\Schema(
+     *             type="integer",
+     *             format = "int64"
+     *         )
+     *       ),
+     *      @OA\Parameter(
+     *         name="affiliate_rent_class",
+     *         in="query",
+     *         description="Tipo de renta (VEJEZ/VIUDEDAD)",
+     *         example="VEJEZ",
+     *
+     *         required=true,
+     *         @OA\Schema(
+     *             type="string"
+     *         )
+     *       ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Success",
+     *         @OA\JsonContent(
+     *         type="object"
+     *         )
+     *     ),
+     *     security={
+     *         {"bearerAuth": {}}
+     *     }
+     * )
+     *
+     * Print certificate of contributions passive
+     *
+     * @param Request $request
+     * @return void
+     */
     public function printCertificationContributionPassive(Request $request, $affiliate_id)
     {
         $request['affiliate_id'] = $affiliate_id;
         $request->validate([
             'affiliate_id' => 'required|integer|exists:contribution_passives,affiliate_id',
+            'affiliate_rent_class' => 'required'
         ]);
 
+        $this->getCertificatePassive($affiliate_id);
+        
         $affiliate = Affiliate::find($affiliate_id);
         $user = Auth::user();
         $degree = Degree::find($affiliate->degree_id);
+        $text = '';
         $contributions = collect();
+
         $value = false;
-        if ($affiliate->dead) {
-            if ($affiliate->spouse->dead != null || $affiliate->spouse->dead) {
-                $contributions_passives = ContributionPassive::whereAffiliateId($affiliate_id)
-                    ->orderBy('month_year', 'asc')
-                    ->get();
-            } else {
-                $contributions_passives = ContributionPassive::whereAffiliateId($affiliate_id)
-                    ->where('affiliate_rent_class', 'VIUDEDAD')
-                    ->orderBy('month_year', 'asc')
-                    ->get();
-                $value = true;
-            }
-        } else {
+
+        if ($request->affiliate_rent_class == 'VEJEZ') {
             $contributions_passives = ContributionPassive::whereAffiliateId($affiliate_id)
+                ->where('affiliate_rent_class', 'ilike', $request->affiliate_rent_class)
+                ->where('contribution_state_id', 2)
                 ->orderBy('month_year', 'asc')
                 ->get();
+        } else {
+            $contributions_passives = ContributionPassive::whereAffiliateId($affiliate_id)
+                ->where('affiliate_rent_class', 'ilike', '%' . $request->affiliate_rent_class . '%')
+                ->where('contribution_state_id', 2)
+                ->orderBy('month_year', 'asc')
+                ->get();
+        }
+
+        if ($affiliate->dead && $affiliate->spouse != null) {
+            $value = true;
         }
 
         foreach ($contributions_passives as $contributions_passive) {
@@ -297,15 +364,17 @@ class ContributionPassiveController extends Controller
             $month = Carbon::parse($contributions_passive->month_year)->format('m');
             if ($contributions_passive->affiliate_rent_class == 'VEJEZ') {
                 $rent_class = 'Titular';
-            } else {
+            } elseif ($contributions_passive->affiliate_rent_class == 'VIUDEDAD') {
                 $rent_class = 'Viuda';
+            } else {
+                $rent_class = 'Titular/Viuda';
             }
             if ($contributions_passive->contributionable_type == 'discount_type_economic_complement') {
                 $modality = $contributions_passive->contributionable->economic_complement->eco_com_procedure;
                 $modality_year = Carbon::parse($modality->year)->format('Y');
                 $text = "C.E." . $modality->semester . " Semestre " . $modality_year;
             } else {
-                $text = $contributions_passive->contributionable_type == 'payroll_senasirs' ? 'Tipo de descuento Senasir' : 'Tipo de descuento No Especificado';
+                $text = $contributions_passive->contributionable_type == 'payroll_senasirs' ? 'Descuento SENASIR' : 'Descuento No Especificado';
             }
             $contributions->push([
                 'id' => $contributions_passive->id,
@@ -314,11 +383,12 @@ class ContributionPassiveController extends Controller
                 'year' => $year,
                 'rent_class' => $rent_class,
                 'description' => $text,
-                'quotable' => $contributions_passive->quotable,
+                'rent_pension' => $contributions_passive->rent_pension,
                 'total' => $contributions_passive->total,
                 'type' => $contributions_passive->contributionable_type
             ]);
         }
+
         $num = 0;
         $data = [
             'header' => [
@@ -327,8 +397,8 @@ class ContributionPassiveController extends Controller
                             POLICIAL, CUOTA MORTUORIA Y AUXILIO MORTUORIO',
                 'table' => [
                     ['Usuario', $user->username],
-                    ['Fecha', Carbon::now()->format('d-m-Y')],
-                    ['Hora', Carbon::now()->format('H:i:s')],
+                    ['Fecha', Carbon::now('GMT-4')->format('d/m/Y')],
+                    ['Hora', Carbon::now('GMT-4')->format('H:i')],
                 ]
             ],
             'num' => $num,
@@ -336,10 +406,16 @@ class ContributionPassiveController extends Controller
             'affiliate' => $affiliate,
             'user' => $user,
             'value' => $value,
+            'text' => $text,
             'contributions' => $contributions
         ];
+
+        $file_name = 'aportes_pas_' . $affiliate_id . '.pdf';
         $pdf = PDF::loadView('contribution.print.certification_contribution_eco_com', $data);
-        return $pdf->stream('contributions_p.pdf');
+        $pdf->set_paper('letter', 'portrait');
+        $pdf->output();
+
+        return Util::pdf_to_base64($pdf, $file_name);
     }
 
 
@@ -367,13 +443,87 @@ class ContributionPassiveController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * @OA\delete(
+     *     path="/api/contribution/contributions_passive/{contributionPassive}",
+     *     tags={"CONTRIBUCION"},
+     *     summary="Eliminación de aporte Sector pasivo",
+     *     operationId="deleteContributionPassive",
+     *     @OA\Parameter(
+     *         description="ID del aporte del sector pasivo",
+     *         in="query",
+     *         name="contributionPassive",
+     *         required=true,
+     *         @OA\Schema(
+     *             format="int64",
+     *             type="integer"
+     *         )
+     *     ),
+     *     security={
+     *         {"bearerAuth": {}}
+     *     },
+     *      @OA\Response(
+     *          response=200,
+     *          description="Success",
+     *          @OA\JsonContent(
+     *            type="object"
+     *         )
+     *      )
+     * )
      *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * Delete list of contributions passive.
+     *
+     * @param Request $request
+     * @return void
      */
-    public function destroy($id)
+    public function destroy(ContributionPassive $contributionPassive)
     {
-        //
+        try {
+            $error = true;
+            $message = 'No es permitido la eliminación del registro';
+            if ($contributionPassive->can_deleted()) {
+                Util::save_record_affiliate($contributionPassive->affiliate,' eliminó el aporte como pasivo del periodo '.$contributionPassive->month_year.'.');
+                $contributionPassive->delete();
+                $error = false;
+                $message = 'Eliminado exitosamente';
+            }
+            return response()->json([
+                'error' => $error,
+                'message' => $message,
+                'data' => $contributionPassive
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'error' => true,
+                'message' => $e->getMessage(),
+                'data' => (object)[]
+            ]);
+        }
+    }
+
+    public static function getCertificatePassive($affiliate_id)
+    {
+        $action = 'imprimió certificado de aportes - pasivo';
+        $user = Auth::user();
+        $message = 'El usuario ' . $user->username . ' ';
+        $affiliate_record = new AffiliateRecord();
+        $affiliate_record->user_id = $user->id;
+        $affiliate_record->affiliate_id = $affiliate_id;
+        $affiliate_record->message = $message . $action;
+
+        $data = AffiliateRecord::whereDate('created_at', now())
+            ->where('affiliate_id', $affiliate_id)
+            ->where('message', 'not ilike', '%activo%')
+            ->get();
+
+        if (sizeof($data) == 0) {
+            $affiliate_record->save();
+        }
+
+        return response()->json([
+            'message' => 'Datos registrados con éxito',
+            'payload' => [
+                'affiliate' => $affiliate_record
+            ],
+        ]);
     }
 }

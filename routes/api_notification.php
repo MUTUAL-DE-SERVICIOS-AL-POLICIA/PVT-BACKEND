@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 Route::group([
-    'middleware' => 'api', 
+    'middleware' => 'api',
     'prefix'     => 'notification'
 ], function () {
     // Ruta para obtener los semestres
@@ -31,6 +31,17 @@ Route::group([
     // Ruta para enviar SMS's desde un archivo para préstamos en Mora
     Route::post('file', [App\Http\Controllers\Notification\SMSController::class, 'send_from_a_file']);
     // Ruta para consultar saldo
-    Route::get('balance', [App\Http\Controllers\Notification\SMSController::class, 'check_balance']);
+    Route::get('balance/{telephone_line}', [App\Http\Controllers\Notification\SMSController::class, 'check_balance_sms']);
+    // Ruta para consultar el saldo ussd
+    Route::get('balance_ussd', [App\Http\Controllers\Notification\SMSController::class, 'check_balance_ussd']);
+
+    Route::group([
+        'middleware' => 'permission:download-report-notification'
+    ], function(){
+        // Ruta para reporte de notificación SMS y APP
+        Route::post('report', [App\Http\Controllers\Notification\NotificationController::class, 'get_report']);
+    });
+    // Ruta para obtener los tipos de notificación
+    Route::get('get_type_notification', [App\Http\Controllers\Notification\NotificationController::class, 'get_type_notification']);
 
 });

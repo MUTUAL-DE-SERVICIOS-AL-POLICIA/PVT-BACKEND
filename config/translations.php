@@ -112,5 +112,8 @@ return [
     'description' => 'Descripción',
     // Statistics
     'module' => 'Módulo',
-    'filter' => 'Filtro'
+    'filter' => 'Filtro',
+    // Aportes
+    'affiliate_rent_class' => 'Clase de renta del afiliado',
+    'contribution_state_id' => 'Estado del aporte'
 ];

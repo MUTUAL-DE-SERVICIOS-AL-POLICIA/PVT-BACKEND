@@ -219,7 +219,6 @@ AS $$
               and ec.deleted_at is null
               and ec.wf_current_state_id =3);         			-- área técnica
 
-  
       begin
       --***********************************************************************************--
       --Registro de contribuciones de los descuentos calculados para el auxilio mortorio--
@@ -286,7 +285,7 @@ AS $$
                            record_row.aps_total_cc,
                            record_row.aps_total_fsa,
                            record_row.aps_total_fs,
-                           CASE WHEN record_row.aps_total_death is not null THEN record_row.aps_total_death ELSE 0 END,  
+                           CASE WHEN record_row.aps_total_death is not null THEN record_row.aps_total_death ELSE 0 END,
                            CASE WHEN record_row.aps_disability is not null THEN record_row.aps_disability ELSE 0 END
                           );
                           contribution_created = contribution_created + 1;
@@ -335,7 +334,7 @@ AS $$
                                where contribution_passives.id = contribution_passive.id;
                               is_change = true;
                             end if;
-                             if(contribution_passive.aps_total_death <> record_row.aps_total_death or (record_row.aps_total_death is null and contribution_passive.aps_total_death > 0))then 
+                             if((contribution_passive.aps_total_death <> record_row.aps_total_death) or (record_row.aps_total_death is null and contribution_passive.aps_total_death > 0))then
                               update public.contribution_passives
                               set user_id = id_user,
                                   aps_total_death = CASE WHEN record_row.aps_total_death is not null THEN record_row.aps_total_death ELSE 0 END,
@@ -343,7 +342,7 @@ AS $$
                                where contribution_passives.id = contribution_passive.id;
                               is_change = true;
                             end if;
-                             if(contribution_passive.aps_disability <> record_row.aps_disability or (record_row.aps_disability is null and contribution_passive.aps_disability > 0))then
+                             if((contribution_passive.aps_disability <> record_row.aps_disability) or (record_row.aps_disability is null and contribution_passive.aps_disability > 0))then
                               update public.contribution_passives
                               set user_id = id_user,
                                   aps_disability = CASE WHEN record_row.aps_disability is not null THEN record_row.aps_disability ELSE 0 END,

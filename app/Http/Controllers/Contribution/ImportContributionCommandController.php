@@ -24,13 +24,15 @@ class ImportContributionCommandController extends Controller
      *      summary="LISTA LOS MESES QUE SE REALIZARON IMPORTACIONES A LA TABLA CONTRIBUTIONS DE COMANDO EN BASE A UN AÑO DADO EJ:2022",
      *      operationId="list_command_months",
      *      description="Lista los meses importados en la tabla contributions enviando como parámetro un año en específico",
-     *      @OA\RequestBody(
+     *     @OA\RequestBody(
      *          description= "Provide auth credentials",
      *          required=true,
-     *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
-     *             @OA\Property(property="period_year", type="integer",description="Año de contribución a listar",example= "2022")
+     *          @OA\JsonContent(
+     *              type="object",
+     *             @OA\Property(property="period_year", type="integer",description="Año de contribución a listar",example= "2022"),
+     *             @OA\Property(property="with_data_count", type="boolean",description="valor para pedir envio de conteo de datos",example= false)
      *            )
-     *          ),
+     *
      *     ),
      *     security={
      *         {"bearerAuth": {}}
@@ -54,7 +56,9 @@ class ImportContributionCommandController extends Controller
     {
         $request->validate([
             'period_year' => 'required|date_format:"Y"',
+            'with_data_count'=>'boolean'
         ]);
+         $with_data_count = !isset($request->with_data_count) || is_null($request->with_data_count)? true:$request->with_data_count;
          $period_year = $request->get('period_year');
          $contributionable_type = 'payroll_commands';
 
@@ -74,7 +78,8 @@ class ImportContributionCommandController extends Controller
             }
             $month->state_validated_payroll = PayrollCommand::data_period($month->period_month,$period_year)['exist_data'];
             $date_payroll_format = Carbon::parse($period_year.'-'.$month->period_month.'-'.'01')->toDateString();
-            $month->data_count = $this->data_count($month->period_month,$period_year,$date_payroll_format);
+            if($with_data_count)
+            $month->data_count = $this->data_count_contribution($month->period_month,$period_year,$date_payroll_format);
          }
 
          return response()->json([
@@ -95,9 +100,9 @@ class ImportContributionCommandController extends Controller
         $data_count['sum_amount_total_contributions'] = 0;
 
         //---TOTAL DE DATOS DEL ARCHIVO
-        $query_total_data = "SELECT * FROM payroll_copy_commands where mes = $month::INTEGER and a_o = $year::INTEGER;";
+        $query_total_data = "SELECT count(id) FROM payroll_copy_commands where mes = $month::INTEGER and a_o = $year::INTEGER;";
         $query_total_data = DB::connection('db_aux')->select($query_total_data);
-        $data_count['num_total_data_copy'] = count($query_total_data);
+        $data_count['num_total_data_copy'] = $query_total_data[0]->count;
         // TOTAL VALIDADOS
         $data_count['num_data_validated'] =PayrollCommand::data_count($month,$year)['validated'];
         //CANTIDAD DE AFILIADOS REGULARES
@@ -105,6 +110,18 @@ class ImportContributionCommandController extends Controller
         //CANTIDAD DE AFILIADOS NUEVOS
         $data_count['num_data_new'] =PayrollCommand::data_count($month,$year)['new'];
         //---TOTAL DE REGISTROS CONTRIBUTION PASSIVES
+        $data_count['num_total_data_contributions'] = Contribution::data_period_command($date_payroll_format)['count_data'];
+        //---suma monto total contribucion
+        $data_count['sum_amount_total_contributions'] = floatval(Contribution::sum_total_command($date_payroll_format));
+
+        return  $data_count;
+    }
+    public function data_count_contribution($month,$year,$date_payroll_format){
+        $data_count['num_data_validated'] = 0;
+        $data_count['num_total_data_contributions'] = 0;
+        $data_count['sum_amount_total_contributions'] = 0;
+        // TOTAL VALIDADOS
+        $data_count['num_data_validated'] =PayrollCommand::data_count($month,$year)['validated'];
         $data_count['num_total_data_contributions'] = Contribution::data_period_command($date_payroll_format)['count_data'];
         //---suma monto total contribucion
         $data_count['sum_amount_total_contributions'] = floatval(Contribution::sum_total_command($date_payroll_format));

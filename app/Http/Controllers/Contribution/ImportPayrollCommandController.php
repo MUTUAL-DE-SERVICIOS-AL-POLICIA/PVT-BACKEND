@@ -254,9 +254,9 @@ class ImportPayrollCommandController extends Controller
         $data_count['num_data_new'] = 0;
 
         //---TOTAL DE DATOS DEL ARCHIVO
-        $query_total_data = "SELECT * FROM payroll_copy_commands where mes = $month::INTEGER and a_o = $year::INTEGER;";
+        $query_total_data = "SELECT count(id) FROM payroll_copy_commands where mes = $month::INTEGER and a_o = $year::INTEGER;";
         $query_total_data = DB::connection('db_aux')->select($query_total_data);
-        $data_count['num_total_data_copy'] = count($query_total_data);
+        $data_count['num_total_data_copy'] = $query_total_data[0]->count;
         // TOTAL VALIDADOS
         $data_count['num_data_validated'] =PayrollCommand::data_count($month,$year)['validated'];
         //CANTIDAD DE AFILIADOS REGULARES
@@ -349,7 +349,7 @@ class ImportPayrollCommandController extends Controller
             'message' => $message,
             'payload' => [
                 'import_progress_bar' =>  $result,
-                'data_count' =>  $this->data_count_payroll_command($month,$year,$date_payroll_format)
+                'data_count' =>  $this->data_count_payroll_command($month,$year)
             ],
         ]);
     }
@@ -464,13 +464,15 @@ class ImportPayrollCommandController extends Controller
      *      summary="LISTA LOS MESES QUE SE REALIZARON IMPORTACIONES PLANILLA COMANDO EN BASE A UN AÑO DADO EJ:2021",
      *      operationId="list_months_validate_command",
      *      description="Lista los meses importados en la tabla payroll_copy_commands enviando como parametro un año en especifico",
-     *      @OA\RequestBody(
+     *     @OA\RequestBody(
      *          description= "Provide auth credentials",
      *          required=true,
-     *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
-     *             @OA\Property(property="period_year", type="integer",description="Año de contribucion a listar",example= "2021")
+     *          @OA\JsonContent(
+     *              type="object",
+     *             @OA\Property(property="period_year", type="integer",description="Año de contribución a listar",example= "2022"),
+     *             @OA\Property(property="with_data_count", type="boolean",description="valor para pedir envio de conteo de datos",example= false)
      *            )
-     *          ),
+     *
      *     ),
      *     security={
      *         {"bearerAuth": {}}
@@ -494,7 +496,9 @@ class ImportPayrollCommandController extends Controller
     {
        $request->validate([
            'period_year' => 'required|date_format:"Y"',
+           'with_data_count'=>'boolean'
        ]);
+       $with_data_count = !isset($request->with_data_count) || is_null($request->with_data_count)? true:$request->with_data_count;
         $period_year = $request->get('period_year');
         $query = "SELECT  distinct month_p,year_p,  to_char( (to_date(year_p|| '-' ||month_p, 'YYYY/MM/DD')), 'TMMonth') as period_month_name from payroll_commands where deleted_at  is null and year_p =$period_year group by month_p, year_p";
         $query = DB::select($query);
@@ -509,8 +513,8 @@ class ImportPayrollCommandController extends Controller
                    break;
                }
            }
-           $date_payroll_format = Carbon::parse($period_year.'-'.$month->period_month.'-'.'01')->toDateString();
-           $month->data_count = $this->data_count_payroll_command($month->period_month,$period_year,$date_payroll_format);
+           if($with_data_count)
+           $month->data_count = $this->data_count_payroll_command($month->period_month,$period_year);
         }
 
         return response()->json([
@@ -590,7 +594,7 @@ class ImportPayrollCommandController extends Controller
                             $message = 'Excel';
                         }
                         DB::commit();
-                        $data_count= $this->data_count_payroll_command($month,$year,$date_payroll_format);
+                        $data_count= $this->data_count_payroll_command($month,$year);
 
                         return response()->json([
                             'message' => $message,

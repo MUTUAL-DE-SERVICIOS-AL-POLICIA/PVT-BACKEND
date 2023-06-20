@@ -5,6 +5,25 @@
     <title>{{$file_title}}</title>
     <link rel="stylesheet" href="{{ public_path("/css/report-print.min.css") }}" media="all"/>
 </head>
+ <style>
+        body:before {
+            content: 'NO VÁLIDO PARA TRÁMITES ADMINISTRATIVOS';
+            position: fixed;
+            z-index: -1;
+            color: #9b9b9b;
+            font-size: 80px;
+            font-weight: 500px;
+            display: grid;
+            opacity: 0.3;
+            transform: rotate(-30deg);
+
+            top: 35%;
+            left: 18%;
+            bottom: 30%;
+            right: 18%;
+            text-align: center;
+        }
+    </style>
 
 <body>
     @php ($plural = false)
@@ -79,7 +98,7 @@
     <div class="block">
         <table class="table-info w-100 text-center uppercase my-20">
             <tr class="bg-grey-darker text-xxs text-white">
-                <td class="w-15">Código Tŕamite</td>
+                <td class="w-15">Código Trámite</td>
                 @if ($loan->parent_loan)
                 <td class="w-35">Trámite origen</td>
                 @endif
@@ -114,9 +133,9 @@
                 </td>
                 <td class="data-row py-5 m-b-10 text-xs" >{{Carbon::parse($loan->disbursement_date)->format('d/m/Y H:i:s')}}</td>
                 @if($loan->parent_loan && $loan->parent_reason == "REPROGRAMACIÓN")
-                <td colspan="2">{{ Util::money_format($loan->parent_loan->amount_approved) }} <span class="capitalize">Bs.</span></td>
+                <td colspan="2" class="data-row py-5 m-b-10 text-xs" >{{ Util::money_format($loan->parent_loan->amount_approved) }} <span class="capitalize">Bs.</span></td>
                 @else
-                <td colspan="2">{{ Util::money_format($loan->amount_approved) }} <span class="capitalize">Bs.</span></td>
+                <td colspan="2" class="data-row py-5 m-b-10 text-xs" >{{ Util::money_format($loan->amount_approved) }} <span class="capitalize">Bs.</span></td>
                 @endif
             </tr>
             <tr class="bg-grey-darker text-xxs text-white">
@@ -124,9 +143,9 @@
                 <td colspan="2">Intereses Corrientes Pendientes</td>
                 <td colspan="2">Intereses Penales Pendientes</td>
             </tr>
-            <tr>
+            <tr class="data-row py-5 m-b-10 text-xs">
             @if($loan->paymentsKardex->first() != null)
-                <td class="data-row py-5 m-b-10 text-xs">{{$loan->num_accounting_voucher}}</td>
+                <td >{{$loan->num_accounting_voucher}}</td>
                 <td colspan="2">{{ Util::money_format($loan->paymentsKardex->first()->interest_accumulated)}}</td>
                 <td colspan="2">{{ Util::money_format($loan->paymentsKardex->first()->penal_accumulated)}}</td>
                 @else
@@ -137,7 +156,7 @@
             </tr>
         </table>
     </div>
-
+<br>
     <div class="block">
         <div class="font-semibold leading-tight text-left m-b-10 text-xs">{{ $n++ }}. KARDEX DE PAGOS (EXPRESADO EN BOLIVIANOS)</div>
     </div>
@@ -155,7 +174,7 @@
 
                 @if($loan->parent_loan_id != null)
             <thead>
-                <tr class="bg-grey-darker text-xxs text-white">
+                   <tr class="bg-grey-darker text-xxs text-white">
                     <th class="w-5">Nº</th>
                     <th class="w-8"><div>Fecha de</div><div>cálculo</div></td>
                     <th class="w-8"><div>Fecha de</div><div>Cobro</div></td>
@@ -175,8 +194,8 @@
                 @php ($capital = $loan->parent_loan->amount_approved)
                 @foreach ($loan->parent_loan->paymentsKardex->sortBy('quota_number') as $parent_loan_payment)
                 @php ($res_saldo_capital = $capital-$parent_loan_payment->capital_payment)
-                <tr class="text-xs">
-                    <td>{{ $parent_loan_payment->quota_number }}</td>
+                <tr class="text-xxxxs">
+                    <td >{{ $parent_loan_payment->quota_number }}</td>
                     <td>{{ Carbon::parse($parent_loan_payment->estimated_date)->format('d/m/Y') }}</td>
                     <td>{{ Carbon::parse($parent_loan_payment->loan_payment_date)->format('d/m/Y') }}</td>
                     <td class=" text-right">{{ Util::money_format($parent_loan_payment->capital_payment) }}</td> {{-- capital --}}
@@ -199,7 +218,7 @@
                 @endforeach
                 @endif
                 <thead>
-                    <tr class="bg-grey-darker text-xxs text-white">
+                    <tr class="bg-grey-darker text-xxxs text-white ">
                         <th class="w-5">Nº</th>
                         <th class="w-8"><div>Fecha de</div><div>cálculo</div></td>
                         <th class="w-8"><div>Fecha de</div><div>Cobro</div></td>
@@ -219,7 +238,7 @@
                 @php ($capital = $loan->amount_approved)
                 @foreach ($loan->paymentsKardex->sortBy('quota_number') as $payment)
                 @php ($res_saldo_capital = $capital-$payment->capital_payment)
-                <tr>
+                <tr class="text-xs">
                     <td class="w-5">{{ $payment->quota_number }}</td>
                     <td class="w-9">{{ Carbon::parse($payment->estimated_date)->format('d/m/Y') }}</td>
                     <td class="w-9">{{ Carbon::parse($payment->loan_payment_date)->format('d/m/Y') }}</td>
@@ -241,7 +260,7 @@
                 @php ($capital = $res_saldo_capital)
                 @endforeach
                 <tr>
-                    <td colspan="3" class="data-row py-2 font-semibold leading-tight text-xxs">TOTALES</td>
+                    <td colspan="3" class="data-row py-2 font-semibold leading-tight text-xs">TOTALES</td>
                     <td class="text-right">{{ Util::money_format($sum_capital_payment) }}</td>
                     <td class="text-right">{{ Util::money_format($sum_interest_payment) }}</td>
                     <td class="text-right">{{ Util::money_format($sum_penal_payment) }}</td>

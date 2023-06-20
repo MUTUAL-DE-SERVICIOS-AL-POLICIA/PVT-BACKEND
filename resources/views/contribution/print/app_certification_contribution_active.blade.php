@@ -5,11 +5,30 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>Contributions</title>
     <link rel="stylesheet" href="{{ public_path('/css/report-print.min.css') }}" media="all" />
+    <style>
+        body:before {
+            content: 'NO VÁLIDO PARA TRÁMITES ADMINISTRATIVOS';
+            position: fixed;
+            z-index: -1;
+            color: #9b9b9b;
+            font-size: 65px;
+            font-weight: 500px;
+            display: grid;
+            opacity: 0.3;
+            transform: rotate(-30deg);
+
+            top: 35%;
+            left: 18%;
+            bottom: 30%;
+            right: 18%;
+            text-align: center;
+        }
+    </style>
 </head>
 
 <body class="no-border">
     <div>
-        @include('partials.header', $header)
+        @include('partials.header_app', $header)
     </div>
 
     <div class="text-center">
@@ -27,7 +46,7 @@
         </p>
     </div>
 
-    <div>
+    <div class="block">
         <table class="table-info w-100 text-center">
             <thead class="bg-grey-darker text-xxs text-white">
                 <tr class="text-white text-xxs">
@@ -40,7 +59,7 @@
                     <th class="data-row py-2">APORTE</td>
                 </tr>
             </thead>
-            <tbody>
+            <tbody class="text-xxs">
                 @foreach ($contributions as $contribution)
                     <tr>
                         <td class="data-row py-2">{{ $num = $num + 1 }}</td>
@@ -70,33 +89,24 @@
         </table>
     </div>
     <br>
-    <div>
-        <table class="table-info w-100">
-            <thead>
-                <tr class="bg-grey-darker text-xxs text-white">
-                    <th class="w-10 text-justify">
-                        <p>NOTA: Toda vez que, la presente certificación detalla información referencial
-                            respecto a los aportes para los beneficios del Fondo de Retiro y Cuota Mortuoria, 
-                            se requiere al solicitante efectuar la verificación correspondiente de los datos, 
-                            a fin de no existir reclamos posteriores.</p>
-                    </th>
-                </tr>
-            </thead>
+    <div class="text-justify border-grey-darker rounded">
+        <table class="w-100 text-xxs p-10">
             <tbody>
                 <tr>
-                    <td class="w-10 text-xxs text-justify">Asímismo, se efectuó la revisión de datos contenidos en el
-                        Sistema Institucional y base de
-                        datos antecedentes respecto a los aportes efectuados para el beneficio.
-                        En cuanto se certifica para fines consiguientes.
+                    <td>
+                        <b>NOTA.- </b>La presente certificación contiene informacion de aportes registrados en la Base
+                        de
+                        Datos
+                        de la MUSERPOL (considerando la existencia de registros de aportes en el Sistema Institucional a
+                        partir de Febrero de 1999 en adelante). Asímismo, este documento no contempla toda la
+                        información de la planilla de pago, por lo que no es válido para trámites administrativos,
+                        siendo de uso exclusivo de la MUSERPOL.<br>
+                        Es cuanto se certifica, para fines consiguientes.
                     </td>
                 </tr>
             </tbody>
         </table>
     </div>
     <br>
-    <div>
-        @include('partials.footer_app', $header)
-    </div>
-</body>
 
 </html>

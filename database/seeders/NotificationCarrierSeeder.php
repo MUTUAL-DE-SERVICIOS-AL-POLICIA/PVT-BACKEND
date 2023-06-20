@@ -16,8 +16,6 @@ class NotificationCarrierSeeder extends Seeder
      */
     public function run()
     {
-        DB::table('notification_carriers')->truncate();
-        DB::statement('alter sequence notification_carriers_id_seq restart with 1');
         $notification_carriers = [
             [
                 'module_id' => 2,

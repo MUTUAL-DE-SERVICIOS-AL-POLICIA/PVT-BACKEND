@@ -7,6 +7,7 @@ use App\Models\Affiliate\Affiliate;
 use App\Models\City;
 use App\Models\Contribution\ContributionType;
 use App\Models\DiscountType;
+use App\Models\Observation;
 use App\Models\Procedure\ProcedureModality;
 use App\Models\Tag;
 use App\Models\Workflow\WfRecord;
@@ -60,11 +61,11 @@ class RetirementFund extends Model
     }
     public function city_start()
     {
-        return $this->belongsTo(City::class,'city_start_id');
+        return $this->belongsTo(City::class, 'city_start_id');
     }
     public function city_end()
     {
-        return $this->belongsTo(City::class,'city_end_id');
+        return $this->belongsTo(City::class, 'city_end_id');
     }
     public function workflow()
     {
@@ -72,33 +73,33 @@ class RetirementFund extends Model
     }
     public function wf_state()
     {
-        return $this->belongsTo(WfState::class,'wf_state_current_id', 'id');
+        return $this->belongsTo(WfState::class, 'wf_state_current_id', 'id');
     }
     public function ret_fun_state()
     {
-        return $this->belongsTo(RetFunState::class,'ret_fun_state_id');
+        return $this->belongsTo(RetFunState::class, 'ret_fun_state_id');
     }
     public function ret_fun_observations()
     {
         return $this->hasMany(RetFunObservation::class);
     }
     public function ret_fun_beneficiaries()
-	{
-		return $this->hasMany(RetFunBeneficiary::class);
+    {
+        return $this->hasMany(RetFunBeneficiary::class);
     }
     public function discount_types()
     {
-        return $this->belongsToMany(DiscountType::class)->withPivot(['amount','date','code','note_code', 'note_code_date'])->withTimestamps();
-    }    
+        return $this->belongsToMany(DiscountType::class)->withPivot(['amount', 'date', 'code', 'note_code', 'note_code_date'])->withTimestamps();
+    }
     public function ret_fun_records()
     {
-        return $this->hasMany(RetFunRecord::class,'ret_fun_id','id');
+        return $this->hasMany(RetFunRecord::class, 'ret_fun_id', 'id');
     }
-    public function tags() 
+    public function tags()
     {
-        return $this->morphToMany(Tag::class, 'taggable')->withPivot(['user_id','date'])->withTimestamps();
+        return $this->morphToMany(Tag::class, 'taggable')->withPivot(['user_id', 'date'])->withTimestamps();
     }
-    public function contribution_types()   
+    public function contribution_types()
     {
         return $this->belongsToMany(ContributionType::class)->withPivot(['message'])->withTimestamps();
     }
@@ -106,8 +107,12 @@ class RetirementFund extends Model
     {
         return $this->hasMany(RetFunCorrelative::class);
     }
-    public function wf_records() 
+    public function wf_records()
     {
         return $this->morphMany(WfRecord::class, 'recordable');
+    }
+    public function observations()
+    {
+        return $this->morphMany(Observation::class, 'observable');
     }
 }

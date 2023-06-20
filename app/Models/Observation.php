@@ -36,7 +36,7 @@ class Observation extends Model
     {
         return $this->belongsTo(User::class);
     }
-    public function type()
+    public function observation_type()
     {
         return $this->belongsTo(ObservationType::class);
     }

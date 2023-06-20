@@ -84,7 +84,7 @@ class PayrollCommand extends Model
     {
         $data = collect([]);
         $exists_data = true;
-        $payroll = PayrollCommand::whereMonth_p($month)->whereYear_p($year)->count();
+        $payroll = PayrollCommand::whereMonth_p($month)->whereYear_p($year)->count('id');
         if($payroll == 0) $exists_data = false;
 
         $data['exist_data'] = $exists_data;
@@ -95,9 +95,9 @@ class PayrollCommand extends Model
     public static function data_count($month,$year)
     {
         $data = collect([]);
-        $data['validated'] = PayrollCommand::whereMonth_p($month)->whereYear_p($year)->count();
-        $data['regular'] = PayrollCommand::whereMonth_p($month)->whereYear_p($year)->whereAffiliate_type('REGULAR')->count();
-        $data['new'] = PayrollCommand::whereMonth_p($month)->whereYear_p($year)->whereAffiliate_type('NUEVO')->count();
+        $data['validated'] = PayrollCommand::whereMonth_p($month)->whereYear_p($year)->count('id');
+        $data['regular'] = PayrollCommand::whereMonth_p($month)->whereYear_p($year)->whereAffiliate_type('REGULAR')->count('id');
+        $data['new'] = PayrollCommand::whereMonth_p($month)->whereYear_p($year)->whereAffiliate_type('NUEVO')->count('id');
 
         return  $data;
     }

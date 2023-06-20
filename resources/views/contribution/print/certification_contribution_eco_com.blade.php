@@ -22,7 +22,6 @@
     </div>
 
     <div>
-        <p class="font-bold">DATOS TITULAR</p>
         @include('affiliate.police_info')
 
         @if ($value)
@@ -38,7 +37,7 @@
         </p>
     </div>
 
-    <div>
+    <div class="block">
         <table class="table-info w-100 text-center">
             <thead class="bg-grey-darker text-xxs text-white">
                 <tr class="text-white text-xxs">
@@ -51,7 +50,7 @@
                     <th class="data-row py-2">APORTE</td>
                 </tr>
             </thead>
-            <tbody>
+            <tbody class="text-xxs">
                 @foreach ($contributions as $contribution)
                     <tr>
                         <td class="data-row py-2">{{ $num = $num + 1 }}</td>
@@ -59,7 +58,7 @@
                         <td class="data-row py-2">{{ $contribution['month'] }}</td>
                         <td class="data-row py-2">{{ $contribution['rent_class'] }}</td>
                         <td class="data-row py-2" colspan="2">{{ $contribution['description'] }}</td>
-                        <td class="data-row py-2">{{ Util::money_format($contribution['quotable']) }}</td>
+                        <td class="data-row py-2">{{ Util::money_format($contribution['rent_pension']) }}</td>
                         <td class="data-row py-2">{{ Util::money_format($contribution['total']) }}</td>
                     </tr>
                 @endforeach
@@ -81,10 +80,21 @@
             </thead>
             <tbody>
                 <tr>
-                    <td class="w-10 text-xxs text-justify">Asímismo, se efectuó la revisión de datos contenidos en el
-                        Sistema Institucional y base de
-                        datos antecedentes respecto a los aportes efectuados para el beneficio.
-                        En cuanto se certifica para fines consiguientes.
+                    <td class="w-10 text-xxs text-justify">
+                        @if ($text == 'Descuento SENASIR')
+                            Asímismo, se efectuó la revisión de datos contenidos en el Sistema Institucional y base de
+                            datos respecto a los aportes efectuados para el beneficio de Auxilio Mortuorio mediante
+                            Descuentos
+                            Mensuales de las boletas de pago de Renta (información proporcionada por el SENASIR a partir
+                            de la gestión 1999 en adelante). Este documento no es válido para trámites administrativos,
+                            siendo de uso exclusivo para la MUSERPOL.
+                        @else
+                            Asimismo, se efectuó la revisión de datos contenidos en el Sistema Institucional y base de
+                            datos respecto a los aportes efectuados para el beneficio de Auxilio Mortuorio soló por la
+                            modalidad de Descuento Anticipado del Complemento Económico Semestral. Este documento no es
+                            válido para trámites administrativos, siendo de uso exclusivo para la MUSERPOL.
+                        @endif
+                        <br>Es cuanto se certifica para fines consiguientes.
                     </td>
                 </tr>
             </tbody>

@@ -15,7 +15,10 @@ class ObservationType extends Model
     {
         return $this->belongsTo(Module::class);
     }
-
+    public function observations()
+    {
+        return $this->hasMany(Observation::class);
+    }
     public function economic_complements() {
         return $this->morphedByMany(EconomicComplement::class, 'observable');
     }

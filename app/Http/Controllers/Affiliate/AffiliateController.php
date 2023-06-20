@@ -158,14 +158,61 @@ class AffiliateController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
+     * @OA\Post(
+     *      path="/api/affiliate/affiliate",
+     *      tags={"AFILIADO"},
+     *      summary="NUEVO AFILIADO",
+     *      operationId="crear afiliado",
+     *      description="Creación de un nuevo afiliado",
+     *      security={{"bearerAuth":{}}},
+     *      @OA\RequestBody(
+     *          description= "Provide auth credentials",
+     *          required=true,
+     *          @OA\JsonContent(
+     *              type="object",
+     *              @OA\Property(property="affiliate_state_id", type="integer", description="id de estado de afiliado required", example=2),
+     *              @OA\Property(property="degree_id", type="integer", description="id del grado policial required", example=3),
+     *              @OA\Property(property="identity_card", type="string", description="carnet de identidad required", example="2001010"),
+     *              @OA\Property(property="gender", type="string", description="género required", example="M"),
+     *              @OA\Property(property="civil_status", type="string", description="estado civil required", example="S"),
+     *              @OA\Property(property="birth_date", type="date", description="fecha de nacimiento required", example="1998-07-01"),
+     *              @OA\Property(property="first_name", type="string", description="primer nombre required", example="JUAN"),
+     *              @OA\Property(property="second_name", type="string", description="segundo nombre", example=""),
+     *              @OA\Property(property="last_name", type="string", description="apellido paterno", example="RIOS"),
+     *              @OA\Property(property="mothers_last_name", type="string", description="apellido materno", example="RIOS"),
+     *              @OA\Property(property="surname_husband", type="string", description="apellido de casada", example=""),
+     *              @OA\Property(property="city_birth_id", type="integer", description="id de ciudad de nacimiento", example=1),    
+     *              @OA\Property(property="date_entry", type="date", description="fecha de ingreso a la policía", example="2021-01-06"),
+     *              @OA\Property(property="unit_id", type="integer", description="id de la unidad de destino", example=1),
+     *              @OA\Property(property="unit_police_description", type="string", description="descripcion de la unidad policial", example=""),
+     *              @OA\Property(property="category_id", type="integer", description="id de la categoría", example=3),
+     *              @OA\Property(property="pension_entity_id", type="integer", description="id de la entidad de pensiones", example=2),
+     *              @OA\Property(property="date_derelict", type="date", description="fecha de baja de la policía", example=""),
+     *              @OA\Property(property="city_identity_card_id", type="integer", description="id de la ciudad del CI", example=4),
+     *              @OA\Property(property="is_duedate_undefined", type="boolean", description="fecha de vencimiento es indefinida", example=false),
+     *              @OA\Property(property="cell_phone_number", type="array", @OA\Items(type="string"), description="número de celular", example={"(772)-36645","(787)-79597"})
+     *          )
+     *     ),
+     *      @OA\Response(
+     *          response=200,
+     *          description="Success",
+     *          @OA\JsonContent(
+     *            type="object"
+     *         )
+     *      )
+     * )
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @return void
      */
-    public function store(Request $request)
+    public function store(AffiliateRequest $request)
     {
-        //
+        $request = $request->all();
+        $request['user_id'] = Auth::id();
+
+        if (isset($request['cell_phone_number']) && $request['cell_phone_number'] != null) {
+            $request['cell_phone_number'] = implode(',', $request['cell_phone_number']) ?? '';
+        }
+        return Affiliate::create($request);
     }
 
     /**
@@ -303,7 +350,8 @@ class AffiliateController extends Controller
      *              @OA\Property(property="nua", type="integer",description="número de NUA",example=1301101),     
      *              @OA\Property(property="account_number", type="integer",description="número de cuenta del afiliado",example=10000017711404),     
      *              @OA\Property(property="financial_entity_id", type="integer",description="id de la entidad financiera de la cuenta del afiliado",example=1),  
-     *              @OA\Property(property="sigep_status", type="string",description="estado de la cuenta SIGEP",example="ACTIVO")
+     *              @OA\Property(property="sigep_status", type="string",description="estado de la cuenta SIGEP",example="ACTIVO"),
+     *              @OA\Property(property="cell_phone_number", type="array", @OA\Items(type="string"), description="número de celular", example={"(772)-36645","(787)-79597"})
      *          )
      *     ),
      *      @OA\Response(
@@ -320,7 +368,7 @@ class AffiliateController extends Controller
     public function update(AffiliateRequest $request, $id)
     {
         if (!Auth::user()->can('update-affiliate-primary')) {
-            $update = $request->except('first_name', 'second_name', 'last_name', 'mothers_last_name', 'surname_husband', 'identity_card','category_id','degree_id','affiliate_state_id');
+            $update = $request->except('first_name', 'second_name', 'last_name', 'mothers_last_name', 'surname_husband', 'identity_card', 'category_id', 'degree_id', 'affiliate_state_id');
         } else {
             $update = $request->all();
         }
@@ -564,7 +612,7 @@ class AffiliateController extends Controller
         $affiliate_records = $affiliate->affiliate_records_pvt()->with(['user:id,username'])->orderByDesc('created_at')->get();
         $records = $affiliate->records()->with(['user:id,username'])->get();
         $affiliate_activities = $affiliate->activities()->with('user:id,username')->orderByDesc('created_at')->get();
-        return compact('affiliate_records','records','affiliate_activities');
+        return compact('affiliate_records', 'records', 'affiliate_activities');
     }
     /**
      * @OA\Get(

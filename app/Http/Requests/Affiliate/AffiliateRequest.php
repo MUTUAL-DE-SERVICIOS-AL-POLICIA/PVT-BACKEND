@@ -27,25 +27,25 @@ class AffiliateRequest extends FormRequest
     public function rules()
     {
         $rules = [
-            'first_name' => 'alpha_spaces|min:3',
+            'affiliate_state_id' => 'nullable|exists:affiliate_states,id',
             'gender' => 'in:M,F',
             'birth_date' => 'date_format:"Y-m-d"',
-            'city_birth_id' => 'exists:cities,id',
             'civil_status' => 'in:C,D,S,V',
-            'identity_card' => 'alpha_dash|min:5|max:15',
-            'affiliate_state_id' => 'nullable|exists:affiliate_states,id',
-            'city_identity_card_id' => 'nullable|exists:cities,id',
             'degree_id' => 'nullable|exists:degrees,id',
-            'pension_entity_id' => 'nullable|exists:pension_entities,id',
+            'identity_card' => 'alpha_dash|min:5|max:15',
+            'first_name' => 'alpha_spaces|min:3',
+            'second_name' => 'nullable|alpha_spaces|min:3',
             'last_name' => 'sometimes|required_without:mothers_last_name|nullable|alpha_spaces|min:3',
             'mothers_last_name' => 'sometimes|required_without:last_name|nullable|alpha_spaces|min:3',
-            'second_name' => 'nullable|alpha_spaces|min:3',
+            'surname_husband' => 'nullable|alpha_spaces|min:3',
+            'city_birth_id' => 'exists:cities,id',
+            'city_identity_card_id' => 'nullable|exists:cities,id',
+            'pension_entity_id' => 'nullable|exists:pension_entities,id',
             'cell_phone_number' => 'nullable|array',
             'date_death' => 'nullable|date_format:"Y-m-d"',
             'date_entry' => 'nullable|date_format:"Y-m-d"',
             'date_derelict' => 'nullable|date_format:"Y-m-d"',
             'due_date' => 'nullable|date_format:"Y-m-d"',
-            'surname_husband' => 'nullable|alpha_spaces|min:3',
             'financial_entity_id' => 'nullable|exists:financial_entities,id',
             'sigep_status' => 'nullable|alpha_spaces|min:3|in:ACTIVO,ELABORADO,VALIDADO,SIN REGISTRO',
             'account_number' => 'nullable|integer',
@@ -55,7 +55,7 @@ class AffiliateRequest extends FormRequest
         ];
         switch ($this->method()) {
             case 'POST': {
-                    foreach (array_slice($rules, 0, 7) as $key => $rule) {
+                    foreach (array_slice($rules, 0, 6) as $key => $rule) {
                         $rules[$key] = implode('|', ['required', $rule]);
                     }
                     $rules['identity_card'] = implode('|', ['unique:affiliates', $rules['identity_card']]);

@@ -264,9 +264,9 @@ class Util
     }
 
      // Enviar un array de objetos
-     public static function delegate_shipping($shipments, $user_id, $transmitter_id=1, $morph_type=null) {
+     public static function delegate_shipping($shipments, $user_id, $transmitter_id=1, $morph_type=null, $type=null) {
 
-        try{
+        try {
             $sms_server_url = env('SMS_SERVER_URL', 'localhost');
             $root = env('SMS_SERVER_ROOT', 'root');
             $password = env('SMS_SERVER_PASSWORD', 'root');
@@ -274,49 +274,51 @@ class Util
             $user_id = $user_id; // usuario que envío la notificación
             $transmitter_id = $transmitter_id; // id del número telefónico que envía el sms
             $issuer_number = NotificationNumber::find($transmitter_id)->number;
-            $flag = false;
+            $counter = 0;
+            $i = 0;
 
             foreach($shipments as $shipping) {
                 $shipping['sms_num'] = Util::remove_special_char($shipping['sms_num']);
                 $code_num = '591' . $shipping['sms_num'];
                 $message = $shipping['message'];
-                logger("==================================");
-                logger($shipping['sms_num']);
-                logger($shipping['message']);
-                logger("==================================");
                 $response = Http::get($sms_server_url . "dosend.php?USERNAME=$root&PASSWORD=$password&smsprovider=$sms_provider&smsnum=$code_num&method=2&Memo=$message");
-
                 if($response->successful()) {
+                    $delivered = false;
                     $clipped_chain = substr($response, strrpos($response, "id=") + 3);
                     $end_of_chain = substr($clipped_chain,  strrpos($clipped_chain, "&U"));
                     $id = substr($clipped_chain, 0, -strlen($end_of_chain));
                     $result = Http::timeout(60)->get($sms_server_url . "resend.php?messageid=$id&USERNAME=$root&PASSWORD=$password");
                     if($result->successful()) {
-                        $var = $result->getBody();
+                        // logger("se envío sms ". $i);
+                        $var = $result->getBody(); // obteniendo el cuerpo de la página html
+                        $obj = $morph_type ? new Affiliate() : new Loan();
+                        $alias = $obj->getMorphClass();
+                        $notification_send = new NotificationSend();
                         if(strpos($var, "ERROR") === false || strpos($var, "logout,") === false) {
-                            $flag = true;
-                            $obj = $morph_type ? new Affiliate() : new Loan();
-                            $alias = $obj->getMorphClass();
-                            $notification_send = new NotificationSend();
+                            $counter++;
+                            $delivered = true;
+                        } else $delivered = false;
+                        if($type == 6) {
                             $notification_send->create([
                                 'user_id' => $user_id,
                                 'carrier_id' => NotificationCarrier::whereName('SMS')->first()->id,
-                                'number_id' => NotificationNumber::whereNumber($issuer_number)->first()->id,
+                                'sender_number' => NotificationNumber::whereNumber($issuer_number)->first()->id,
                                 'sendable_type' => $alias,
                                 'sendable_id' => $shipping['id'],
                                 'send_date' => Carbon::now(),
-                                'delivered' => true,
+                                'delivered' => $delivered,
                                 'message' => json_encode(['data' => $shipping['message']]),
-                                'subject' => null
+                                'subject' => null,
+                                'receiver_number' => $shipping['sms_num'],
+                                'notification_type_id' => $type
                             ]);
                         }
-                        else $flag = false;
                     }
-                    else $flag = false;
                 }
-                else $flag = false;
+                $i++;
             }
-            return $flag;
+            return $counter > 0 ?? false;
+
         }catch(\Exception $e) {
             logger($e->getMessage());
         }
@@ -326,7 +328,7 @@ class Util
         return preg_replace('/[\(\)\-]+/', '', $string);
     }
 
-    public static function check_balance() {
+    public static function check_balance_sms() {
 
         $sms_server_url = env('SMS_SERVER_URL', 'localhost');
         $root = env('SMS_SERVER_ROOT', 'root');
@@ -343,7 +345,7 @@ class Util
             $result = Http::timeout(60)->get($sms_server_url . "resend.php?messageid=$id&USERNAME=$root&PASSWORD=$password");
             if($result->successful()) {
                 $var = $result->getBody();
-                if(strpos($var, "ERROR") === false) {
+                if(strpos($var, "ERROR") === false || strpos($var, "logout,") === false) {
                     $flag = true;
                 }
             }
@@ -359,8 +361,37 @@ class Util
         }
         return 0;
     }
+
     public static function round($value)
     {
         return round($value, 4, PHP_ROUND_HALF_EVEN);
+    }
+
+    public static function check_balance_ussd() {
+        DB::connection('mysql')->table('auto_ussd')
+        ->where('id', 1)
+        ->update(['next_time' => 'UNIX_TIMESTAMP()',
+                  'fixed_next_time' => 'if(recharge_con_type=2, UNIX_TIMESTAMP(), fixed_next_time)']);
+        sleep(60); 
+        $result = DB::connection('mysql')->table('USSD')->select('USSD_RETURN')->orderBy('INSERTTIME', 'desc')->first();
+        return $result->USSD_RETURN;
+    }
+
+    public static function pdf_to_base64($pdf, $file_name)
+    {
+        $dom_pdf = $pdf->getDomPDF();
+        $canvas = $dom_pdf->get_canvas();
+        
+        $width = $canvas->get_width();
+        $height = $canvas->get_height();
+        $pageNumberWidth = $width / 2;
+        $pageNumberHeight = $height - 35;
+        $canvas->page_text($pageNumberWidth, $pageNumberHeight, "Página {PAGE_NUM} de {PAGE_COUNT}", null, 10, array(0, 0, 0));
+
+        return [
+            'content' => base64_encode($pdf->output()),
+            'type' => 'pdf',
+            'file_name' => $file_name
+        ];
     }
 }

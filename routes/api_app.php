@@ -10,9 +10,9 @@ Route::group([
 ], function () {
     // Rutas abiertas
     Route::get('procedure_qr/{module_id}/{uuid}', [App\Http\Controllers\ProcedureQRController::class, 'procedure_qr']);
-    Route::get('loan/{loan}/print/kardex',[App\Http\Controllers\Loan\LoanController::class, 'print_kardex']);
     Route::patch('send_code_reset_password', [App\Http\Controllers\Affiliate\AffiliateUserController::class, 'send_code_reset_password']);
     Route::patch('reset_password', [App\Http\Controllers\Affiliate\AffiliateUserController::class, 'reset_password']);
+    Route::get('contacts',[App\Http\Controllers\CityController::class, 'listContacts']);
     // Rutas autenticadas con token
     Route::group([
         'middleware' => ['api_auth']
@@ -22,5 +22,6 @@ Route::group([
         Route::get('/all_contributions/{affiliate_id}', [App\Http\Controllers\Contribution\AppContributionController::class, 'all_contributions']);
         Route::get('/contributions_passive/{affiliate_id}', [App\Http\Controllers\Contribution\AppContributionController::class, 'printCertificationContributionPassive']);
         Route::get('/contributions_active/{affiliate_id}', [App\Http\Controllers\Contribution\AppContributionController::class, 'printCertificationContributionActive']);
+        Route::get('loan/{loan}/print/kardex',[App\Http\Controllers\Loan\LoanController::class, 'print_kardex']);
     });
 });

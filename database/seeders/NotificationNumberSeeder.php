@@ -16,8 +16,6 @@ class NotificationNumberSeeder extends Seeder
      */
     public function run()
     {
-        DB::table('notification_numbers')->truncate();
-        DB::statement('alter sequence notification_numbers_id_seq restart with 1');
         $notification_numbers = [
             [
                 'number' => 71568925,

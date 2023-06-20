@@ -6,6 +6,7 @@ use App\Models\Admin\User;
 use App\Models\Affiliate\Affiliate;
 use App\Models\City;
 use App\Models\DiscountType;
+use App\Models\Observation;
 use App\Models\Procedure\ProcedureModality;
 use App\Models\Tag;
 use App\Models\Workflow\WfRecord;
@@ -30,7 +31,7 @@ class QuotaAidMortuary extends Model
         'code',
         'reception_date',
         'subtotal',
-        'total', 
+        'total',
         'workflow_id',
         'wf_state_current_id',
         'inbox_state',
@@ -53,7 +54,7 @@ class QuotaAidMortuary extends Model
     {
         return $this->belongsTo(ProcedureModality::class, 'procedure_modality_id');
     }
-    public function city_start()    
+    public function city_start()
     {
         return $this->belongsTo(City::class, 'city_start_id');
     }
@@ -62,8 +63,8 @@ class QuotaAidMortuary extends Model
         return $this->belongsTo(City::class, 'city_end_id');
     }
     public function quota_aid_submitted_document()
-	{
-		return $this->hasMany(QuotaAidSubmittedDocument::class);
+    {
+        return $this->hasMany(QuotaAidSubmittedDocument::class);
     }
     public function quota_aid_observation()
     {
@@ -81,9 +82,9 @@ class QuotaAidMortuary extends Model
     {
         return $this->belongsTo(WfState::class, 'wf_state_current_id', 'id');
     }
-    public function tags()     
+    public function tags()
     {
-        return $this->morphToMany(Tag::class, 'taggable')->withPivot(['user_id','date'])->withTimestamps();
+        return $this->morphToMany(Tag::class, 'taggable')->withPivot(['user_id', 'date'])->withTimestamps();
     }
     public function discount_types()
     {
@@ -93,8 +94,12 @@ class QuotaAidMortuary extends Model
     {
         return $this->hasMany(QuotaAidCorrelative::class);
     }
-    public function wf_records()        
+    public function wf_records()
     {
         return $this->morphMany(WfRecord::class, 'recordable');
+    }
+    public function observations()
+    {
+        return $this->morphMany(Observation::class, 'observable');
     }
 }

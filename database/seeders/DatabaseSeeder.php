@@ -20,5 +20,7 @@ class DatabaseSeeder extends Seeder
         $this->call(ContributionStateSeeder::class);
         $this->call(NotificationCarrierSeeder::class);
         $this->call(NotificationNumberSeeder::class);
+        $this->call(NotificationTypeSeeder::class);
+        $this->call(NotificationRolePermissionSeeder::class);
     }
 }

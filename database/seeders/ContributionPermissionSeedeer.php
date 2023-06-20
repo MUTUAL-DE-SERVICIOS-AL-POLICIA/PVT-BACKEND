@@ -56,6 +56,22 @@ class ContributionPermissionSeedeer extends Seeder
                 'action_id'=>Action::where('name','download')->first()->id,
                 'name' => 'download-report-payroll-command',
                 'display_name' => 'Descarga reporte planilla comando general'
+            ],[
+                'action_id'=>Action::where('name','delete')->first()->id,
+                'name' => 'delete-contribution-passive',
+                'display_name' => 'Eliminar aporte sector pasivo'
+            ],[
+                'action_id'=>Action::where('name','delete')->first()->id,
+                'name' => 'delete-contribution',
+                'display_name' => 'Eliminar aporte sector activo'
+            ],[
+                'action_id' => Action::where('name', 'download')->first()->id,
+                'name' => 'download-certifications',
+                'display_name' => 'Descargar certificaciones de aportes'
+            ],[
+                'action_id' => Action::where('name', 'create')->first()->id,
+                'name' => 'create-credentials',
+                'display_name' => 'Crear credenciales para afiliado'
             ],
         ];
         foreach ($permissions as $permission) {

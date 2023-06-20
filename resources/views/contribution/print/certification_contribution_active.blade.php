@@ -27,7 +27,7 @@
         </p>
     </div>
 
-    <div>
+    <div class="block">
         <table class="table-info w-100 text-center">
             <thead class="bg-grey-darker text-xxs text-white">
                 <tr class="text-white text-xxs">
@@ -40,7 +40,7 @@
                     <th class="data-row py-2">APORTE</td>
                 </tr>
             </thead>
-            <tbody>
+            <tbody class="text-xxs">
                 @foreach ($contributions as $contribution)
                     <tr>
                         <td class="data-row py-2">{{ $num = $num + 1 }}</td>
@@ -70,24 +70,18 @@
         </table>
     </div>
     <br>
-    <div>
-        <table class="table-info w-100">
-            <thead>
-                <tr class="bg-grey-darker text-xxs text-white">
-                    <th class="w-10 text-justify">
-                        <p>NOTA: Toda vez que, la presente certificación detalla información referencial
-                            respecto a los aportes para los beneficios del Fondo de Retiro y Cuota Mortuoria,
-                            se requiere al solicitante efectuar la verificación correspondiente de los datos,
-                            a fin de no existir reclamos posteriores.</p>
-                    </th>
-                </tr>
-            </thead>
+    <div class="text-justify border-grey-darker rounded">
+        <table class="w-100 text-xxs p-10">
             <tbody>
                 <tr>
-                    <td class="w-10 text-xxs text-justify">Asímismo, se efectuó la revisión de datos contenidos en el
-                        Sistema Institucional y base de
-                        datos antecedentes respecto a los aportes efectuados para el beneficio.
-                        En cuanto se certifica para fines consiguientes.
+                    <td>
+                        <b>NOTA.- </b>La presente certificación contiene informacion de aportes registrados en la Base de
+                        Datos
+                        de la MUSERPOL (considerando la existencia de registros de aportes en el Sistema Institucional a
+                        partir de Febrero de 1999 en adelante). Asímismo, este documento no contempla toda la
+                        información de la planilla de pago, por lo que no es válido para trámites administrativos,
+                        siendo de uso exclusivo de la MUSERPOL.<br>
+                        Es cuanto se certifica, para fines consiguientes.
                     </td>
                 </tr>
             </tbody>
