@@ -75,6 +75,7 @@ Route::group([
         ], function () {
             Route::post('/report_import_contribution_senasir', [App\Http\Controllers\Contribution\ImportContributionSenasirController::class, 'report_import_contribution_senasir']);
             Route::post('/report_import_contribution_command', [App\Http\Controllers\Contribution\ImportContributionCommandController::class, 'report_import_contribution_command']);
+            Route::post('/report_import_reimbursement_command', [App\Http\Controllers\Contribution\ImportContributionCommandController::class, 'report_import_reimbursement_command']);
         });
         Route::post('/update_base_wages', [App\Http\Controllers\Contribution\ImportPayrollCommandController::class, 'update_base_wages']);
         Route::post('/import_contribution_eco_com', [App\Http\Controllers\Contribution\ImportContributionEcoComController::class, 'import_contribution_eco_com']);
