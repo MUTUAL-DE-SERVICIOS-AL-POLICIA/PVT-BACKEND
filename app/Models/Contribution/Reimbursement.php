@@ -65,4 +65,28 @@ class Reimbursement extends Model
     {
         return $this->belongsTo(Breakdown::class);
     }
+
+    public static function data_period_reimbursement($month_year)
+    {
+        $data = collect([]);
+        $exists_data = true;
+        $contribution =  Reimbursement::whereMonth_year($month_year)->whereContributionable_type('payroll_commands')->count('id');
+        if($contribution == 0) $exists_data = false;
+
+        $data['exist_data'] = $exists_data;
+        $data['count_data'] = $contribution;
+
+        return  $data;
+    }
+
+    public static function sum_total_reimbursement($month_year)
+    {
+        $contribution =  Reimbursement::whereMonth_year($month_year)->whereContributionable_type('payroll_commands')->sum('total');
+        return $contribution;
+    }
+
+    public function can_deleted(){
+        return is_null($this->contributionable_type)? true : false;
+    }
+
 }

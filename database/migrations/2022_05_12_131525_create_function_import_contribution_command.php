@@ -25,7 +25,7 @@ return new class extends Migration
                        retirement_fund_amount numeric:=0;
                        mortuary_quota_amount numeric:=0;
                                -- Declaración EXPLICITA del cursor
-                               cur_contribution CURSOR FOR select * from payroll_commands where year_p = year_period and month_p = month_period and base_wage >0;
+                               cur_contribution CURSOR FOR select * from payroll_commands where year_p = year_period and month_p = month_period and base_wage >0 and reimbursement=false;
                                record_row payroll_commands%ROWTYPE;
                            begin
                               --***************************************
