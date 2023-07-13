@@ -14,12 +14,12 @@ class ContributionRate extends Model
     protected $fillable = [
         'user_id',
         'month_year',
-        'retirement_found',
+        'retirement_fund',
         'mortuary_quota',
         'retirement_fund_commission',
         'mortuary_quota_commission',
         'mortuary_aid',
-        'created_at', 
+        'created_at',
         'updated_at'
     ];
     public function user()
