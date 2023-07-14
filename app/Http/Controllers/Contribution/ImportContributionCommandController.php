@@ -419,7 +419,7 @@ class ImportContributionCommandController extends Controller
         $date_contribution_format = $request->date_contribution;
 
         $data_cabeceras=array(array("PERIODO","TIPO","ID_AFILIADO","CÉDULA_DE_IDENTIDAD","UNIDAD","DESGLOSE","PATERNO",
-        "MATERNO","AP_CASADA", "P_NOMBRE","S_NOMBRE","ESTADO_CIVIL","GRADO", "CATEGORÍA","SUELDO_BASE","BONO_ANTIGÜEDAD", "BONO_ESTUDIO",
+        "MATERNO","AP_CASADA", "P_NOMBRE","S_NOMBRE","ESTADO_CIVIL","GRADO","SUELDO_BASE","BONO_ANTIGÜEDAD", "BONO_ESTUDIO",
         "BONO_A_CARGO","BONO_FRONTERA","BONO_ORIENTE","TOTAL_GANADO","LÍQUIDO_PAGABLE","COTIZABLE","FONDO_DE_RETIRO",
         "CUOTA_MORTUORIA","TOTAL_APORTE"));
 
@@ -429,7 +429,7 @@ class ImportContributionCommandController extends Controller
         $day = (string)$date_contribution->format("d");
         $date_contribution = $year.'-'.$month.'-'.$day;     
         $data_contribution_command = "select r.month_year, r.type, a.id, a.identity_card, u.name, b.name as breakdown, a.last_name, a.mothers_last_name, 
-        a.surname_husband, a.first_name, a.second_name, a.civil_status, d.name as degree, c3.name as category, r.base_wage, r.seniority_bonus,r.study_bonus, 
+        a.surname_husband, a.first_name, a.second_name, a.civil_status, d.name as degree, r.base_wage, r.seniority_bonus,r.study_bonus, 
         r.position_bonus, r.border_bonus, r.east_bonus, r.gain, r.payable_liquid, r.quotable, r.retirement_fund, r.mortuary_quota, r.total
         from reimbursements r 
         inner join affiliates a 
@@ -440,8 +440,6 @@ class ImportContributionCommandController extends Controller
         on b.id = r.breakdown_id 
         inner join degrees d 
         on d.id = r.degree_id
-        inner join categories c3 
-        on c3.id = r.category_id 
         and r.month_year = '$date_contribution'
         and r.type = 'Planilla'";
                     $data_contribution_command = DB::select($data_contribution_command);
@@ -451,7 +449,7 @@ class ImportContributionCommandController extends Controller
                                 foreach ($data_contribution_command as $row){
                                     array_push($data_cabeceras, array($row->month_year ,$row->type ,$row->id ,$row->identity_card,
                                     $row->name, $row->breakdown, $row->last_name , $row->mothers_last_name ,$row->surname_husband, $row->first_name,
-                                    $row->second_name,$row->civil_status,$row->degree,$row->category,$row->base_wage,$row->seniority_bonus,$row->study_bonus,$row->position_bonus,
+                                    $row->second_name,$row->civil_status,$row->degree,$row->base_wage,$row->seniority_bonus,$row->study_bonus,$row->position_bonus,
                                     $row->border_bonus, $row->east_bonus,$row->gain, $row->payable_liquid,$row->quotable,
                                     $row->retirement_fund,$row->mortuary_quota,$row->total));
                                 }
