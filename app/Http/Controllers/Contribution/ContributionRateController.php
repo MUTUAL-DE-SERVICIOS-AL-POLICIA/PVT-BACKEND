@@ -21,9 +21,8 @@ class ContributionRateController extends Controller
             'month_year' => $contribution_rate_previus->month_year,
             'retirement_fund'=> $contribution_rate_previus->retirement_fund,
             'mortuary_quota'=> $contribution_rate_previus->mortuary_quota,
-            'retirement_fund_commission'=> $contribution_rate_previus->retirement_fund_commission,
-            'mortuary_quota_commission'=>$contribution_rate_previus->mortuary_quota_commission,
-            'mortuary_aid'=>$contribution_rate_previus->mortuary_aid
+            'mortuary_aid'=>$contribution_rate_previus->mortuary_aid,
+            'fcsspn'=> $contribution_rate_previus->fcsspn
         ]);
         if ($contribution_rate_new) {
             return response()->json(['message' => 'Nuevo registro creado con éxito.'], 200);
