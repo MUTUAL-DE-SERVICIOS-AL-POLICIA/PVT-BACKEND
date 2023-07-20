@@ -58,6 +58,6 @@ class Spouse extends Model
     }
     public function getIdentityCardExtAttribute()
     {
-        return $this->identity_card . ' ' . $this->city_identity_card->first_shortened;
+        return $this->identity_card;
     }
 }

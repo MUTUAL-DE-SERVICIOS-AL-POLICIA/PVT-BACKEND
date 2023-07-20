@@ -32,7 +32,7 @@ class ContributionController extends Controller
      *         in="query",
      *         description="Página a mostrar",
      *         example=1,
-     *         required=false, 
+     *         required=false,
      *       ),
      *     @OA\Parameter(
      *         name="per_page",
@@ -403,7 +403,6 @@ class ContributionController extends Controller
                     'mothers_last_name' => $affiliate->mothers_last_name,
                     'surname_husband' => $affiliate->surname_husband,
                     'identity_card' => $affiliate->identity_card,
-                    'city_identity_card' => $affiliate->city_identity_card->first_shortened ?? '',
                     'all_contributions' => $all_contributions
                 ],
             ]);

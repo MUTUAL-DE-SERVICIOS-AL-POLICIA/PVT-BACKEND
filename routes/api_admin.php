@@ -13,6 +13,7 @@ Route::group([
     'prefix' => 'admin'
 ], function () {
     // Rutas abiertas
+    Route::get('demo', [App\Http\Controllers\Admin\UserController::class, 'demo']);//ruta de prueba
     // Rutas autenticadas con token
     Route::group([
         'middleware' => ['auth:sanctum']
