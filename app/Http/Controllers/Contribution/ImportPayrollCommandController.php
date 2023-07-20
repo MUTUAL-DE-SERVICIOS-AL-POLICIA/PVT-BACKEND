@@ -824,7 +824,7 @@ class ImportPayrollCommandController extends Controller
 
         $message = "Excel";
             foreach ($data_payroll_command as $row){
-                array_push($data_cabeceras, array($row->id,$row->unit->name,$row->breakdown->name, $row->category->name,
+                array_push($data_cabeceras, array($row->id,$row->unit->name,$row->breakdown->name, isset($row->category->name) ? $row->category->name:'',
                 $row->month_p, $row->year_p, $row->identity_card, $row->last_name, $row->mothers_last_name, $row->surname_husband, 
                 $row->first_name, $row->second_name, $row->civil_status, $row->hierarchy->name, $row->degree->name, $row->gender, 
                 $row->base_wage, $row->seniority_bonus, $row->study_bonus, $row->position_bonus, $row->border_bonus, $row->east_bonus,
