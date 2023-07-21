@@ -11,11 +11,12 @@ Route::group([
     // Rutas abiertas
     Route::patch('change_password', [App\Http\Controllers\Affiliate\AffiliateUserController::class, 'change_password']);
     Route::post('auth', [App\Http\Controllers\Affiliate\AffiliateUserController::class, 'auth']);
-    Route::post('import_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'upload_copy_affiliates_availability']);
+    Route::post('upload_copy_affiliates_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'upload_copy_affiliates_availability']);
     Route::post('validate_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'validate_affiliates_availability']);
     Route::post('download_error_data_archive', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'download_error_data_archive']);
     Route::post('download_data_revision', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'download_data_revision']);
     Route::post('download_data_revision_suggestion', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'download_data_revision_suggestion']);
+    Route::post('list_months_import_affiliates_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'list_months_import_affiliates_availability']);
     // Rutas autenticadas con token
     Route::group([
         'middleware' => ['auth:sanctum']
