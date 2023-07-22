@@ -561,7 +561,7 @@ class ImportAffiliatesController extends Controller
      *          required=true,
      *          @OA\JsonContent(
      *              type="object",
-     *             @OA\Property(property="period_import", type="integer",description="Año de importación de afiliados en disponibilidad",example= "2023"),
+     *             @OA\Property(property="period_year", type="integer",description="Año de importación de afiliados en disponibilidad",example= "2023"),
      *             @OA\Property(property="with_data_count", type="boolean",description="valor para pedir envio de conteo de datos",example= false)
      *            )
      *
@@ -585,11 +585,11 @@ class ImportAffiliatesController extends Controller
     */
     public function list_months_import_affiliates_availability(Request $request) {
         $request->validate([
-            'period_import' => 'required|date_format:"Y"',
+            'period_year' => 'required|date_format:"Y"',
             'with_data_count' => 'boolean'
         ]);
         $with_data_count = !isset($request->with_data_count) || is_null($request->with_data_count) ? true : $request->with_data_count;
-        $period_year = $request->period_import;
+        $period_year = $request->period_year;
         $query = "SELECT DISTINCT mes FROM copy_affiliates_availability WHERE deleted_at IS NULL AND a_o = $period_year";
         $periods = collect(DB::connection('db_aux')->select($query));
         $periods = $periods->pluck('mes');
@@ -611,12 +611,11 @@ class ImportAffiliatesController extends Controller
         return response()->json([
             'message' => "Exito",
             'payload' => [
-                'months_import' => $months_import_with_name->all(),
-                'months_not_import' => $months_not_import_with_name->all(),
+                'list_months' => $months_import_with_name->all(),
+                'list_months_not_import' => $months_not_import_with_name->all(),
             ]
         ]);
     }
-
     public function data_count($month, $year) {
         $query_total_data = "SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year";
         $query_total_data = DB::connection('db_aux')->select($query_total_data);
@@ -627,9 +626,9 @@ class ImportAffiliatesController extends Controller
         $query_no_update_affiliates = "SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND error_mensaje = 'NO ACTUALIZADO'";
         $query_no_update_affiliates = DB::connection('db_aux')->select($query_no_update_affiliates);
 
-        $data_count['update_number_of_affiliates'] = $query_update_affiliates[0]->count;
+        $data_count['num_of_affiliates_updated'] = $query_update_affiliates[0]->count;
         $data_count['num_of_affiliates_not_updated'] = $query_no_update_affiliates[0]->count;
-        $data_count['total_file_amount'] = $query_total_data[0]->count;
+        $data_count['num_total_data_copy'] = $query_total_data[0]->count;
 
         return $data_count;
     }
