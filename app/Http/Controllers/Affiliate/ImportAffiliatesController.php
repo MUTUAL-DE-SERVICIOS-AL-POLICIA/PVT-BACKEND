@@ -11,6 +11,8 @@ use App\Exports\ArchivoPrimarioExport;
 use Illuminate\Database\QueryException;
 use App\Helpers\Util;
 use Auth;
+use App\Models\Affiliate\Affiliate;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ImportAffiliatesController extends Controller
 {
@@ -105,8 +107,11 @@ class ImportAffiliatesController extends Controller
                     $drop = 'DROP TABLE if EXISTS affiliates_in_availability_tmp';
                     DB::connection('db_aux')->select($drop);
 
-                    $verify_data = "UPDATE copy_affiliates_availability caa SET error_mensaje = concat(error_mensaje, ' - ', 'El valor del primer nombre es NULO') FROM (SELECT id FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND primer_nombre IS NULL) AS subquery WHERE caa.id = subquery.id;";
-                    DB::connection('db_aux')->select($verify_data);
+                    $verify_data = "UPDATE copy_affiliates_availability caa SET error_mensaje = concat(error_mensaje, ' - ', 'El valor del cedula es NULO') FROM (SELECT id FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND (cedula IS NULL OR cedula LIKE '')) AS subquery WHERE caa.id = subquery.id;";
+                    $verify_data = DB::connection('db_aux')->select($verify_data);
+
+                    $verify_data = "UPDATE copy_affiliates_availability caa SET error_mensaje = concat(error_mensaje, ' - ', 'El valor del primer nombre es NULO') FROM (SELECT id FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND (primer_nombre IS NULL OR primer_nombre LIKE '')) AS subquery WHERE caa.id = subquery.id;";
+                    $verify_data = DB::connection('db_aux')->select($verify_data);
 
                     $verify_data = "UPDATE copy_affiliates_availability caa SET error_mensaje = concat(error_mensaje, ' - ', 'El número de carnet es duplicado') FROM (SELECT cedula, count(cedula) FROM copy_affiliates_availability WHERE  mes = $month AND a_o = $year GROUP BY cedula HAVING count(cedula) > 1) AS subquery WHERE caa.cedula = subquery.cedula;";
                     $verify_data = DB::connection('db_aux')->select($verify_data);
@@ -115,7 +120,7 @@ class ImportAffiliatesController extends Controller
                     $verify_data = DB::connection('db_aux')->select($verify_data);
 
                     if($verify_data[0]->count > 0) {
-                        $route = '/affiliates/download_error_data_archive';
+                        $route = '/affiliate/download_error_data_archive';
                         $route_file_name = 'datos_observados_archivo.xls';
                         return response()->json([
                             'message' => 'Excel',
@@ -168,13 +173,19 @@ class ImportAffiliatesController extends Controller
             }
         } catch(QueryException $e) {
             $message = $e->getMessage();
+            logger($message);
             if(strpos($message, 'extra') !== false) $message = "Hay más columnas de las esperadas";
-            else $message = "Hubo un error";
+            elseif (strpos($message, 'DETAIL:') !== false) {
+                $clipped_chain = substr($message, strrpos($message, "DETAIL:  ") + 9);
+                $end_of_chain = substr($clipped_chain, strrpos($clipped_chain, "CONTEXT"));
+                $message = substr($clipped_chain, 0, -strlen($end_of_chain));
+            }
             DB::rollBack();
             return response()->json([
-                'message' => $message,
+                'message' => 'Hubo un error',
                 'payload' => [
                     'sucessfully' => false,
+                    'error' => $message
                 ]
             ], 500);
         } catch(\Exception $e) {
@@ -342,7 +353,7 @@ class ImportAffiliatesController extends Controller
                     'message' => "No se encontraron a algunos afiliados",
                     'payload' => [
                         'successfully' => false,
-                        'route' => '/affiliates/download_data_revision',
+                        'route' => '/affiliate/download_data_revision',
                         'route_file_name' => 'observador_para_revision.xls'
                     ]
                 ]);
@@ -430,7 +441,7 @@ class ImportAffiliatesController extends Controller
      * @param Request $request
      * @return void
     */
-    public function donwload_data_revision_suggestion(Request $request) {
+    public function download_data_revision_suggestion(Request $request) {
         try {
             $request->validate([
                 'date_import' => 'required|date_format:"Y-m-d"',
@@ -440,7 +451,7 @@ class ImportAffiliatesController extends Controller
             $year = (int)$date_import->format("Y");
             $month = (int)$date_import->format("m");
             $data_affiliates_availability = "SELECT cedula, grado, paterno, materno, primer_nombre, segundo_nombre, situacion_laboral, unidad, 'Revisar disponibilidad' AS detalle
-            FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND (situacion_laboral LIKE '%DISPONIBILIDAD%' OR situacion_laboral LIKE '%DISP.%' OR situacion_laboral LIKE '%CATEGORIA%')";
+            FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND error_mensaje LIKE 'NO ACTUALIZADO'";
             $data_affiliates_availability = DB::connection('db_aux')->select($data_affiliates_availability);
             foreach($data_affiliates_availability as $row) {
                 array_push($data_header, array($row->cedula, $row->grado, $row->paterno, $row->materno, ($row->primer_nombre .' '.$row->segundo_nombre), $row->situacion_laboral, $row->unidad, $row->detalle));
@@ -621,5 +632,197 @@ class ImportAffiliatesController extends Controller
         $data_count['total_file_amount'] = $query_total_data[0]->count;
 
         return $data_count;
+    }
+
+    /**
+     * @OA\Post(
+     *      path="/api/affiliate/rollback_import_affiliates_availability",
+     *      tags={"IMPORTACION-AFFILIADO-DISPONIBILIDAD"},
+     *      summary="REHACER IMPORTACIÓN AFILIADOS DISPONIBILIDAD",
+     *      operationId="rollback_import_affiliats_availability",
+     *      description="Para rehacer la importación de afiliados disponibilidad",
+     *      @OA\RequestBody(
+     *          description= "Provide auth credentials",
+     *          required=true,
+     *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
+     *             @OA\Property(property="date_import", type="string",description="fecha de importación required",example= "1999-01-01")
+     *            )
+     *          ),
+     *     ),
+     *     security={
+     *         {"bearerAuth": {}}
+     *     },
+     *      @OA\Response(
+     *          response=200,
+     *          description="Success",
+     *          @OA\JsonContent(
+     *            type="object"
+     *         )
+     *      )
+     * )
+     *
+     * Logs user into the system.
+     *
+     * @param Request $request
+     * @return void
+    */
+    public function rollback_import_affiliates_availability(Request $request) {
+        $request->validate([
+            'date_import' => 'required|date_format:"Y-m-d"',
+        ]);
+        DB::beginTransaction();
+        try {
+            $result['delete_step_1'] = false;
+            $valid_rollback = false;
+            $date_import = Carbon::parse($request->date_import);
+            $year = (int)$date_import->format("Y");
+            $month = (int)$date_import->format("m");
+            $message = "Nada que eliminar";
+
+            if($this->exists_data_import_affiliate_availability($month, $year)) {
+                $result['delete_step_1'] = $this->delete_import_affiliate_availability($month, $year);
+
+                if($result['delete_step_1'] == true) {
+                    $valid_rollback = true;
+                    $message = "Realizado con éxito";
+                }
+            }
+            DB::commit();
+            return response()->json([
+                'message' => $message,
+                'payload' => [
+                    'valid_rollback' => $valid_rollback,
+                    'delete_step' => $result
+                ]
+            ]);
+        } catch(\Exception $e) {
+            logger($e);
+            return response()->json([
+                'message' => "Hubo un error",
+                'payload' => [
+                    'error' => true,
+                ]
+            ], 500);
+        }
+    }
+
+    public function exists_data_import_affiliate_availability($month, $year) {
+        $exists_data = true;
+        $verify_data = DB::connection('db_aux')->select("SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year");
+
+        if($verify_data[0]->count == 0) $exists_data = false;
+
+        return $exists_data;
+    }
+
+    public function delete_import_affiliate_availability($month, $year) {
+        if($this->exists_data_import_affiliate_availability($month,$year))
+        {
+            $query = "DELETE FROM copy_affiliates_availability WHERE a_o = $year AND mes = $month";
+            $query = DB::connection('db_aux')->select($query);
+            DB::commit();
+            return true;
+        } else
+            return false;
+    }
+
+     /**
+     * @OA\Post(
+     *      path="/api/affiliate/import_affiliates_availability_progress_bar",
+     *      tags={"IMPORTACION-AFILIADOS-DISPONIBILIDAD"},
+     *      summary="INFORMACIÓN DE PROGRESO DE IMPORTACIÓN AFILIADOS DISPONIBILIDAD",
+     *      operationId="import_payroll_transcript_progress_bar",
+     *      description="Muestra la información de la importación de afiliados en disponibilidad  (-1)Si existió algún error en algún paso, (100) Si todo fue exitoso, (25 50 75)paso 1,2,3 respectivamente (0)si esta iniciando la importación",
+     *      @OA\RequestBody(
+     *          description= "Provide auth credentials",
+     *          required=true,
+     *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
+     *             @OA\Property(property="date_import", type="string",description="fecha de importacion required",example= "2023-01-01")
+     *            )
+     *          ),
+     *     ),
+     *     security={
+     *         {"bearerAuth": {}}
+     *     },
+     *      @OA\Response(
+     *          response=200,
+     *          description="Success",
+     *          @OA\JsonContent(
+     *            type="object"
+     *         )
+     *      )
+     * )
+     *
+     * Logs user into the system.
+     *
+     * @param Request $request
+     * @return void
+    */
+    public function import_affiliates_availability_progress_bar(Request $request) {
+        $request->validate([
+            'date_import' => 'required|date_format:"Y-m-d"',
+        ]);
+
+        $date_import = Carbon::parse($request->date_import);
+        $year = (int)$date_import->format("Y");
+        $month = (int)$date_import->format("m");
+        $message = "Exito";
+
+        $result['file_exists'] = false;
+        $result['file_name'] = "";
+        $result['percentage'] = 0;
+        $result['query_step_1'] = false;
+        $result['query_step_2'] = false;
+
+        $task['task_step_1'] = false;
+        $task['task_step_2'] = false;
+
+        // $verify = DB::connection('db_aux')->select("SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND affiliate_id IS  NULL AND state NOT LIKE 'accomplished'")[0]->count;
+        $task['task_step_1'] = $this->exists_data_import_affiliate_availability($month, $year);
+        // logger($verify);
+
+        //****** paso 2 *****/
+        $verify = DB::connection('db_aux')->select("SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND state like 'unrealized'")[0]->count;
+
+        // $affiliates_in_file = "SELECT affiliate_id FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND STATE LIKE 'accomplished' AND error_mensaje <> 'NO ACTUALIZADO'";
+        // $affiliates_in_file = DB::connection('db_aux')->select($affiliates_in_file);
+        // $affiliates_in_file = collect($affiliates_in_file);
+        // $amount_in_file = $affiliates_in_file->count();
+
+        // como determinamos si actualizo a los afiliados
+        // $affiliates = Affiliate::all()->pluck('id');
+        // $amount = $affiliates->whereIn('id', $affiliates_in_file)->where('affiliate_state_id', '=', 3)->count();
+
+        $task['task_step_2'] = $this->exists_data_import_affiliate_availability($month, $year) && $verify == 0 ? true : false;
+
+        //verificamos si existe el archivo de importación
+        $date_month= strlen($month) == 1 ? '0'.$month : $month;
+        $new_file_name = "disponibilidad-".$date_month."-".$year.'.csv';
+        $base_path = 'afiliados/afiliados_disponibilidad/'.$date_month.'-'.$year.'/'.$new_file_name;
+        if (Storage::disk('ftp')->has($base_path)) {
+            $result['file_name'] = $new_file_name;
+            $result['file_exists'] = true;
+        }
+
+        if($result['file_exists'] == true && $task['task_step_1'] == true && $task['task_step_2']  == true ){
+            $result['percentage'] = 100;
+            $result['query_step_1'] = true;
+            $result['query_step_2'] = true;
+        } elseif ($result['file_exists'] == true && $task['task_step_1'] == true && $task['task_step_2']  == false ){
+            $result['percentage'] = 50;
+            $result['query_step_1'] = true;
+        } else {
+            $result['percentage'] = -1;
+            $message = "Error! Algo salió mal en algún paso.";
+        }
+
+        return response()->json([
+            'message' => $message,
+            'payload' => [
+                'import_progress_bar' =>  $result,
+                'data_count' => $this->data_count($month,$year),
+                'task'=> $task
+            ],
+        ]);
     }
 }
