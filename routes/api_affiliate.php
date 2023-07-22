@@ -17,6 +17,8 @@ Route::group([
     Route::post('download_data_revision', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'download_data_revision']);
     Route::post('download_data_revision_suggestion', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'download_data_revision_suggestion']);
     Route::post('list_months_import_affiliates_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'list_months_import_affiliates_availability']);
+    Route::post('rollback_import_affiliates_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'rollback_import_affiliates_availability']);
+    Route::post('import_affiliates_availability_progress_bar', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'import_affiliates_availability_progress_bar']);
     // Rutas autenticadas con token
     Route::group([
         'middleware' => ['auth:sanctum']
