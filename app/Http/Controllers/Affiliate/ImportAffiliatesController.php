@@ -107,7 +107,7 @@ class ImportAffiliatesController extends Controller
                     $drop = 'DROP TABLE if EXISTS affiliates_in_availability_tmp';
                     DB::connection('db_aux')->select($drop);
 
-                    $verify_data = "UPDATE copy_affiliates_availability caa SET error_mensaje = concat(error_mensaje, ' - ', 'El valor del cedula es NULO') FROM (SELECT id FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND (cedula IS NULL OR cedula LIKE '')) AS subquery WHERE caa.id = subquery.id;";
+                    $verify_data = "UPDATE copy_affiliates_availability caa SET error_mensaje = concat(error_mensaje, ' - ', 'El número de carnet es NULO') FROM (SELECT id FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND (cedula IS NULL OR cedula LIKE '')) AS subquery WHERE caa.id = subquery.id;";
                     $verify_data = DB::connection('db_aux')->select($verify_data);
 
                     $verify_data = "UPDATE copy_affiliates_availability caa SET error_mensaje = concat(error_mensaje, ' - ', 'El valor del primer nombre es NULO') FROM (SELECT id FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND (primer_nombre IS NULL OR primer_nombre LIKE '')) AS subquery WHERE caa.id = subquery.id;";
@@ -147,7 +147,7 @@ class ImportAffiliatesController extends Controller
                             'successfully' => $successfully,
                             'route' => $route,
                             'route_file_name' => $route_file_name,
-                            'data_count' => $query_total_data[0]
+                            'data_count' => $query_total_data[0] // TODO
                         ]
                     ]);
                 } else {
@@ -159,7 +159,7 @@ class ImportAffiliatesController extends Controller
                             'route' => $route,
                             'route_file_name' => $route_file_name
                         ]
-                        ], 404);
+                    ]);
                 }
             } else {
                 return response()->json([
@@ -170,7 +170,7 @@ class ImportAffiliatesController extends Controller
                         'route' => $route,
                         'route_file_name' => $route_file_name
                     ],
-                ], 404);
+                ]);
             }
         } catch(QueryException $e) {
             $message = $e->getMessage();
@@ -355,7 +355,7 @@ class ImportAffiliatesController extends Controller
                     'payload' => [
                         'successfully' => false,
                         'route' => '/affiliate/download_data_revision',
-                        'route_file_name' => 'observador_para_revision.xls',
+                        'route_file_name' => 'observados_para_revision.xls',
                         'data_count' => $validation
                     ]
                 ]);
@@ -366,7 +366,7 @@ class ImportAffiliatesController extends Controller
                     'message' => "No se encontraron a algunos afiliados",
                     'payload' => [
                         'successfully' => false,
-                        'route' => '/affiliates/download_data_revision',
+                        'route' => '/affiliate/download_data_revision',
                         'route_file_name' => 'observados_para_revision.xls'
                     ]
                 ]);
@@ -380,7 +380,7 @@ class ImportAffiliatesController extends Controller
                         'successfully' => true,
                         'data_count' => $this->data_count($month, $year),
                         'route' => '/affiliate/download_data_revision_suggestion',
-                        'route_file_name' => 'no_identificados_en_disponibilidad.xls'
+                        'route_file_name' => 'sugeridos_para_revision_en_disponibilidad.xls'
                     ],
                 ]);
             }
@@ -780,21 +780,10 @@ class ImportAffiliatesController extends Controller
         $task['task_step_1'] = false;
         $task['task_step_2'] = false;
 
-        // $verify = DB::connection('db_aux')->select("SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND affiliate_id IS  NULL AND state NOT LIKE 'accomplished'")[0]->count;
         $task['task_step_1'] = $this->exists_data_import_affiliate_availability($month, $year);
-        // logger($verify);
 
         //****** paso 2 *****/
         $verify = DB::connection('db_aux')->select("SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND state like 'unrealized'")[0]->count;
-
-        // $affiliates_in_file = "SELECT affiliate_id FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND STATE LIKE 'accomplished' AND error_mensaje <> 'NO ACTUALIZADO'";
-        // $affiliates_in_file = DB::connection('db_aux')->select($affiliates_in_file);
-        // $affiliates_in_file = collect($affiliates_in_file);
-        // $amount_in_file = $affiliates_in_file->count();
-
-        // como determinamos si actualizo a los afiliados
-        // $affiliates = Affiliate::all()->pluck('id');
-        // $amount = $affiliates->whereIn('id', $affiliates_in_file)->where('affiliate_state_id', '=', 3)->count();
 
         $task['task_step_2'] = $this->exists_data_import_affiliate_availability($month, $year) && $verify == 0 ? true : false;
 
@@ -827,5 +816,88 @@ class ImportAffiliatesController extends Controller
                 'task'=> $task
             ],
         ]);
+    }
+
+    /**
+     * @OA\Post(
+     *      path="/api/affiliate/report_import_affiliates_availability",
+     *      tags={"IMPORTACION-AFILIADOS-DISPONIBILIDAD"},
+     *      summary="GENERA REPORTE DE AFILIADOS ACTUALIZADOS EN DISPONIBILIDAD",
+     *      operationId="report_import_affiliates_availability",
+     *      description="Genera un reporte de aquellos afiliados que fueron actualizados a estado de disponibilidad",
+     *      @OA\RequestBody(
+     *          description= "Provide auth credentials",
+     *          required=true,
+     *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
+     *             @OA\Property(property="date_import", type="string",description="fecha de importación required",example= "2023-01-01")
+     *            )
+     *          ),
+     *     ),
+     *     security={
+     *         {"bearerAuth": {}}
+     *     },
+     *      @OA\Response(
+     *          response=200,
+     *          description="Success",
+     *          @OA\JsonContent(
+     *            type="object"
+     *         )
+     *      )
+     * )
+     *
+     * Logs user into the system.
+     *
+     * @param Request $request
+     * @return void
+    */
+    public function report_import_affiliates_availability(Request $request) {
+        try {
+            $request->validate([
+                'date_import' => 'required|date_format:"Y-m-d"',
+            ]);
+
+            $data_headers = array(array("N° CARNET", "GRADO", "PATERNO", "MATERNO", "PRIMER NOMBRE", "SEGUNDO NOMBRE", "SITUACIÓN LABORAL", "UNIDAD"));
+
+            $date_import = Carbon::parse($request->date_import);
+            $year = (int)$date_import->format("Y");
+            $month = (int)$date_import->format("m");
+            $message = "Error, no existen datos de importación del periódo ".$year."-".$month."-"."01";
+
+            $query = "SELECT caa.cedula, caa.grado, caa.paterno, caa.materno, caa.primer_nombre, caa.segundo_nombre, caa.situacion_laboral, caa.unidad
+                    FROM copy_affiliates_availability caa
+                    WHERE error_mensaje IS NULL
+                    ORDER BY caa.id";
+            $affiliates_availability = DB::connection('db_aux')->select($query);
+
+            if(count($affiliates_availability) > 0) {
+                $file_name = "Reporte afiliados en diponibilidad";
+                $extension = ".xls";
+                foreach($affiliates_availability as $affiliate) {
+                    array_push($data_headers, array($affiliate->cedula, $affiliate->grado, $affiliate->paterno,
+                        $affiliate->materno, $affiliate->primer_nombre, $affiliate->segundo_nombre,
+                        $affiliate->situacion_laboral, $affiliate->unidad));
+                }
+                $export = new ArchivoPrimarioExport($data_headers);
+                return Excel::download($export, $file_name."_".$month."-".$year.$extension);
+            }
+            return response()->json([
+                'message' => $message,
+                'payload' => []
+            ]);
+        } catch(QueryException $e) {
+            return response()->json([
+                'message' => 'Ocurrió un error de Base de Datos',
+                'payload' => [
+                    'successfully' => false,
+                ]
+            ], 500);
+        } catch(\Exception $e) {
+            return response()->json([
+                'message' => 'Hubo un error al generar el archivo',
+                'payload' => [
+                    'successfull' => false
+                ]
+            ], 500);
+        }
     }
 }
