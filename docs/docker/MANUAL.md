@@ -20,24 +20,36 @@ cd PVT-BACKEND
 git clone https://github.com/Laradock/laradock.git
 ```
 
-- copiamos los archivos de configuracion del laradock
+- copiamos los archivos de configuracion de laradock
 
 ```sh
 cp -f docs/docker/docker-compose.yml laradock/
 cp -f docs/docker/env-example laradock/.env
 ```
-- ingresamos a la carpeta laradock
+- Ingresamos a la carpeta laradock
 
 ```sh
 cd laradock
 ```
 
-- levantamos las imagenes y los contenedores
+- En el archivo .env modificamos el puerto en el cual queremos que se ejecute el servicio nginx, como la siguiente siguiente linea
 
 ```sh
-docker-compose up -d nginx redis workspace
+NGINX_HOST_HTTP_PORT=80
 ```
-- Instalamos las dependensias de la aplicacion
+
+- construimos la imagen de nginx, esta se encargara de levantar las imagenes necesarias para el proyecto
+
+```sh
+docker-compose build --no-cache nginx
+```
+- levantamos los contenedores necesarios
+
+```sh
+docker-compose up -d nginx
+```
+
+- Instalamos las dependencias de la aplicacion 
 
 ```sh
 docker-compose exec --user laradock workspace composer install

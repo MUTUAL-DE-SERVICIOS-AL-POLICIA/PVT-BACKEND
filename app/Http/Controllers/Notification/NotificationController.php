@@ -1024,4 +1024,22 @@ class NotificationController extends Controller
         }
         return Excel::download(new NotificationSendExport($result, $media_type), 'notificaciones.xlsx');
     }
+
+    public function get_report_notifications(Request $request) {
+        $start_date = $request->start_date;
+        $end_date = $request->end_date;
+
+        $records = NotificationSend::select('economic_complements.affiliate_id', 'eco_com_applicants.first_name', 'eco_com_applicants.last_name', 'eco_com_applicants.mothers_last_name', 'economic_complements.code', 'notification_sends.send_date',
+            DB::raw("CASE WHEN notification_sends.delivered = true THEN 'si' ELSE 'no' END AS delivered"))
+            ->join('economic_complements', 'notification_sends.sendable_id', '=', 'economic_complements.id')
+            ->join('eco_com_applicants', 'economic_complements.id', '=', 'eco_com_applicants.economic_complement_id')
+            ->where('notification_sends.sendable_type', 'economic_complements')
+            ->where('send_date', '>=', $start_date)
+            ->where('send_date', '<=', $end_date)
+            ->distinct()
+            ->get();
+
+        $media_type = 0;
+        return Excel::download(new NotificationSendExport($records, $media_type), 'notificaciones.xlsx');
+    }
 }

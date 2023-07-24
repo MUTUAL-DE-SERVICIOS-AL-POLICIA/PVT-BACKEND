@@ -72,7 +72,15 @@ class ContributionPermissionSeedeer extends Seeder
                 'action_id' => Action::where('name', 'create')->first()->id,
                 'name' => 'create-credentials',
                 'display_name' => 'Crear credenciales para afiliado'
-            ],
+            ],[
+                'action_id'=>Action::where('name','create')->first()->id,
+                'name' => 'create-import-payroll-transcript',
+                'display_name' => 'crear importación planilla transcrita'
+            ],[
+                'action_id'=>Action::where('name','download')->first()->id,
+                'name' => 'download-report-payroll-transcript',
+                'display_name' => 'Descarga reporte planilla transcrita'
+            ]
         ];
         foreach ($permissions as $permission) {
             Permission::firstOrCreate($permission);
