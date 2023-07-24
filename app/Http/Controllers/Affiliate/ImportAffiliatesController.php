@@ -367,7 +367,7 @@ class ImportAffiliatesController extends Controller
                     'payload' => [
                         'successfully' => false,
                         'route' => '/affiliates/download_data_revision',
-                        'route_file_name' => 'observador_para_revision.xls'
+                        'route_file_name' => 'observados_para_revision.xls'
                     ]
                 ]);
             }
@@ -379,8 +379,8 @@ class ImportAffiliatesController extends Controller
                     'payload' => [
                         'successfully' => true,
                         'data_count' => $this->data_count($month, $year),
-                        'route' => '/affiliates/download_data_revision_suggestion',
-                        'route_file_name' => 'observados_para_revision.xls'
+                        'route' => '/affiliate/download_data_revision_suggestion',
+                        'route_file_name' => 'no_identificados_en_disponibilidad.xls'
                     ],
                 ]);
             }
