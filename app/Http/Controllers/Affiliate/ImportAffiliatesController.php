@@ -159,7 +159,7 @@ class ImportAffiliatesController extends Controller
                             'route' => $route,
                             'route_file_name' => $route_file_name
                         ]
-                    ], 404);
+                    ]);
                 }
             } else {
                 return response()->json([
@@ -170,7 +170,7 @@ class ImportAffiliatesController extends Controller
                         'route' => $route,
                         'route_file_name' => $route_file_name
                     ],
-                ], 404);
+                ]);
             }
         } catch(QueryException $e) {
             $message = $e->getMessage();
@@ -780,21 +780,10 @@ class ImportAffiliatesController extends Controller
         $task['task_step_1'] = false;
         $task['task_step_2'] = false;
 
-        // $verify = DB::connection('db_aux')->select("SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND affiliate_id IS  NULL AND state NOT LIKE 'accomplished'")[0]->count;
         $task['task_step_1'] = $this->exists_data_import_affiliate_availability($month, $year);
-        // logger($verify);
 
         //****** paso 2 *****/
         $verify = DB::connection('db_aux')->select("SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND state like 'unrealized'")[0]->count;
-
-        // $affiliates_in_file = "SELECT affiliate_id FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND STATE LIKE 'accomplished' AND error_mensaje <> 'NO ACTUALIZADO'";
-        // $affiliates_in_file = DB::connection('db_aux')->select($affiliates_in_file);
-        // $affiliates_in_file = collect($affiliates_in_file);
-        // $amount_in_file = $affiliates_in_file->count();
-
-        // como determinamos si actualizo a los afiliados
-        // $affiliates = Affiliate::all()->pluck('id');
-        // $amount = $affiliates->whereIn('id', $affiliates_in_file)->where('affiliate_state_id', '=', 3)->count();
 
         $task['task_step_2'] = $this->exists_data_import_affiliate_availability($month, $year) && $verify == 0 ? true : false;
 
@@ -862,38 +851,53 @@ class ImportAffiliatesController extends Controller
      * @return void
     */
     public function report_import_affiliates_availability(Request $request) {
-        $request->validate([
-            'date_import' => 'required|date_format:"Y-m-d"',
-        ]);
+        try {
+            $request->validate([
+                'date_import' => 'required|date_format:"Y-m-d"',
+            ]);
 
-        $data_headers = array(array("N° CARNET", "GRADO", "PATERNO", "MATERNO", "PRIMER NOMBRE", "SEGUNDO NOMBRE", "SITUACIÓN LABORAL", "UNIDAD"));
+            $data_headers = array(array("N° CARNET", "GRADO", "PATERNO", "MATERNO", "PRIMER NOMBRE", "SEGUNDO NOMBRE", "SITUACIÓN LABORAL", "UNIDAD"));
 
-        $date_import = Carbon::parse($request->date_import);
-        $year = (int)$date_import->format("Y");
-        $month = (int)$date_import->format("m");
-        $message = "Error, no existen datos de importación del periódo ".$year."-".$month."-"."01";
+            $date_import = Carbon::parse($request->date_import);
+            $year = (int)$date_import->format("Y");
+            $month = (int)$date_import->format("m");
+            $message = "Error, no existen datos de importación del periódo ".$year."-".$month."-"."01";
 
-        $query = "SELECT caa.cedula, caa.grado, caa.paterno, caa.materno, caa.primer_nombre, caa.segundo_nombre, caa.situacion_laboral, caa.unidad
-                  FROM copy_affiliates_availability caa
-                  WHERE error_mensaje IS NULL
-                  ORDER BY caa.id";
-        $affiliates_availability = DB::connection('db_aux')->select($query);
+            $query = "SELECT caa.cedula, caa.grado, caa.paterno, caa.materno, caa.primer_nombre, caa.segundo_nombre, caa.situacion_laboral, caa.unidad
+                    FROM copy_affiliates_availability caa
+                    WHERE error_mensaje IS NULL
+                    ORDER BY caa.id";
+            $affiliates_availability = DB::connection('db_aux')->select($query);
 
-        if(count($affiliates_availability) > 0) {
-            $file_name = "Reporte afiliados en diponibilidad";
-            $extension = ".xls";
-            foreach($affiliates_availability as $affiliate) {
-                array_push($data_headers, array($affiliate->cedula, $affiliate->grado, $affiliate->paterno,
-                    $affiliate->materno, $affiliate->primer_nombre, $affiliate->segundo_nombre,
-                    $affiliate->situacion_laboral, $affiliate->unidad));
+            if(count($affiliates_availability) > 0) {
+                $file_name = "Reporte afiliados en diponibilidad";
+                $extension = ".xls";
+                foreach($affiliates_availability as $affiliate) {
+                    array_push($data_headers, array($affiliate->cedula, $affiliate->grado, $affiliate->paterno,
+                        $affiliate->materno, $affiliate->primer_nombre, $affiliate->segundo_nombre,
+                        $affiliate->situacion_laboral, $affiliate->unidad));
+                }
+                $export = new ArchivoPrimarioExport($data_headers);
+                return Excel::download($export, $file_name."_".$month."-".$year.$extension);
             }
-            $export = new ArchivoPrimarioExport($data_headers);
-            return Excel::download($export, $file_name."_".$month."-".$year.$extension);
+            return response()->json([
+                'message' => $message,
+                'payload' => []
+            ]);
+        } catch(QueryException $e) {
+            return response()->json([
+                'message' => 'Ocurrió un error de Base de Datos',
+                'payload' => [
+                    'successfully' => false,
+                ]
+            ], 500);
+        } catch(\Exception $e) {
+            return response()->json([
+                'message' => 'Hubo un error al generar el archivo',
+                'payload' => [
+                    'successfull' => false
+                ]
+            ], 500);
         }
-        return response()->json([
-            'message' => $message,
-            'payload' => []
-        ]);
-
     }
 }
