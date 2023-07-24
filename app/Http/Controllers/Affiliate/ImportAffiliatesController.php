@@ -146,7 +146,8 @@ class ImportAffiliatesController extends Controller
                         'payload' => [
                             'successfully' => $successfully,
                             'route' => $route,
-                            'route_file_name' => $route_file_name
+                            'route_file_name' => $route_file_name,
+                            'data_count' => $query_total_data[0]
                         ]
                     ]);
                 } else {
@@ -354,7 +355,8 @@ class ImportAffiliatesController extends Controller
                     'payload' => [
                         'successfully' => false,
                         'route' => '/affiliate/download_data_revision',
-                        'route_file_name' => 'observador_para_revision.xls'
+                        'route_file_name' => 'observador_para_revision.xls',
+                        'data_count' => $validation
                     ]
                 ]);
             }
@@ -636,7 +638,7 @@ class ImportAffiliatesController extends Controller
     /**
      * @OA\Post(
      *      path="/api/affiliate/rollback_import_affiliates_availability",
-     *      tags={"IMPORTACION-AFFILIADO-DISPONIBILIDAD"},
+     *      tags={"IMPORTACION-AFILIADOS-DISPONIBILIDAD"},
      *      summary="REHACER IMPORTACIÓN AFILIADOS DISPONIBILIDAD",
      *      operationId="rollback_import_affiliats_availability",
      *      description="Para rehacer la importación de afiliados disponibilidad",
@@ -730,7 +732,7 @@ class ImportAffiliatesController extends Controller
      *      path="/api/affiliate/import_affiliates_availability_progress_bar",
      *      tags={"IMPORTACION-AFILIADOS-DISPONIBILIDAD"},
      *      summary="INFORMACIÓN DE PROGRESO DE IMPORTACIÓN AFILIADOS DISPONIBILIDAD",
-     *      operationId="import_payroll_transcript_progress_bar",
+     *      operationId="import_affiliates_availability_progress_bar",
      *      description="Muestra la información de la importación de afiliados en disponibilidad  (-1)Si existió algún error en algún paso, (100) Si todo fue exitoso, (25 50 75)paso 1,2,3 respectivamente (0)si esta iniciando la importación",
      *      @OA\RequestBody(
      *          description= "Provide auth credentials",
