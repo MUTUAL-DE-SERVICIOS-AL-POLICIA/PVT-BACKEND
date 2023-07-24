@@ -375,9 +375,10 @@ class ImportAffiliatesController extends Controller
             if($this->update_availability_status($month, $year)) {
                 DB::commit();
                 return response()->json([
-                    'message' => "Importación exitosa",
+                    'message' => "Actualización exitosa",
                     'payload' => [
                         'successfully' => true,
+                        'data_count' => $this->data_count($month, $year),
                         'route' => '/affiliates/download_data_revision_suggestion',
                         'route_file_name' => 'observados_para_revision.xls'
                     ],
@@ -592,7 +593,7 @@ class ImportAffiliatesController extends Controller
         ]);
         $with_data_count = !isset($request->with_data_count) || is_null($request->with_data_count) ? true : $request->with_data_count;
         $period_year = $request->period_year;
-        $query = "SELECT DISTINCT mes FROM copy_affiliates_availability WHERE deleted_at IS NULL AND a_o = $period_year";
+        $query = "SELECT DISTINCT mes FROM copy_affiliates_availability WHERE deleted_at IS NULL AND a_o = $period_year AND affiliate_id IS NOT NULL";
         $periods = collect(DB::connection('db_aux')->select($query));
         $periods = $periods->pluck('mes');
         $months = collect(DB::select("SELECT id as period_month, name as period_month_name FROM months ORDER BY id ASC"));
@@ -618,6 +619,7 @@ class ImportAffiliatesController extends Controller
             ]
         ]);
     }
+
     public function data_count($month, $year) {
         $query_total_data = "SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year";
         $query_total_data = DB::connection('db_aux')->select($query_total_data);
@@ -727,7 +729,7 @@ class ImportAffiliatesController extends Controller
             return false;
     }
 
-     /**
+    /**
      * @OA\Post(
      *      path="/api/affiliate/import_affiliates_availability_progress_bar",
      *      tags={"IMPORTACION-AFILIADOS-DISPONIBILIDAD"},
