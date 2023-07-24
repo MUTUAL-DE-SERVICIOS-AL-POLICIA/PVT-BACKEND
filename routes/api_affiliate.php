@@ -19,6 +19,7 @@ Route::group([
     Route::post('list_months_import_affiliates_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'list_months_import_affiliates_availability']);
     Route::post('rollback_import_affiliates_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'rollback_import_affiliates_availability']);
     Route::post('import_affiliates_availability_progress_bar', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'import_affiliates_availability_progress_bar']);
+    Route::post('report_import_affiliates_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'report_import_affiliates_availability']);
     // Rutas autenticadas con token
     Route::group([
         'middleware' => ['auth:sanctum']
