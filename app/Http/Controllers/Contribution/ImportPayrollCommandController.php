@@ -529,51 +529,98 @@ class ImportPayrollCommandController extends Controller
        ]);
        $with_data_count = !isset($request->with_data_count) || is_null($request->with_data_count)? true:$request->with_data_count;
         $period_year = $request->get('period_year');
-        ///Obtener para registro de planilla
-        $query = "SELECT  distinct month_p,year_p,  to_char( (to_date(year_p|| '-' ||month_p, 'YYYY/MM/DD')), 'TMMonth') as period_month_name from payroll_commands where deleted_at  is null and year_p =$period_year and reimbursement=false group by month_p, year_p";
-        $query = DB::select($query);
-        $query_months = "select id as period_month ,name  as period_month_name from months order by id asc";
-        $query_months = DB::select($query_months);
+    //     ///Obtener para registro de planilla
+    //     $query = "SELECT  distinct month_p,year_p,  to_char( (to_date(year_p|| '-' ||month_p, 'YYYY/MM/DD')), 'TMMonth') as period_month_name from payroll_commands where deleted_at  is null and year_p =$period_year and reimbursement=false group by month_p, year_p";
+    //     $query = DB::select($query);
+    //     $query_months = "select id as period_month ,name  as period_month_name from months order by id asc";
+    //     $query_months = DB::select($query_months);
       
-        foreach ($query_months as $month) {
-           $month->state_importation = false;
-           foreach ($query as $month_payroll) {
-               if($month->period_month == $month_payroll->month_p){
-                   $month->state_importation = true;
-                   break;
-               }
-           }
-           if($with_data_count)
-           $month->data_count = $this->data_count_payroll_command($month->period_month,$period_year,'false');
+    //     foreach ($query_months as $month) {
+    //        $month->state_importation = false;
+    //        foreach ($query as $month_payroll) {
+    //            if($month->period_month == $month_payroll->month_p){
+    //                $month->state_importation = true;
+    //                break;
+    //            }
+    //        }
+    //        if($with_data_count)
+    //        $month->data_count = $this->data_count_payroll_command($month->period_month,$period_year,'false');
+    //     }
+
+    //     ///obtener para reintegros
+    //     $query_re = "SELECT  distinct month_p,year_p,  to_char( (to_date(year_p|| '-' ||month_p, 'YYYY/MM/DD')), 'TMMonth') as period_month_name from payroll_commands where deleted_at  is null and year_p =$period_year and reimbursement=true group by month_p, year_p";
+    //     $query_re = DB::select($query_re);
+    //     $query_months_re = "select id as period_month ,name  as period_month_name from months order by id asc";
+    //     $query_months_re = DB::select($query_months_re);
+      
+    //     foreach ($query_months_re as $month_re) {
+    //        $month_re->state_importation = false;
+    //        foreach ($query_re as $month_payroll_re) {
+    //            if($month_re->period_month == $month_payroll_re->month_p){
+    //                $month_re->state_importation = true;
+    //                break; 
+    //            }
+    //        }
+    //        if($with_data_count)
+    //        $month_re->data_count = $this->data_count_payroll_command($month_re->period_month,$period_year,'true');
+    //     }
+
+    //     return response()->json([
+    //        'message' => "Exito",
+    //        'payload' => [
+    //            'list_months' =>  $query_months,
+    //            'count_months' =>  count($query),
+    //            'list_months_re' =>  $query_months_re,
+    //            'count_months_re' =>  count($query_re)
+    //        ],
+    //    ]);
+        ///Obtener para registro de planilla
+        $months = collect(DB::select("SELECT id as period_month, name as period_month_name FROM months ORDER BY id ASC"));
+        $months_ids = $months->pluck('period_month');
+
+        $query = "SELECT  distinct month_p,year_p,  to_char( (to_date(year_p|| '-' ||month_p, 'YYYY/MM/DD')), 'TMMonth') as period_month_name from payroll_commands where deleted_at  is null and year_p =$period_year and reimbursement=false group by month_p, year_p";
+        $periods =collect(DB::select($query));
+        $periods = $periods->pluck('month_p');
+
+        $months_not_import = $months_ids->diff($periods);
+        $months_import = $months_ids->intersect($periods);
+
+        $months_not_import_with_name = $months->whereIn('period_month', $months_not_import)->values();
+        $months_import_with_name = $months->whereNotIn('period_month', $months_not_import)->values();
+
+        if($with_data_count) {
+            foreach($months_import_with_name->all() as $months_import) {
+                $months_import->data_count = $this->data_count_payroll_command($months_import->period_month, $period_year, 'false');
+            }
         }
 
         ///obtener para reintegros
         $query_re = "SELECT  distinct month_p,year_p,  to_char( (to_date(year_p|| '-' ||month_p, 'YYYY/MM/DD')), 'TMMonth') as period_month_name from payroll_commands where deleted_at  is null and year_p =$period_year and reimbursement=true group by month_p, year_p";
-        $query_re = DB::select($query_re);
-        $query_months_re = "select id as period_month ,name  as period_month_name from months order by id asc";
-        $query_months_re = DB::select($query_months_re);
-      
-        foreach ($query_months_re as $month_re) {
-           $month_re->state_importation = false;
-           foreach ($query_re as $month_payroll_re) {
-               if($month_re->period_month == $month_payroll_re->month_p){
-                   $month_re->state_importation = true;
-                   break; 
-               }
-           }
-           if($with_data_count)
-           $month_re->data_count = $this->data_count_payroll_command($month_re->period_month,$period_year,'true');
+        $periods_re = collect(DB::select($query_re));
+        $periods_re = $periods->pluck('month_p');
+
+        $months_not_import_re = $months_ids->diff($periods_re);
+        $months_import_re = $months_ids->intersect($periods_re);
+
+        $months_not_import_with_name_re = $months->whereIn('period_month', $months_not_import_re)->values();
+        $months_import_with_name_re = $months->whereNotIn('period_month', $months_not_import_re)->values();
+
+        if($with_data_count) {
+            foreach($months_import_with_name_re->all() as $month_import_re) {
+                $month_import_re->data_count = $this->data_count_payroll_command($month_import_re->period_month, $period_year, 'true');
+            }
+
         }
 
         return response()->json([
-           'message' => "Exito",
-           'payload' => [
-               'list_months' =>  $query_months,
-               'count_months' =>  count($query),
-               'list_months_re' =>  $query_months_re,
-               'count_months_re' =>  count($query_re)
-           ],
-       ]);
+            'message' => "Exito",
+            'payload' => [
+                'list_months' =>  $months_import_with_name->all(),
+                'list_months_not_import' => $months_not_import_with_name->all(),
+                'list_months_re' =>  $months_import_with_name_re->all(),
+                'list_months_not_import_re' => $months_not_import_with_name_re->all(),
+            ],
+        ]);
     }
 
  /**
