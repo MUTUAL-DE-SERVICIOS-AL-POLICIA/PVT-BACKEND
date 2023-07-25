@@ -343,7 +343,7 @@ class ImportAffiliatesController extends Controller
             $query = "SELECT search_affiliate_availability('$connection_db_aux', $month, $year);";
             $data_validated = DB::select($query);
 
-            $count_data_creation = "SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND criteria in ('6-CREAR')";
+            $count_data_creation = "SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND (criteria IN ('4-CI') OR criteria IN ('5-sCI-sPN-sAP-sSN-FI') OR criteria IN ('6-CREAR') )";
             $count_data_creation = DB::connection('db_aux')->select($count_data_creation);
 
             $validation = "SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND error_mensaje IS NOT NULL AND state NOT LIKE 'accomplished'";
@@ -514,8 +514,8 @@ class ImportAffiliatesController extends Controller
             $date_import = Carbon::parse($request->date_import);
             $year = (int)$date_import->format("Y");
             $month = (int)$date_import->format("m");
-            $data_affiliates_availability = "SELECT cedula, grado, paterno, materno, primer_nombre, segundo_nombre, situacion_laboral, unidad, 
-            (CASE WHEN (criteria = '6-CREAR') THEN 'IDENTIFICADO PARA SUBSANAR' END) as criteria FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND criteria IN ('6-CREAR') ORDER BY cedula";
+            $data_affiliates_availability = "SELECT cedula, grado, paterno, materno, primer_nombre, segundo_nombre, situacion_laboral, unidad,
+            (CASE WHEN (criteria = '6-CREAR' OR criteria = '4-CI') THEN 'IDENTIFICADO PARA SUBSANAR' WHEN criteria = '5-sCI-sPN-sAP-sSN-FI' THEN 'AFILIADO CON DATOS SIMILARES' END) as criteria FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND (criteria IN ('4-CI') OR criteria IN ('5-sCI-sPN-sAP-sSN-FI') OR criteria IN ('6-CREAR')) ORDER BY cedula";
             $data_affiliates_availability = DB::connection('db_aux')->select($data_affiliates_availability);
             foreach($data_affiliates_availability as $row) {
                 array_push($data_header, array($row->cedula, $row->grado, $row->paterno, $row->materno, ($row->primer_nombre .' '.$row->segundo_nombre), $row->situacion_laboral, $row->unidad, $row->criteria));
@@ -593,9 +593,24 @@ class ImportAffiliatesController extends Controller
         ]);
         $with_data_count = !isset($request->with_data_count) || is_null($request->with_data_count) ? true : $request->with_data_count;
         $period_year = $request->period_year;
-        $query = "SELECT DISTINCT mes FROM copy_affiliates_availability WHERE deleted_at IS NULL AND a_o = $period_year AND affiliate_id IS NOT NULL";
-        $periods = collect(DB::connection('db_aux')->select($query));
+
+        $periods =  "SELECT DISTINCT caa.mes, CASE WHEN count(caa.mes) = tmp.cantidad THEN true ELSE false END AS estado_importacion
+                     FROM copy_affiliates_availability caa
+                     LEFT JOIN (
+                            SELECT mes, count(*) AS cantidad
+                            FROM copy_affiliates_availability
+                            WHERE criteria NOT IN ('4-CI','5-sCI-sPN-sAP-sSN-FI','6-CREAR')
+                            GROUP BY mes
+                    ) AS tmp
+                    ON caa.mes = tmp.mes
+                    GROUP BY caa.mes, tmp.cantidad";
+        $periods = collect(DB::connection('db_aux')->select($periods));
+
+        $periods = $periods->filter(function ($item) {
+            return $item->estado_importacion === true;
+        });
         $periods = $periods->pluck('mes');
+
         $months = collect(DB::select("SELECT id as period_month, name as period_month_name FROM months ORDER BY id ASC"));
         $months_ids = $months->pluck('period_month');
 
@@ -866,6 +881,8 @@ class ImportAffiliatesController extends Controller
             $query = "SELECT caa.cedula, caa.grado, caa.paterno, caa.materno, caa.primer_nombre, caa.segundo_nombre, caa.situacion_laboral, caa.unidad
                     FROM copy_affiliates_availability caa
                     WHERE error_mensaje IS NULL
+                    AND a_o = $year
+                    AND mes = $month
                     ORDER BY caa.id";
             $affiliates_availability = DB::connection('db_aux')->select($query);
 
