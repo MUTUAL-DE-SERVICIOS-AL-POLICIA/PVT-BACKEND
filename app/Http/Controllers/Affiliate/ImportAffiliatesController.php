@@ -13,6 +13,7 @@ use App\Helpers\Util;
 use Auth;
 use App\Models\Affiliate\Affiliate;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Observers\AffiliateObserver;
 
 class ImportAffiliatesController extends Controller
 {
@@ -371,9 +372,8 @@ class ImportAffiliatesController extends Controller
                     ]
                 ]);
             }
-
+            DB::commit();
             if($this->update_availability_status($month, $year)) {
-                DB::commit();
                 return response()->json([
                     'message' => "Actualización exitosa",
                     'payload' => [
@@ -453,8 +453,8 @@ class ImportAffiliatesController extends Controller
             $date_import = Carbon::parse($request->date_import);
             $year = (int)$date_import->format("Y");
             $month = (int)$date_import->format("m");
-            $data_affiliates_availability = "SELECT cedula, grado, paterno, materno, primer_nombre, segundo_nombre, situacion_laboral, unidad, 'Revisar disponibilidad' AS detalle
-            FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND error_mensaje LIKE 'NO ACTUALIZADO'";
+            $data_affiliates_availability = "SELECT cedula, grado, paterno, materno, primer_nombre, segundo_nombre, situacion_laboral, unidad, CASE WHEN error_mensaje LIKE 'NO ACTUALIZADO' THEN 'Revisar disponibilidad' ELSE 'El afiliado es pasivo' END AS detalle
+            FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND (error_mensaje LIKE 'NO ACTUALIZADO' OR error_mensaje LIKE 'EL AFILIADO ES PASIVO')";
             $data_affiliates_availability = DB::connection('db_aux')->select($data_affiliates_availability);
             foreach($data_affiliates_availability as $row) {
                 array_push($data_header, array($row->cedula, $row->grado, $row->paterno, $row->materno, ($row->primer_nombre .' '.$row->segundo_nombre), $row->situacion_laboral, $row->unidad, $row->detalle));
@@ -535,21 +535,46 @@ class ImportAffiliatesController extends Controller
     }
 
     public static function update_availability_status($month, $year) {
-        $count = 0;
-        $affiliates = DB::connection('db_aux')->select("SELECT affiliate_id FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND (situacion_laboral LIKE '%DISPONIBILIDAD%' OR situacion_laboral LIKE '%DISP.%' OR situacion_laboral LIKE '%CATEGORIA%')");
-        foreach($affiliates as $affiliate) {
-            $link = "UPDATE affiliates SET affiliate_state_id = 3 WHERE id = $affiliate->affiliate_id";
-            $link = DB::select($link);
-            $count++;
+        try {
+            DB::beginTransaction();
+            $affiliate_states = collect([1, 2, 3, 9, null]); // Servicio, Comisión, Disponibilidad y Baja Temporal
+            $count = 0;
+            $affiliates = DB::connection('db_aux')->select("SELECT affiliate_id FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND (situacion_laboral LIKE '%DISPONIBILIDAD%' OR situacion_laboral LIKE '%DISP.%' OR situacion_laboral LIKE '%CATEGORIA%')");
+            foreach($affiliates as $affiliate) {
+                $affiliate_model = Affiliate::find($affiliate->affiliate_id);
+                if($affiliate_states->contains($affiliate_model->affiliate_state_id)){
+                    AffiliateObserver::$originalStateId = $affiliate_model->affiliate_state_id;
+                    AffiliateObserver::$originalStateName = $affiliate_model->affiliate_state->name;
+                    $affiliate_model->affiliate_state_id = 3;
+                    $affiliate_model->save();
+                } else DB::connection('db_aux')->select("UPDATE copy_affiliates_availability SET error_mensaje = 'EL AFILIADO ES PASIVO' WHERE mes = $month AND a_o = $year AND affiliate_id = $affiliate->affiliate_id");
+                $count++;
+            }
+            $update_message = "UPDATE copy_affiliates_availability SET error_mensaje = 'NO ACTUALIZADO' WHERE mes = $month AND a_o = $year AND situacion_laboral NOT LIKE '%DISPONIBILIDAD%' AND situacion_laboral NOT LIKE '%DISP.%' AND situacion_laboral NOT LIKE '%CATEGORIA%'";
+            $update_message = DB::connection('db_aux')->select($update_message);
+            $affiliates_not_updated = DB::connection('db_aux')->select("SELECT count(*) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND situacion_laboral NOT LIKE '%DISPONIBILIDAD%' AND situacion_laboral NOT LIKE '%DISP.%' AND situacion_laboral NOT LIKE '%CATEGORIA%' AND error_mensaje NOT LIKE 'EL AFILIADO ES PASIVO'");
+            $amount = DB::connection('db_aux')->select("SELECT count(*) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year");
+            $total = $amount[0]->count - $affiliates_not_updated[0]->count;
+            if($total == $count) {
+                DB::commit();
+                return true;
+            } else {
+                DB::rollBack(); //TODO
+                return false;
+            }
+        } catch(QueryException $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Hubo un error al actualizar',
+                'payload' => [ ]
+            ]);
+        } catch(\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Hubo un error',
+                'payload' => []
+            ]);
         }
-        $update_message = "UPDATE copy_affiliates_availability SET error_mensaje = 'NO ACTUALIZADO' WHERE mes = $month AND a_o = $year AND situacion_laboral NOT LIKE '%DISPONIBILIDAD%' AND situacion_laboral NOT LIKE '%DISP.%' AND situacion_laboral NOT LIKE '%CATEGORIA%'";
-        $update_message = DB::connection('db_aux')->select($update_message);
-        $affiliates_not_updated = DB::connection('db_aux')->select("SELECT count(*) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND situacion_laboral NOT LIKE '%DISPONIBILIDAD%' AND situacion_laboral NOT LIKE '%DISP.%' AND situacion_laboral NOT LIKE '%CATEGORIA%'");
-        $amount = DB::connection('db_aux')->select("SELECT count(*) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year");
-        $total = $amount[0]->count - $affiliates_not_updated[0]->count;
-        if($total == $count) {
-            return true;
-        } else return false;
     }
 
     /**
@@ -600,9 +625,11 @@ class ImportAffiliatesController extends Controller
                             SELECT mes, count(*) AS cantidad
                             FROM copy_affiliates_availability
                             WHERE criteria NOT IN ('4-CI','5-sCI-sPN-sAP-sSN-FI','6-CREAR')
+                            AND a_o = $period_year
                             GROUP BY mes
                     ) AS tmp
                     ON caa.mes = tmp.mes
+                    WHERE a_o = $period_year
                     GROUP BY caa.mes, tmp.cantidad";
         $periods = collect(DB::connection('db_aux')->select($periods));
 
@@ -642,7 +669,7 @@ class ImportAffiliatesController extends Controller
         $query_update_affiliates = "SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND error_mensaje IS NULL";
         $query_update_affiliates = DB::connection('db_aux')->select($query_update_affiliates);
 
-        $query_no_update_affiliates = "SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND error_mensaje = 'NO ACTUALIZADO'";
+        $query_no_update_affiliates = "SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND error_mensaje = 'NO ACTUALIZADO' OR error_mensaje = 'EL AFILIADO ES PASIVO'";
         $query_no_update_affiliates = DB::connection('db_aux')->select($query_no_update_affiliates);
 
         $data_count['num_of_affiliates_updated'] = $query_update_affiliates[0]->count;

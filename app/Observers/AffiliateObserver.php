@@ -15,6 +15,8 @@ use App\Models\FinancialEntity;
 
 class AffiliateObserver
 {
+    public static $originalStateId;
+    public static $originalStateName;
     /**
      * Handle events after all transactions are committed.
      *
@@ -77,6 +79,14 @@ class AffiliateObserver
                 }
             }
         }
+        if($affiliate->affiliate_state_id != self::$originalStateId)
+        {
+            logger("entra nuestro if observer");
+            $old = self::$originalStateName;
+            logger($old);
+            $message = $message . ' [Estado] '.($old ?? 'Sin Estado').' a '.($affiliate->affiliate_state->name ?? 'Sin Estado').', ';
+        }
+
         if($affiliate->category_id != $affiliate->getOriginal('category_id'))
         {
             $id = $affiliate->getOriginal('category_id');
