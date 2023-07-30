@@ -536,15 +536,13 @@ class ImportAffiliatesController extends Controller
 
     public static function update_availability_status($month, $year) {
         try {
-            DB::beginTransaction();
-            $affiliate_states = collect([1, 2, 3, 9, null]); // Servicio, Comisión, Disponibilidad y Baja Temporal
+            $affiliate_states = collect([1, 2, 9, null]); // Servicio, Comisión, Disponibilidad y Baja Temporal
             $count = 0;
+            AffiliateObserver::$importAvailability = true;
             $affiliates = DB::connection('db_aux')->select("SELECT affiliate_id FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND (situacion_laboral LIKE '%DISPONIBILIDAD%' OR situacion_laboral LIKE '%DISP.%' OR situacion_laboral LIKE '%CATEGORIA%')");
             foreach($affiliates as $affiliate) {
                 $affiliate_model = Affiliate::find($affiliate->affiliate_id);
-                if($affiliate_states->contains($affiliate_model->affiliate_state_id)){
-                    AffiliateObserver::$originalStateId = $affiliate_model->affiliate_state_id;
-                    AffiliateObserver::$originalStateName = $affiliate_model->affiliate_state->name;
+                if($affiliate_states->contains($affiliate_model->affiliate_state_id)) {
                     $affiliate_model->affiliate_state_id = 3;
                     $affiliate_model->save();
                 } else DB::connection('db_aux')->select("UPDATE copy_affiliates_availability SET error_mensaje = 'EL AFILIADO ES PASIVO' WHERE mes = $month AND a_o = $year AND affiliate_id = $affiliate->affiliate_id");
@@ -555,21 +553,18 @@ class ImportAffiliatesController extends Controller
             $affiliates_not_updated = DB::connection('db_aux')->select("SELECT count(*) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND situacion_laboral NOT LIKE '%DISPONIBILIDAD%' AND situacion_laboral NOT LIKE '%DISP.%' AND situacion_laboral NOT LIKE '%CATEGORIA%' AND error_mensaje NOT LIKE 'EL AFILIADO ES PASIVO'");
             $amount = DB::connection('db_aux')->select("SELECT count(*) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year");
             $total = $amount[0]->count - $affiliates_not_updated[0]->count;
+            AffiliateObserver::$importAvailability = false;
             if($total == $count) {
-                DB::commit();
                 return true;
             } else {
-                DB::rollBack(); //TODO
                 return false;
             }
         } catch(QueryException $e) {
-            DB::rollBack();
             return response()->json([
                 'message' => 'Hubo un error al actualizar',
                 'payload' => [ ]
             ]);
         } catch(\Exception $e) {
-            DB::rollBack();
             return response()->json([
                 'message' => 'Hubo un error',
                 'payload' => []
