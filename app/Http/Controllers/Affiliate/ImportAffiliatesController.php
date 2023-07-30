@@ -624,7 +624,7 @@ class ImportAffiliatesController extends Controller
         $query_total_data = "SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year";
         $query_total_data = DB::connection('db_aux')->select($query_total_data);
 
-        $query_update_affiliates = "SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND error_mensaje IS NULL";
+        $query_update_affiliates = "SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND error_mensaje IS NULL AND criteria IS NOT NULL";
         $query_update_affiliates = DB::connection('db_aux')->select($query_update_affiliates);
 
         $query_no_update_affiliates = "SELECT count(id) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND error_mensaje = 'NO ACTUALIZADO'";
