@@ -15,6 +15,7 @@ use App\Models\FinancialEntity;
 
 class AffiliateObserver
 {
+    public static $importAvailability = false;
     /**
      * Handle events after all transactions are committed.
      *
@@ -65,7 +66,9 @@ class AffiliateObserver
         {
             $id = $affiliate->getOriginal('affiliate_state_id');
             $old = AffiliateState::find($id);
-            $message = $message . ' [Estado] '.($old->name ?? 'Sin Estado').' a '.($affiliate->affiliate_state->name ?? 'Sin Estado').', ';
+            if(self::$importAvailability) {
+                $message = $message . ' [Estado] '.($old->name ?? 'Sin Estado').' a '.('disponibilidad' ?? 'Sin Estado').', ';
+            } else $message = $message . ' [Estado] '.($old->name ?? 'Sin Estado').' a '.($affiliate->affiliate_state->name ?? 'Sin Estado').', ';
             if ($affiliate->affiliate_state_id==4) {
                 $affiliateToken=AffiliateToken::where('affiliate_id',$affiliate->id)->first();
                 if ($affiliateToken) {
@@ -77,6 +80,7 @@ class AffiliateObserver
                 }
             }
         }
+
         if($affiliate->category_id != $affiliate->getOriginal('category_id'))
         {
             $id = $affiliate->getOriginal('category_id');
