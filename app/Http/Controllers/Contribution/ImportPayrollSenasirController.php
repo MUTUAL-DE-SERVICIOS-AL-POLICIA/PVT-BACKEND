@@ -545,31 +545,59 @@ class ImportPayrollSenasirController extends Controller
        ]);
        $with_data_count = !isset($request->with_data_count) || is_null($request->with_data_count)? true:$request->with_data_count;
         $period_year = $request->get('period_year');
+    //     $query = "SELECT  distinct month_p,year_p,  to_char( (to_date(year_p|| '-' ||month_p, 'YYYY/MM/DD')), 'TMMonth') as period_month_name from payroll_senasirs where deleted_at  is null and year_p =$period_year group by month_p, year_p";
+    //     $query = DB::select($query);
+    //     $query_months = "select id as period_month ,name  as period_month_name from months order by id asc";
+    //     $query_months = DB::select($query_months);
+
+    //     foreach ($query_months as $month) {
+    //        $month->state_importation = false;
+    //        foreach ($query as $month_payroll) {
+    //            if($month->period_month == $month_payroll->month_p){
+    //                $month->state_importation = true;
+    //                break;
+    //            }
+    //        }
+    //        $date_payroll_format = Carbon::parse($period_year.'-'.$month->period_month.'-'.'01')->toDateString();
+    //        if($with_data_count)
+    //        $month->data_count = $this->data_count_payroll_senasir($month->period_month,$period_year,$date_payroll_format);
+    //     }
+
+    //     return response()->json([
+    //        'message' => "Exito",
+    //        'payload' => [
+    //            'list_months' =>  $query_months,
+    //            'count_months' =>  count($query)
+    //        ],
+    //    ]);
+
+        $months = collect(DB::select("SELECT id as period_month, name as period_month_name FROM months ORDER BY id ASC"));
+        $months_ids = $months->pluck('period_month');
+
         $query = "SELECT  distinct month_p,year_p,  to_char( (to_date(year_p|| '-' ||month_p, 'YYYY/MM/DD')), 'TMMonth') as period_month_name from payroll_senasirs where deleted_at  is null and year_p =$period_year group by month_p, year_p";
-        $query = DB::select($query);
-        $query_months = "select id as period_month ,name  as period_month_name from months order by id asc";
-        $query_months = DB::select($query_months);
+        $periods =collect(DB::select($query));
+        $periods = $periods->pluck('month_p');
 
-        foreach ($query_months as $month) {
-           $month->state_importation = false;
-           foreach ($query as $month_payroll) {
-               if($month->period_month == $month_payroll->month_p){
-                   $month->state_importation = true;
-                   break;
-               }
-           }
-           $date_payroll_format = Carbon::parse($period_year.'-'.$month->period_month.'-'.'01')->toDateString();
-           if($with_data_count)
-           $month->data_count = $this->data_count_payroll_senasir($month->period_month,$period_year,$date_payroll_format);
+        $months_not_import = $months_ids->diff($periods);
+        $months_import = $months_ids->intersect($periods);
+
+        $months_not_import_with_name = $months->whereIn('period_month', $months_not_import)->values();
+        $months_import_with_name = $months->whereNotIn('period_month', $months_not_import)->values();
+
+        
+        if($with_data_count) {
+            foreach($months_import_with_name->all() as $months_import) {
+                $months_import->data_count = $this->data_count_payroll_senasir($months_import->period_month, $period_year);
+            }
         }
-
+        
         return response()->json([
-           'message' => "Exito",
-           'payload' => [
-               'list_months' =>  $query_months,
-               'count_months' =>  count($query)
-           ],
-       ]);
+            'message' => "Exito",
+            'payload' => [
+                'list_months' =>  $months_import_with_name->all(),
+                'list_months_not_import' => $months_not_import_with_name->all()
+            ],
+        ]);
     }
     public function data_count_payroll_senasir($mes,$a_o){
         $month = $mes;
