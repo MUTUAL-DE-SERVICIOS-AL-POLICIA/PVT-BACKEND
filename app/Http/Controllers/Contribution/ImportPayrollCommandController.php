@@ -597,7 +597,7 @@ class ImportPayrollCommandController extends Controller
         ///obtener para reintegros
         $query_re = "SELECT  distinct month_p,year_p,  to_char( (to_date(year_p|| '-' ||month_p, 'YYYY/MM/DD')), 'TMMonth') as period_month_name from payroll_commands where deleted_at  is null and year_p =$period_year and reimbursement=true group by month_p, year_p";
         $periods_re = collect(DB::select($query_re));
-        $periods_re = $periods->pluck('month_p');
+        $periods_re = $periods_re->pluck('month_p');
 
         $months_not_import_re = $months_ids->diff($periods_re);
         $months_import_re = $months_ids->intersect($periods_re);
