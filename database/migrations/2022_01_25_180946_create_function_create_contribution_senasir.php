@@ -30,7 +30,7 @@ class CreateFunctionCreateContributionSenasir extends Migration
 
                -- Creacion de un nuevo registro de la contribucion con estado Pagado = 2
                    INSERT INTO public.contribution_passives(user_id, affiliate_id, month_year, quotable, rent_pension, dignity_rent, interest, total, created_at,updated_at,affiliate_rent_class,contribution_state_id, contributionable_type, contributionable_id)
-                   SELECT user_reg as user_id, pvs.affiliate_id,year_copy as month_year, (pvs.payable_liquid-pvs.dignity_rent) as quotable, pvs.payable_liquid as rent_pension,pvs.dignity_rent as dignity_rent, 0 as interest, pvs.discount_contribution_muserpol as total,(select current_timestamp as created_at),(select current_timestamp as updated_at), CASE rent_class
+                   SELECT user_reg as user_id, pvs.affiliate_id,year_copy as month_year, (pvs.total_won-pvs.dignity_rent) as quotable, pvs.total_won as rent_pension,pvs.dignity_rent as dignity_rent, 0 as interest, pvs.discount_contribution_muserpol as total,(select current_timestamp as created_at),(select current_timestamp as updated_at), CASE rent_class
                         when 'VIUDEDAD' then 'VIUDEDAD'
                         else 'VEJEZ'
                         end
