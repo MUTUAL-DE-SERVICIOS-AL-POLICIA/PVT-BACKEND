@@ -546,29 +546,57 @@ class ImportPayrollTranscriptController extends Controller
         ]);
         $with_data_count = !isset($request->with_data_count) || is_null($request->with_data_count)? true:$request->with_data_count;
         $period_year = $request->get('period_year');
-        $contributionable_type = 'payroll_transcripts';
-        $query = "SELECT distinct month_year, to_char( month_year, 'TMMonth') as period_month_name, extract(year from month_year) as period_year,extract(month from month_year) as period_month  from contributions where deleted_at is null and (extract(year from month_year::timestamp)) = $period_year and contributionable_type = 'payroll_transcripts' group by month_year;";
-        $query = DB::select($query);
-        $query_months = "select id as period_month ,name as period_month_name from months order by id asc";
-        $query_months = DB::select($query_months);
-        foreach ($query_months as $month) {
-           $month->state_importation = false;
-            foreach ($query as $month_contribution) {
-                if($month->period_month == $month_contribution->period_month){
-                    $month->state_importation = true;
-                    break;
+        // $contributionable_type = 'payroll_transcripts';
+        // $query = "SELECT distinct month_year, to_char( month_year, 'TMMonth') as period_month_name, extract(year from month_year) as period_year,extract(month from month_year) as period_month  from contributions where deleted_at is null and (extract(year from month_year::timestamp)) = $period_year and contributionable_type = 'payroll_transcripts' group by month_year;";
+        // $query = DB::select($query);
+        // $query_months = "select id as period_month ,name as period_month_name from months order by id asc";
+        // $query_months = DB::select($query_months);
+        // foreach ($query_months as $month) {
+        //    $month->state_importation = false;
+        //     foreach ($query as $month_contribution) {
+        //         if($month->period_month == $month_contribution->period_month){
+        //             $month->state_importation = true;
+        //             break;
+        //         }
+        //     }
+        //    if($with_data_count)
+        //    $month->data_count = $this->data_count($month->period_month,$period_year);
+        // }
+        // return response()->json([
+        //     'message' => "Exito",
+        //     'payload' => [
+        //         'list_months' =>  $query_months,
+        //         'count_months' =>  count($query)
+        //     ],
+        // ]);
+
+            $months = collect(DB::select("SELECT id as period_month, name as period_month_name FROM months ORDER BY id ASC"));
+            $months_ids = $months->pluck('period_month');
+
+            $query = "SELECT distinct month_year, to_char( month_year, 'TMMonth') as period_month_name, extract(year from month_year) as period_year, extract(month from month_year) as period_month  from contributions where deleted_at is null and (extract(year from month_year::timestamp)) = $period_year and contributionable_type = 'payroll_transcripts' group by month_year;";
+            $periods =collect(DB::select($query));
+            $periods = $periods->pluck('period_month');
+
+            $months_not_import = $months_ids->diff($periods);
+            $months_import = $months_ids->intersect($periods);
+
+            $months_not_import_with_name = $months->whereIn('period_month', $months_not_import)->values();
+            $months_import_with_name = $months->whereNotIn('period_month', $months_not_import)->values();
+
+            
+            if($with_data_count) {
+                foreach($months_import_with_name->all() as $months_import) {
+                    $months_import->data_count = $this->data_count($months_import->period_month, $period_year);
                 }
             }
-           if($with_data_count)
-           $month->data_count = $this->data_count($month->period_month,$period_year);
-        }
-        return response()->json([
-            'message' => "Exito",
-            'payload' => [
-                'list_months' =>  $query_months,
-                'count_months' =>  count($query)
-            ],
-        ]);
+            
+            return response()->json([
+                'message' => "Exito",
+                'payload' => [
+                    'list_months' =>  $months_import_with_name->all(),
+                    'list_months_not_import' => $months_not_import_with_name->all()
+                ],
+            ]);
     }
     /**
      * @OA\Post(

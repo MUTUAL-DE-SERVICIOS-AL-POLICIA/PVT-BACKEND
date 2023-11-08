@@ -271,7 +271,8 @@ class AffiliateUserController extends Controller
                 'message' => "usuario: ".$username." contraseña: ".$password
             ]
             ];
-        $response = Util::delegate_shipping($shipments, $userId, 1, 'affiliate');
+        $notification_type = 6;
+        $response = Util::delegate_shipping($shipments, $userId, 1, 'affiliate', $notification_type);
         if ($response) {
                 return response()->json([
                 'message' => $message,

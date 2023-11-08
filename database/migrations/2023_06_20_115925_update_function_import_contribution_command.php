@@ -37,7 +37,7 @@ return new class extends Migration
                                   quotable:= record_row.base_wage + record_row.seniority_bonus + record_row.study_bonus + 
                                               record_row.position_bonus + record_row.border_bonus + record_row.east_bonus;
                                   percentage:= round((record_row.total/quotable)*100,2);
-                                  retirement_fund_amount :=  get_retirement_fund_amount(date_period,percentage,record_row.total);
+                                  retirement_fund_amount :=  get_retirement_fund_amount(date_period,percentage,record_row.total,record_row.base_wage);
                                   mortuary_quota_amount:= record_row.total - retirement_fund_amount; 
       
                                  INSERT INTO contributions (

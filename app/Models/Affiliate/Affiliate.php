@@ -172,9 +172,6 @@ class Affiliate extends Model
     public function getIdentityCardExtAttribute()
     {
         $data = $this->identity_card;
-        if ($this->city_identity_card && $this->city_identity_card_id != 11) {
-            $data .= ' ' . $this->city_identity_card->first_shortened;
-        }
         return rtrim($data);
     }
     public function getMinimumYearContributionPassiveAttribute()
