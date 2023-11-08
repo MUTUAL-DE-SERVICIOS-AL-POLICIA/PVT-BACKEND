@@ -36,7 +36,7 @@ class UserController extends Controller
      *         name="page",
      *         in="query",
      *         description="Pagina a mostrar",
-     *         required=false, 
+     *         required=false,
      *       ),
      *     @OA\Parameter(
      *         name="per_page",
@@ -105,14 +105,14 @@ class UserController extends Controller
           array_push($conditions, array('position', 'ilike', "%{$position}%"));
         }
         if ($first_name != '') {
-            array_push($conditions, array('first_name', 'ilike', "%{$first_name}%"));      
+            array_push($conditions, array('first_name', 'ilike', "%{$first_name}%"));
         }
         if ($last_name != '') {
-            array_push($conditions, array('last_name', 'ilike', "%{$last_name}%"));  
-        }  
+            array_push($conditions, array('last_name', 'ilike', "%{$last_name}%"));
+        }
         if ($username != '') {
             array_push($conditions, array('username', 'ilike', "%{$username}%"));
-        }  
+        }
         $per_page = $request->per_page ?? 10;
         $users = User::where('active',$active)->where($conditions)->paginate($per_page);
         return response()->json([
@@ -438,7 +438,7 @@ class UserController extends Controller
      * @return void
      */
     public function module_role_state_user(Request $request, User $user)
-    {  
+    {
         $request->validate([
             'module_id' => 'required|integer|exists:modules,id'
         ]);
@@ -447,7 +447,7 @@ class UserController extends Controller
         $display_name = request('display_name') ?? '';
         $action = request('action') ?? '';
         $name = request('name') ?? '';
-        
+
         $conditions = [];
 
         if ($id != '') array_push($conditions, array('id', '=', "{$id}"));
@@ -677,5 +677,10 @@ class UserController extends Controller
                 ],
             ]);
         }
+    }
+
+    public function demo()
+    {
+        return "Todo ok";
     }
 }

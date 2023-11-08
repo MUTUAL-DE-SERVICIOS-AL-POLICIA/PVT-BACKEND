@@ -331,8 +331,8 @@ class ContributionPassiveController extends Controller
             'affiliate_rent_class' => 'required'
         ]);
 
-        $this->getCertificatePassive($affiliate_id);
-        
+        $this->getCertificatePassive($affiliate_id, $request->affiliate_rent_class);
+
         $affiliate = Affiliate::find($affiliate_id);
         $user = Auth::user();
         $degree = Degree::find($affiliate->degree_id);
@@ -341,19 +341,15 @@ class ContributionPassiveController extends Controller
 
         $value = false;
 
-        if ($request->affiliate_rent_class == 'VEJEZ') {
-            $contributions_passives = ContributionPassive::whereAffiliateId($affiliate_id)
-                ->where('affiliate_rent_class', 'ilike', $request->affiliate_rent_class)
-                ->where('contribution_state_id', 2)
-                ->orderBy('month_year', 'asc')
-                ->get();
-        } else {
-            $contributions_passives = ContributionPassive::whereAffiliateId($affiliate_id)
-                ->where('affiliate_rent_class', 'ilike', '%' . $request->affiliate_rent_class . '%')
-                ->where('contribution_state_id', 2)
-                ->orderBy('month_year', 'asc')
-                ->get();
-        }
+        $contributions_passives = ContributionPassive::whereAffiliateId($affiliate_id)
+            ->when($request->affiliate_rent_class == 'VEJEZ', function ($query) use ($request) {
+                $query->where('affiliate_rent_class', 'ilike', $request->affiliate_rent_class);
+            }, function ($query) use ($request) {
+                $query->where('affiliate_rent_class', 'ilike', '%' . $request->affiliate_rent_class . '%');
+            })
+            ->where('contribution_state_id', 2)
+            ->orderBy('month_year', 'asc')
+            ->get();
 
         if ($affiliate->dead && $affiliate->spouse != null) {
             $value = true;
@@ -383,7 +379,7 @@ class ContributionPassiveController extends Controller
                 'year' => $year,
                 'rent_class' => $rent_class,
                 'description' => $text,
-                'rent_pension' => $contributions_passive->rent_pension,
+                'quotable' => $contributions_passive->quotable,
                 'total' => $contributions_passive->total,
                 'type' => $contributions_passive->contributionable_type
             ]);
@@ -481,7 +477,7 @@ class ContributionPassiveController extends Controller
             $error = true;
             $message = 'No es permitido la eliminación del registro';
             if ($contributionPassive->can_deleted()) {
-                Util::save_record_affiliate($contributionPassive->affiliate,' eliminó el aporte como pasivo del periodo '.$contributionPassive->month_year.'.');
+                Util::save_record_affiliate($contributionPassive->affiliate, ' eliminó el aporte como pasivo del periodo ' . $contributionPassive->month_year . '.');
                 $contributionPassive->delete();
                 $error = false;
                 $message = 'Eliminado exitosamente';
@@ -500,30 +496,48 @@ class ContributionPassiveController extends Controller
         }
     }
 
-    public static function getCertificatePassive($affiliate_id)
+    public static function getCertificatePassive($affiliate_id, $affiliate_rent_class)
     {
-        $action = 'imprimió certificado de aportes - pasivo';
+        $action = 'imprimió certificado de aportes - pasivo ' . $affiliate_rent_class;
         $user = Auth::user();
-        $message = 'El usuario ' . $user->username . ' ';
-        $affiliate_record = new AffiliateRecord();
-        $affiliate_record->user_id = $user->id;
-        $affiliate_record->affiliate_id = $affiliate_id;
-        $affiliate_record->message = $message . $action;
+        $message = 'El usuario ' . $user->username . ' ' . $action;
 
-        $data = AffiliateRecord::whereDate('created_at', now())
-            ->where('affiliate_id', $affiliate_id)
-            ->where('message', 'not ilike', '%activo%')
-            ->get();
+        if (!self::isMessageRegisteredToday($affiliate_id, $message)) {
+            if (!self::isRentClassRegisteredToday($affiliate_id, $affiliate_rent_class)) {
+                $affiliate_record = new AffiliateRecord();
+                $affiliate_record->user_id = $user->id;
+                $affiliate_record->affiliate_id = $affiliate_id;
+                $affiliate_record->message = $message;
+                $affiliate_record->save();
 
-        if (sizeof($data) == 0) {
-            $affiliate_record->save();
+                return response()->json([
+                    'message' => 'Datos registrados con éxito',
+                    'payload' => [
+                        'affiliate' => $affiliate_record
+                    ],
+                ]);
+            }
         }
 
         return response()->json([
-            'message' => 'Datos registrados con éxito',
-            'payload' => [
-                'affiliate' => $affiliate_record
-            ],
+            'message' => 'Datos no registrados',
+            'payload' => []
         ]);
+    }
+
+    private static function isMessageRegisteredToday($affiliate_id, $message)
+    {
+        return AffiliateRecord::whereDate('created_at', now())
+            ->where('affiliate_id', $affiliate_id)
+            ->where('message', $message)
+            ->exists();
+    }
+
+    private static function isRentClassRegisteredToday($affiliate_id, $affiliate_rent_class)
+    {
+        return AffiliateRecord::whereDate('created_at', now())
+            ->where('affiliate_id', $affiliate_id)
+            ->where('message', 'like', '%' . $affiliate_rent_class . '%')
+            ->exists();
     }
 }

@@ -41,10 +41,22 @@ class NotificationSendExport implements FromCollection, WithHeadings, ShouldAuto
     }
 
     public function headings(): array {
-        if($this->type == 1) { // Notificaciones
+
+        logger($this->type);
+        if($this->type == 0) {
+            return [
+                'NUP',
+                'NOMBRE',
+                'APELLIDO PATERNO',
+                'APELLIDO MATERNO',
+                'NÚMERO DE TRÁMITE',
+                'FECHA DE ENVÍO',
+                'CONFIRMACIÓN'
+            ];
+        }
+        else if($this->type == 1) { // Notificaciones
             return [
                 'USUARIO',
-                // 'ESTADO',
                 'SMS/APP',
                 'TIPO',
                 'CÓDIGO',
@@ -55,7 +67,6 @@ class NotificationSendExport implements FromCollection, WithHeadings, ShouldAuto
         } else {
             return [
                 'USUARIO',
-                // 'ESTADO',
                 'SMS/APP',
                 'TIPO',
                 'CÓDIGO',
@@ -70,7 +81,10 @@ class NotificationSendExport implements FromCollection, WithHeadings, ShouldAuto
     public function styles(Worksheet $sheet)
     {
         $rows = $this->count + 2;
-        if($this->type == 1) { //  Notificación
+        if($this->type == 0) {
+            $cels = 'B2:H2';
+            $line = 'B2:H';
+        } else if($this->type == 1) { //  Notificación
             $cels = 'B2:H2';
             $line = 'B2:H';
         } else { // SMS

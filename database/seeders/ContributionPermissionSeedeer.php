@@ -80,6 +80,14 @@ class ContributionPermissionSeedeer extends Seeder
                 'action_id'=>Action::where('name','download')->first()->id,
                 'name' => 'download-report-payroll-transcript',
                 'display_name' => 'Descarga reporte planilla transcrita'
+            ],[
+                'action_id' => Action::where('name','download')->first()->id,
+                'name' => 'create-import-affiliates-availability',
+                'display_name' => 'Crear importación afiliados en disponibilidad'
+            ],[
+                'action_id' => Action::where('name', 'download')->first()->id,
+                'name' => 'download-report-affiliates-availability',
+                'display_name' => 'Descargar reporte de importación afiliados en disponibilidad'
             ]
         ];
         foreach ($permissions as $permission) {
