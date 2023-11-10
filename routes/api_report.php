@@ -12,8 +12,9 @@ Route::group([
     Route::group([
         'middleware' => ['auth:sanctum']
     ], function () {
-        Route::get('report_affiliates_spouses', [App\Http\Controllers\ReportController::class, 'report_affiliates_spouses']);
-        Route::get('report_retirement_funds', [App\Http\Controllers\ReportController::class, 'report_retirement_funds']);
-        Route::get('report_payments_beneficiaries', [App\Http\Controllers\ReportController::class, 'report_payments_beneficiaries']);
+        // reportes requeridos de BE
+        Route::post('report_affiliates_spouses', [App\Http\Controllers\ReportController::class, 'report_affiliates_spouses']);
+        Route::post('report_retirement_funds', [App\Http\Controllers\ReportController::class, 'report_retirement_funds']);
+        Route::post('report_payments_beneficiaries', [App\Http\Controllers\ReportController::class, 'report_payments_beneficiaries']);
     });
 });
