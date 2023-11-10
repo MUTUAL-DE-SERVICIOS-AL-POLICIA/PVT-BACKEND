@@ -35,6 +35,7 @@ class ReportController extends Controller
      */
     public function report_affiliates_spouses()
     {
+        $date = date('Y-m-d');
         $list = Affiliate::leftjoin('spouses', 'spouses.affiliate_id', '=', 'affiliates.id')
             ->select(
                 'affiliates.id as nup',
@@ -52,6 +53,7 @@ class ReportController extends Controller
                 'spouses.last_name as spouse_last_name',
                 'spouses.mothers_last_name as spouse_mothers_last_name',
                 'spouses.surname_husband as spouse_surname_husband',
+                DB::raw('DATE(spouses.created_at) as spouse_registration_date'),
                 'spouses.birth_date as spouse_birth_date',
                 'affiliates.registration as registration'
             )
@@ -60,7 +62,8 @@ class ReportController extends Controller
         $data_header = array(array(
             "NRO", "NUP", "CI TITULAR", "PRIMER NOMBRE", "SEGUNDO NOMBRE", "AP. PATERNO", "AP. MATERNO",
             "AP. CASADA", "FECHA DE INGRESO", "FECHA DE NACIMIENTO", "CI VIUDA(O)", "PRIMER NOMBRE",
-            "SEGUNDO NOMBRE", "AP. PATERNO", "AP. MATERNO", "AP. CASADA", "FECHA DE NACIMIENTO", "MATRÍCULA"
+            "SEGUNDO NOMBRE", "AP. PATERNO", "AP. MATERNO", "AP. CASADA", "FECHA REGISTRO VIUDA", 
+            "FECHA DE NACIMIENTO", "MATRÍCULA TITULAR"
         ));
         $i = 1;
         foreach ($list as $row) {
@@ -81,24 +84,34 @@ class ReportController extends Controller
                 $row->spouse_last_name,
                 $row->spouse_mothers_last_name,
                 $row->spouse_surname_husband,
+                $row->spouse_registration_date,
                 $row->spouse_birth_date,
                 $row->registration
             ));
             $i++;
         }
         $export = new ArchivoPrimarioExport($data_header);
-        $file_name = "reporte_afiliados_conyuges";
+        $file_name = "reporte_afiliados_conyuges_".$date;
         $extension = '.xlsx';
         return Excel::download($export, $file_name . $extension);
     }
 
     /**
-     * @OA\Get(
+     * @OA\Post(
      *      path="/api/report/report_retirement_funds",
      *      tags={"REPORTES"},
      *      summary="GENERA REPORTE DE FONDO DE RETIRO",
      *      operationId="report_retirement_funds",
      *      description="Genera reporte de los trámites de fondo de retiro",
+     *      @OA\RequestBody(
+     *          description= "Reporte de trámites de fondo de retiro",
+     *          required=true,
+     *          @OA\JsonContent(
+     *              type="object",
+     *              @OA\Property(property="start_date", type="date",description="Fecha inicio del reporte", example="2023-02-05"),
+     *              @OA\Property(property="end_date", type="date",description="Fecha final del reporte", example="2023-02-14")
+     *         ),
+     *     ),
      *     security={
      *         {"bearerAuth": {}}
      *     },
@@ -114,9 +127,20 @@ class ReportController extends Controller
      * @param Request $request
      * @return void
      */
-    public function report_retirement_funds()
+    public function report_retirement_funds(Request $request)
     {
+        $date = date('Y-m-d');
+
+        if ($request->start_date == NULL || $request->end_date == NULL) {
+            $start_date = $date;
+            $end_date = $date;
+        } else {
+            $start_date = $request->start_date;
+            $end_date = $request->end_date;
+        }
+
         $list = Affiliate::leftjoin('retirement_funds', 'retirement_funds.affiliate_id', '=', 'affiliates.id')
+            ->whereBetween(DB::raw('DATE(retirement_funds.created_at)'), [$start_date, $end_date])
             ->select(
                 'affiliates.id as nup',
                 'affiliates.identity_card as identity_card',
@@ -158,18 +182,27 @@ class ReportController extends Controller
             $i++;
         }
         $export = new ArchivoPrimarioExport($data_header);
-        $file_name = "reporte_fondo_de_retiro";
+        $file_name = "reporte_fondo_de_retiro_".$date;
         $extension = '.xlsx';
         return Excel::download($export, $file_name . $extension);
     }
 
     /**
-     * @OA\Get(
+     * @OA\Post(
      *      path="/api/report/report_payments_beneficiaries",
      *      tags={"REPORTES"},
      *      summary="GENERA REPORTE DE PAGOS Y DERECHOHABIENTES",
      *      operationId="report_payments_beneficiaries",
      *      description="Genera reporte de los pagos y derechohabientes de los beneficios",
+     *      @OA\RequestBody(
+     *          description= "Reporte de pagos y derechohabientes",
+     *          required=true,
+     *          @OA\JsonContent(
+     *              type="object",
+     *              @OA\Property(property="start_date", type="date",description="Fecha inicio del reporte", example="2023-02-05"),
+     *              @OA\Property(property="end_date", type="date",description="Fecha final del reporte", example="2023-02-14")
+     *         ),
+     *     ),
      *     security={
      *         {"bearerAuth": {}}
      *     },
@@ -185,13 +218,24 @@ class ReportController extends Controller
      * @param Request $request
      * @return void
      */
-    public function report_payments_beneficiaries()
+    public function report_payments_beneficiaries(Request $request)
     {
+        $date = date('Y-m-d');
+
+        if ($request->start_date == NULL || $request->end_date == NULL) {
+            $start_date = $date;
+            $end_date = $date;
+        } else {
+            $start_date = $request->start_date;
+            $end_date = $request->end_date;
+        }
+
         $list = Affiliate::leftjoin('retirement_funds', 'retirement_funds.affiliate_id', '=', 'affiliates.id')
             ->leftjoin('cities', 'cities.id', '=', 'affiliates.city_identity_card_id')
             ->leftjoin('ret_fun_beneficiaries', 'ret_fun_beneficiaries.retirement_fund_id', '=', 'retirement_funds.id')
             ->leftjoin('kinships', 'kinships.id', '=', 'ret_fun_beneficiaries.kinship_id')
             ->leftjoin('procedure_modalities', 'procedure_modalities.id', '=', 'retirement_funds.procedure_modality_id')
+            ->whereBetween(DB::raw('DATE(retirement_funds.created_at)'), [$start_date, $end_date])
             ->select(
                 'affiliates.id as nup',
                 'retirement_funds.code as code',
@@ -244,7 +288,7 @@ class ReportController extends Controller
             $i++;
         }
         $export = new ArchivoPrimarioExport($dataHeader);
-        $fileName = "reporte_pagos_derechohabientes";
+        $fileName = "reporte_pagos_derechohabientes_".$date;
         $extension = '.xlsx';
         return Excel::download($export, $fileName . $extension);
     }
