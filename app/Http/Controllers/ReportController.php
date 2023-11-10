@@ -12,12 +12,21 @@ use Maatwebsite\Excel\Facades\Excel;
 class ReportController extends Controller
 {
     /**
-     * @OA\Get(
+     * @OA\Post(
      *      path="/api/report/report_affiliates_spouses",
      *      tags={"REPORTES"},
      *      summary="GENERA REPORTE DE AFILIADOS - CÓNYUGES",
      *      operationId="report_affiliates_spouses",
      *      description="Genera reporte de los afiliados y sus cónyuges",
+     *      @OA\RequestBody(
+     *          description= "Reporte de los afiliados y sus cónyuges",
+     *          required=true,
+     *          @OA\JsonContent(
+     *              type="object",
+     *              @OA\Property(property="start_date", type="date",description="Fecha inicio del reporte", example="2023-02-05"),
+     *              @OA\Property(property="end_date", type="date",description="Fecha final del reporte", example="2023-02-14")
+     *         ),
+     *     ),
      *     security={
      *         {"bearerAuth": {}}
      *     },
@@ -33,7 +42,7 @@ class ReportController extends Controller
      * @param Request $request
      * @return void
      */
-    public function report_affiliates_spouses()
+    public function report_affiliates_spouses(Request $request)
     {
         $date = date('Y-m-d');
         $list = Affiliate::leftjoin('spouses', 'spouses.affiliate_id', '=', 'affiliates.id')
@@ -91,8 +100,9 @@ class ReportController extends Controller
             $i++;
         }
         $export = new ArchivoPrimarioExport($data_header);
-        $file_name = "reporte_afiliados_conyuges_".$date;
-        $extension = '.xlsx';
+        $file_name = "reporte_afiliados_conyuges_" . $date;
+        $type = $request->type;
+        $extension = $type ?? '.xls';
         return Excel::download($export, $file_name . $extension);
     }
 
@@ -182,8 +192,9 @@ class ReportController extends Controller
             $i++;
         }
         $export = new ArchivoPrimarioExport($data_header);
-        $file_name = "reporte_fondo_de_retiro_".$date;
-        $extension = '.xlsx';
+        $file_name = "reporte_fondo_de_retiro_" . $date;
+        $type = $request->type;
+        $extension = $type ?? '.xls';
         return Excel::download($export, $file_name . $extension);
     }
 
@@ -288,8 +299,9 @@ class ReportController extends Controller
             $i++;
         }
         $export = new ArchivoPrimarioExport($dataHeader);
-        $fileName = "reporte_pagos_derechohabientes_".$date;
-        $extension = '.xlsx';
+        $fileName = "reporte_pagos_derechohabientes_" . $date;
+        $type = $request->type;
+        $extension = $type ?? '.xls';
         return Excel::download($export, $fileName . $extension);
     }
 }
