@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Exports\ArchivoPrimarioExport;
 use App\Models\Affiliate\Affiliate;
-use App\Models\Affiliate\Spouse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
@@ -20,23 +19,20 @@ class ReportController extends Controller
      *      description="Genera reporte de los afiliados y sus cónyuges",
      *      @OA\RequestBody(
      *          description= "Reporte de los afiliados y sus cónyuges",
-     *          required=true,
+     *          required=false,
      *          @OA\JsonContent(
      *              type="object",
-     *              @OA\Property(property="start_date", type="date",description="Fecha inicio del reporte", example="2023-02-05"),
-     *              @OA\Property(property="end_date", type="date",description="Fecha final del reporte", example="2023-02-14")
+     *              @OA\Property(property="type", type="string",description="Extrensión de archivo", example=".xls"),
      *         ),
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Success",
+     *         @OA\MediaType(mediaType="multipart/form-data")
      *     ),
      *     security={
      *         {"bearerAuth": {}}
-     *     },
-     *      @OA\Response(
-     *          response=200,
-     *          description="Success",
-     *          @OA\JsonContent(
-     *            type="object"
-     *         )
-     *      )
+     *     }
      * )
      *
      * @param Request $request
@@ -62,11 +58,31 @@ class ReportController extends Controller
                 'spouses.last_name as spouse_last_name',
                 'spouses.mothers_last_name as spouse_mothers_last_name',
                 'spouses.surname_husband as spouse_surname_husband',
-                DB::raw('DATE(spouses.created_at) as spouse_registration_date'),
+                DB::raw('DATE(MAX(spouses.created_at)) as spouse_registration_date'),
                 'spouses.birth_date as spouse_birth_date',
                 'affiliates.registration as registration'
             )
-            ->orderBy('affiliates.id', 'asc')->get();
+            ->groupBy(
+                'affiliates.id',
+                'affiliates.identity_card',
+                'affiliates.first_name',
+                'affiliates.second_name',
+                'affiliates.last_name',
+                'affiliates.mothers_last_name',
+                'affiliates.surname_husband',
+                'affiliates.date_entry',
+                'affiliates.birth_date',
+                'spouses.identity_card',
+                'spouses.first_name',
+                'spouses.second_name',
+                'spouses.last_name',
+                'spouses.mothers_last_name',
+                'spouses.surname_husband',
+                'spouses.birth_date',
+                'affiliates.registration'
+            )
+            ->orderBy('affiliates.id', 'asc')
+            ->get();
 
         $data_header = array(array(
             "NRO", "NUP", "CI TITULAR", "PRIMER NOMBRE", "SEGUNDO NOMBRE", "AP. PATERNO", "AP. MATERNO",
@@ -150,7 +166,12 @@ class ReportController extends Controller
         }
 
         $list = Affiliate::leftjoin('retirement_funds', 'retirement_funds.affiliate_id', '=', 'affiliates.id')
+            ->leftJoin('ret_fun_correlatives', 'ret_fun_correlatives.retirement_fund_id', '=', 'retirement_funds.id')
+            ->leftJoin('contributions', 'contributions.affiliate_id', '=', 'affiliates.id')
+            ->leftJoin('units', 'units.id', '=', 'contributions.unit_id')
             ->whereBetween(DB::raw('DATE(retirement_funds.created_at)'), [$start_date, $end_date])
+            ->where('ret_fun_correlatives.wf_state_id', '=', 22)
+            ->whereNull('ret_fun_correlatives.deleted_at')
             ->select(
                 'affiliates.id as nup',
                 'affiliates.identity_card as identity_card',
@@ -163,14 +184,18 @@ class ReportController extends Controller
                 'affiliates.date_death as date_death',
                 'retirement_funds.code as code',
                 'retirement_funds.reception_date as reception_date',
+                'ret_fun_correlatives.code as num_cert',
+                'ret_fun_correlatives.date as date',
                 'affiliates.unit_police_description as unit_police_description'
             )
-            ->orderBy('affiliates.id', 'asc')->get();
+            ->distinct()
+            ->orderBy('affiliates.id', 'asc')
+            ->get();
 
         $data_header = array(array(
             "NRO", "NUP", "CÉDULA DE IDENTIDAD", "PRIMER NOMBRE", "SEGUNDO NOMBRE", "AP. PATERNO", "AP. MATERNO",
-            "AP. CASADA", "FECHA DE NACIMIENTO", "FECHA DE FALLECIMIENTO", "NRO DE TRÁMITE", "FECHA DE RECEPCIÓN",
-            "UNIDAD"
+            "AP. CASADA", "FECHA NACIMIENTO", "FECHA FALLECIMIENTO", "NRO TRÁMITE", "FECHA RECEPCIÓN",
+            "NRO CERTIFICACIÓN", "FECHA CERTIFICACIÓN", "UNIDAD INICIO DE FUNCIONES"
         ));
         $i = 1;
         foreach ($list as $row) {
@@ -187,6 +212,8 @@ class ReportController extends Controller
                 $row->date_death,
                 $row->code,
                 $row->reception_date,
+                $row->num_cert,
+                $row->date,
                 $row->unit_police_description
             ));
             $i++;
@@ -242,11 +269,18 @@ class ReportController extends Controller
         }
 
         $list = Affiliate::leftjoin('retirement_funds', 'retirement_funds.affiliate_id', '=', 'affiliates.id')
-            ->leftjoin('cities', 'cities.id', '=', 'affiliates.city_identity_card_id')
-            ->leftjoin('ret_fun_beneficiaries', 'ret_fun_beneficiaries.retirement_fund_id', '=', 'retirement_funds.id')
-            ->leftjoin('kinships', 'kinships.id', '=', 'ret_fun_beneficiaries.kinship_id')
-            ->leftjoin('procedure_modalities', 'procedure_modalities.id', '=', 'retirement_funds.procedure_modality_id')
+            ->leftJoin('cities', 'cities.id', '=', 'affiliates.city_identity_card_id')
+            ->leftJoin('ret_fun_beneficiaries', 'ret_fun_beneficiaries.retirement_fund_id', '=', 'retirement_funds.id')
+            ->leftJoin('kinships', 'kinships.id', '=', 'ret_fun_beneficiaries.kinship_id')
+            ->leftJoin('procedure_modalities', 'procedure_modalities.id', '=', 'retirement_funds.procedure_modality_id')
+            ->leftJoin('discount_type_retirement_fund', 'discount_type_retirement_fund.retirement_fund_id', '=', 'retirement_funds.id')
+            ->leftJoin('discount_types', 'discount_types.id', '=', 'discount_type_retirement_fund.discount_type_id')
+            ->leftJoin('ret_fun_correlatives', 'ret_fun_correlatives.retirement_fund_id', '=', 'retirement_funds.id')
             ->whereBetween(DB::raw('DATE(retirement_funds.created_at)'), [$start_date, $end_date])
+            ->where('ret_fun_correlatives.wf_state_id', '=', 26)
+            ->where('retirement_funds.ret_fun_state_id', '!=', 3)
+            ->whereNull('ret_fun_correlatives.deleted_at')
+            ->whereIn('discount_type_retirement_fund.discount_type_id', [1, 2, 3])
             ->select(
                 'affiliates.id as nup',
                 'retirement_funds.code as code',
@@ -260,19 +294,47 @@ class ReportController extends Controller
                 'cities.first_shortened as city',
                 'retirement_funds.total_ret_fun as total_ret_fun',
                 'retirement_funds.total_availability as total_availability',
-                DB::raw('concat_full_name(affiliates.first_name, affiliates.second_name, affiliates.last_name, affiliates.mothers_last_name, affiliates.surname_husband) as beneficiary_full_name'),
-                'ret_fun_beneficiaries.first_name as beneficiary_first_name',
+                'ret_fun_correlatives.code as nro_res',
+                'ret_fun_correlatives.date as date',
+                DB::raw('MAX(CASE WHEN discount_types.id = 1 THEN discount_type_retirement_fund.amount END) AS advance_ret_fun'),
+                DB::raw('MAX(CASE WHEN discount_types.id = 2 THEN discount_type_retirement_fund.amount END) AS loan_retention'),
+                DB::raw('MAX(CASE WHEN discount_types.id = 3 THEN discount_type_retirement_fund.amount END) AS guarantor_retention'),
+                DB::raw('concat_full_name(ret_fun_beneficiaries.first_name, ret_fun_beneficiaries.second_name, ret_fun_beneficiaries.last_name, ret_fun_beneficiaries.mothers_last_name, ret_fun_beneficiaries.surname_husband) AS beneficiary_full_name'),
                 'kinships.name as kinship',
                 'ret_fun_beneficiaries.amount_ret_fun as amount_ret_fun'
             )
-            ->orderBy('affiliates.id', 'asc')
+            ->groupBy(
+                'affiliates.id',
+                'retirement_funds.code',
+                'procedure_modalities.name',
+                'affiliates.first_name',
+                'affiliates.second_name',
+                'affiliates.last_name',
+                'affiliates.mothers_last_name',
+                'affiliates.surname_husband',
+                'affiliates.identity_card',
+                'cities.first_shortened',
+                'retirement_funds.total_ret_fun',
+                'retirement_funds.total_availability',
+                'ret_fun_correlatives.code',
+                'ret_fun_correlatives.date',
+                'kinships.name',
+                'ret_fun_beneficiaries.amount_ret_fun',
+                'ret_fun_beneficiaries.first_name',
+                'ret_fun_beneficiaries.second_name',
+                'ret_fun_beneficiaries.last_name',
+                'ret_fun_beneficiaries.mothers_last_name',
+                'ret_fun_beneficiaries.surname_husband'
+            )
+            ->orderBy('affiliates.id')
             ->get();
 
         $dataHeader = array(
             [
-                "NRO", "NUP", "NRO TRÁMITE", "MODALIDAD", "PRIMER NOMBRE", "SEGUNDO NOMBRE", "AP. PATERNO",
-                "AP. MATERNO", "AP. CASADA", "CÉDULA DE IDENTIDAD", "EXPEDICIÓN", "TOTAL FONDO DE RETIRO",
-                "TOTAL DISPONIBILIDAD", "BENEFICIARIO", "PARENTESCO", "MONTO PARA BENEFICIARIOS"
+                "NRO", "NUP", "NRO TRÁMITE", "MODALIDAD", "PRIMER NOMBRE", "SEGUNDO NOMBRE", "AP. PATERNO", "AP. MATERNO",
+                "AP. CASADA", "CÉDULA DE IDENTIDAD", "EXPEDICIÓN", "TOTAL FONDO DE RETIRO", "TOTAL DISPONIBILIDAD",
+                "NRO RESOLUCIÓN", "FECHA RESOLUCIÓN", "ANTICIPO FONDO DE RETIRO", "RETENCIÓN PAGO PRÉSTAMO",
+                "RETENCIÓN GARANTES", "TITULAR/BENEFICIARIO", "PARENTESCO", "MONTO PARA BENEFICIARIOS"
             ]
         );
 
@@ -292,6 +354,11 @@ class ReportController extends Controller
                 $row->city,
                 $row->total_ret_fun,
                 $row->total_availability,
+                $row->nro_res,
+                $row->date,
+                $row->advance_ret_fun,
+                $row->loan_retention,
+                $row->guarantor_retention,
                 $row->beneficiary_full_name,
                 $row->kinship,
                 $row->amount_ret_fun
