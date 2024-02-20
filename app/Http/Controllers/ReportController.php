@@ -7,6 +7,8 @@ use App\Models\Affiliate\Affiliate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
+use Carbon\Carbon;
+use App\Exports\QualificationReportExport;
 
 class ReportController extends Controller
 {
@@ -87,7 +89,7 @@ class ReportController extends Controller
         $data_header = array(array(
             "NRO", "NUP", "CI TITULAR", "PRIMER NOMBRE", "SEGUNDO NOMBRE", "AP. PATERNO", "AP. MATERNO",
             "AP. CASADA", "FECHA DE INGRESO", "FECHA DE NACIMIENTO", "CI VIUDA(O)", "PRIMER NOMBRE",
-            "SEGUNDO NOMBRE", "AP. PATERNO", "AP. MATERNO", "AP. CASADA", "FECHA REGISTRO VIUDA", 
+            "SEGUNDO NOMBRE", "AP. PATERNO", "AP. MATERNO", "AP. CASADA", "FECHA REGISTRO VIUDA",
             "FECHA DE NACIMIENTO", "MATRÍCULA TITULAR"
         ));
         $i = 1;
@@ -370,5 +372,32 @@ class ReportController extends Controller
         $type = $request->type;
         $extension = $type ?? '.xls';
         return Excel::download($export, $fileName . $extension);
+    }
+
+    public function download_qualification_report(request $request)
+    {
+        $start_date = Carbon::parse($request->start_date)->startOfDay();
+        $end_date = Carbon::parse($request->end_date)->endOfDay();
+
+        $query = "SELECT
+                    CONCAT(ase2.first_name,
+                        CASE WHEN TRIM(ase2.second_name) <> '' THEN CONCAT(' ', ase2.second_name) ELSE '' END,
+                        ' ',
+                        ase2.second_last_name,
+                        ' ',
+                        ase2.last_name) as full_name, asq.description as question, asa2.description as answer, TO_CHAR(ase.created_at, 'YYYY-MM-DD HH24:MI:SS') as formatted_created_at
+                FROM api_survey_answer asa
+                JOIN api_survey_question asq ON asa.question_id = asq.id
+                JOIN api_survey_answeroption asa2 ON asa.answer_option_id = asa2.id
+                JOIN api_survey_evaluation ase ON asa.evaluation_id = ase.id
+                JOIN api_survey_employee ase2 ON ase.employee_id = ase2.id
+                WHERE ase.created_at BETWEEN :start_date AND :end_date
+                GROUP BY full_name, question, answer, formatted_created_at;";
+        $bindings = [
+            'start_date' => $start_date,
+            'end_date' => $end_date
+        ];
+        $data = collect(DB::connection('db_survey')->select($query, $bindings));
+        return Excel::download(new QualificationReportExport($data), 'qualification_report.xlsx');
     }
 }
