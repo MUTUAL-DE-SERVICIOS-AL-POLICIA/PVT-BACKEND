@@ -306,6 +306,62 @@ class LoanController extends Controller
             ]);
         }
     }
+public function get_information_current_loans(Request $request, $idAffiliate)
+    {
+        $request['affiliate_id'] = $idAffiliate;
+        $hasLoans = DB::table('loans')->where('affiliate_id',$request->id_affiliate)->exists();
+        if ($hasLoans) {
+            $loans = Loan::where([['affiliate_id', '=',$request->id_affiliate]])->whereIn('state_id',[1,3,4])->get();
+        $current=[];
+        $inProcess=[];
+        $liquidated=[];
+        foreach ($loans as $loan ) {
+            if($loan->state_id==3) {
+                array_push($current,array(
+                    "id"=> $loan->id,
+                    "code"=> $loan->code,
+                    "procedure_modality" => $loan->modality->name,
+                    "request_date"=> $loan->disbursement_date,
+                    "amount_requested"=> $loan->amount_requested,
+                    "city"=> $loan->city->name,
+                    "interest"=> $loan->interest->annual_interest,
+                    "state"=> $loan->state->name,
+                    "amount_approved"=> $loan->amount_approved,
+                    "liquid_qualification_calculated"=> $loan->liquid_qualification_calculated,
+                    "loan_term"=> $loan->loan_term,
+                    "refinancing_balance"=> $loan->refinancing_balance,
+                    "payment_type"=> $loan->payment_type->name,
+                    "destiny_id"=> $loan->destiny->name,
+                    "quota"=> $loan->EstimatedQuota,
+                    "percentage_paid"=>$this->get_percentaje_loan($loan)
+                    )
+                );
+            }
+        }
+        return response()->json([
+            'hasLoan' => false,
+            'message' => 'Lista de Prestamos',
+            'notification'=>'Se muestran los préstamos a partir del 2021',
+            'payload' => [
+                'inProcess'=> $inProcess,
+                'current' => $current,
+                'liquited' => $liquidated,
+            ],
+        ]);
+        }
+        else{
+            return response()->json([
+                'hasLoan' => true,
+                'message' => 'El afiliado no tiene prestamos',
+                'notification'=>'Se muestran los préstamos a partir del 2021',
+                'payload' => [
+                    'inProcess'=> [],
+                    'current' => [],
+                    'liquited' => [],
+                ],
+            ]);
+        }
+    }
     /**
      * Remove the specified resource from storage.
      *
