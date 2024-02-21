@@ -3,11 +3,14 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Auth\AuthenticationException;
+use App\Http\Controllers\KioskAuthenticationDataController;
 
 Route::group([
     'middleware' => 'api',
     'prefix' => 'report'
 ], function () {
+    // Rutas abiertas
+    Route::post('register_auth_kiosk', [KioskAuthenticationDataController::class, 'register_auth_kiosk']);
     // Rutas autenticadas con token
     Route::group([
         'middleware' => ['auth:sanctum']
