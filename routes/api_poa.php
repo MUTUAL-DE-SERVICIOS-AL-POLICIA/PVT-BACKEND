@@ -14,7 +14,7 @@ Route::group([
     Route::group([
         'middleware' => ['api_poa']
     ], function () {
-        Route::get('/get_affiliate_loans/{id_affiliate}',[App\Http\Controllers\Loan\LoanController::class, 'get_information_loan']);
+        Route::get('/get_affiliate_loans/{id_affiliate}',[App\Http\Controllers\Loan\LoanController::class, 'get_information_current_loans']);
         Route::get('loan/{loan}/print/kardex',[App\Http\Controllers\Loan\LoanController::class, 'print_kardex']);
     });
 });
