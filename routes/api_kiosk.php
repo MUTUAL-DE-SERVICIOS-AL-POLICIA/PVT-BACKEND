@@ -17,5 +17,8 @@ Route::group([
     ], function () {
         Route::get('/get_affiliate_loans/{id_affiliate}',[App\Http\Controllers\Loan\LoanController::class, 'get_information_current_loans']);
         Route::get('loan/{loan}/print/kardex',[App\Http\Controllers\Loan\LoanController::class, 'print_kardex']);
+        Route::get('/all_contributions/{affiliate_id}', [App\Http\Controllers\Contribution\AppContributionController::class, 'all_contributions']);
+        Route::get('/contributions_passive/{affiliate_id}', [App\Http\Controllers\Contribution\AppContributionController::class, 'printCertificationContributionPassive']);
+        Route::get('/contributions_active/{affiliate_id}', [App\Http\Controllers\Contribution\AppContributionController::class, 'printCertificationContributionActive']);
     });
 });
