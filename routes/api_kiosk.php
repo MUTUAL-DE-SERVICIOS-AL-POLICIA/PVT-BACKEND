@@ -6,7 +6,7 @@ use Illuminate\Auth\AuthenticationException;
 
 Route::group([
     'middleware' => 'api',
-    'prefix' => 'poa'
+    'prefix' => 'kiosk'
 ], function () {
     // Rutas abiertas
     Route::post('get_session',[App\Http\Controllers\AllowedMacDevicesController::class, 'get_session']);
