@@ -46,6 +46,7 @@ class NotificationSendExport implements FromCollection, WithHeadings, ShouldAuto
         if($this->type == 0) {
             return [
                 'NUP',
+                'CÉDULA DE IDENTIDAD',
                 'NOMBRE',
                 'APELLIDO PATERNO',
                 'APELLIDO MATERNO',
@@ -82,8 +83,8 @@ class NotificationSendExport implements FromCollection, WithHeadings, ShouldAuto
     {
         $rows = $this->count + 2;
         if($this->type == 0) {
-            $cels = 'B2:H2';
-            $line = 'B2:H';
+            $cels = 'B2:I2';
+            $line = 'B2:I';
         } else if($this->type == 1) { //  Notificación
             $cels = 'B2:H2';
             $line = 'B2:H';
