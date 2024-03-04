@@ -1029,7 +1029,7 @@ class NotificationController extends Controller
         $start_date = $request->start_date;
         $end_date = $request->end_date;
 
-        $records = NotificationSend::select('economic_complements.affiliate_id', 'eco_com_applicants.first_name', 'eco_com_applicants.last_name', 'eco_com_applicants.mothers_last_name', 'economic_complements.code', 'notification_sends.send_date',
+        $records = NotificationSend::select('economic_complements.affiliate_id','eco_com_applicants.identity_card', 'eco_com_applicants.first_name', 'eco_com_applicants.last_name', 'eco_com_applicants.mothers_last_name', 'economic_complements.code', 'notification_sends.send_date',
             DB::raw("CASE WHEN notification_sends.delivered = true THEN 'si' ELSE 'no' END AS delivered"))
             ->join('economic_complements', 'notification_sends.sendable_id', '=', 'economic_complements.id')
             ->join('eco_com_applicants', 'economic_complements.id', '=', 'eco_com_applicants.economic_complement_id')
