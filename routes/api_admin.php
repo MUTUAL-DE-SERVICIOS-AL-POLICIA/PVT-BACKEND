@@ -31,6 +31,8 @@ Route::group([
         //rutas de sincronizacion de usuarios
         Route::get('get_employees', [App\Http\Controllers\Admin\UserController::class, 'get_employees']);
         Route::get('sync_employees', [App\Http\Controllers\Admin\UserController::class, 'sync_employees']);
+        //Reporte de calificacion de servicios
+        Route::post('get_qualification_report',[App\Http\Controllers\ReportController::class, 'download_qualification_report']);
     });
 });
 
