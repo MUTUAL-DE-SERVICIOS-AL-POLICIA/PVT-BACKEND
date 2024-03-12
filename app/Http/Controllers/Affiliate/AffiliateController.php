@@ -249,7 +249,7 @@ class AffiliateController extends Controller
      * @return void
      */
     public function show(Request $request, Affiliate $affiliate)
-    {return $affiliate;
+    {
         $affiliate->full_name = $affiliate->full_name;
         $affiliate->civil_status_gender = $affiliate->civil_status_gender;
         $affiliate->identity_card_ext = $affiliate->identity_card_ext;
