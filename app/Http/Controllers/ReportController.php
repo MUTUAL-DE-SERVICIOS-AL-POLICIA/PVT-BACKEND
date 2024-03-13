@@ -398,6 +398,6 @@ class ReportController extends Controller
             'end_date' => $end_date
         ];
         $data = collect(DB::connection('db_survey')->select($query, $bindings));
-        return Excel::download(new QualificationReportExport($data), 'qualification_report.xlsx');
+        return Excel::download(new QualificationReportExport($data), 'qualification_report.xls');
     }
 }
