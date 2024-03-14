@@ -15,6 +15,7 @@ return new class extends Migration
     {
         Schema::connection('db_aux')->create('kiosk_authentication_data', function (Blueprint $table) {
             $table->id();
+            $table->integer('affiliate_id')->comment('ID del afiliado');
             $table->string('identity_card');
             $table -> string('left_text')->comment('texto izquierdo');
             $table -> string('middle_text')->comment('texto izquierdo');
