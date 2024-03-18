@@ -157,6 +157,7 @@ class ReportController extends Controller
      * @param Request $request
      * @return void
      */
+
     public function report_retirement_funds(Request $request)
     {    
         $date = date('Y-m-d');
@@ -167,7 +168,7 @@ class ReportController extends Controller
             $start_date = $request->start_date;
             $end_date = $request->end_date;
         }
-        // Obtener los resultados de todas las relaciones Primera función
+        // 1. Obtener los tramites de FR con sus relaciones
         $list =  RetirementFund::select(
             'a.id as nup',
             'a.identity_card as identity_card',
@@ -192,7 +193,7 @@ class ReportController extends Controller
                 ->where('rfc.wf_state_id',22)
                 ->whereNull('rfc.deleted_at');
         })
-        ->leftJoin(DB::raw('(SELECT DISTINCT ON (affiliate_id) affiliate_id, month_year, unit_id FROM contributions WHERE month_year IS NOT NULL ORDER BY affiliate_id, month_year) as c'), 'c.affiliate_id', '=', 'a.id')
+        ->leftJoin(DB::raw('(SELECT DISTINCT ON (affiliate_id) affiliate_id, month_year, unit_id FROM contributions ORDER BY affiliate_id, month_year) as c'), 'c.affiliate_id', '=', 'a.id')
         ->leftJoin('units as u', 'u.id', '=', 'c.unit_id')
         ->whereBetween(DB::raw('DATE(rf.created_at)'), [$start_date, $end_date])
         ->whereIn('rf.wf_state_current_id', [22,23,24,26,47])
@@ -202,58 +203,57 @@ class ReportController extends Controller
         ->distinct('a.id')
         ->get();
 
-        // Obtener los resultados de los clasificadores Segunda función
-        $resultados = DB::table('contributions')
-            ->whereIn('affiliate_id', $list->pluck('nup')->toArray()) // Utiliza los nup obtenidos de la primera función
-            //->whereIn('affiliate_id', [567,33919,1])
+        // 2. Obtener los resultados de los clasificadores
+        $contributions = DB::table('contributions')
+            ->whereIn('affiliate_id', $list->pluck('nup')->toArray()) // Utiliza los nup obtenidos de (1)
             ->orderBy('affiliate_id', 'asc')
             ->orderBy('month_year', 'asc')
             ->orderBy('contribution_type_id', 'asc')
             ->get();
-        $resultadosFinales = [];
-        foreach ($resultados as $registro) {
-            $afiliadoId = $registro->affiliate_id;
-            $contributionTypeId = $registro->contribution_type_id;
-            $fechaActual = $registro->month_year;
-            if (!isset($resultadosFinales[$afiliadoId])) {
-                // Si el afiliado no existe en el resultado final, inicialízalo
-                $resultadosFinales[$afiliadoId] = [
+        $resultContributions = [];
+        foreach ($contributions as $contribution) {
+            $afiliadoId = $contribution->affiliate_id;
+            $contributionTypeId = $contribution->contribution_type_id;
+            $currentDate = $contribution->month_year;
+            if (!isset($resultContributions[$afiliadoId])) {
+                // Si el afiliado no existe en el resultado de contribuciones
+                $resultContributions[$afiliadoId] = [
                     'affiliate_id' => $afiliadoId,
                     'clasificadores' => []
                 ];
-                $clasificadorActual = null;
+                $currentClassifier = null;
             }
-            if ($clasificadorActual !== $contributionTypeId) {
+            if ($currentClassifier !== $contributionTypeId) {
                 // Si cambió el contribution_type_id, guarda el mínimo y máximo del grupo anterior (si existe)
-                if ($clasificadorActual !== null) {
-                    $resultadosFinales[$afiliadoId]['clasificadores'][] = [
-                        'contribution_type_id' => $clasificadorActual,
-                        'min' => min($grupo),
-                        'max' => max($grupo),
+                if ($currentClassifier !== null) {
+                    $resultContributions[$afiliadoId]['clasificadores'][] = [
+                        'contribution_type_id' => $currentClassifier,
+                        'min' => min($group),
+                        'max' => max($group),
                     ];
                 }
                 // Inicia un nuevo grupo de contribution_type_id
-                $clasificadorActual = $contributionTypeId;
-                $grupo = [$fechaActual];
+                $currentClassifier = $contributionTypeId;
+                $group = [$currentDate];
             } else {
                 // Si no cambió el contribution_type_id, agrega la fecha al grupo actual
-                $grupo[] = $fechaActual;
+                $group[] = $currentDate;
             }
         }
         // Guarda el mínimo y máximo del último grupo para cada afiliado
-        foreach ($resultadosFinales as &$afiliado) {
+        foreach ($resultContributions as &$afiliado) {
             $afiliado['clasificadores'][] = [
-                'contribution_type_id' => $clasificadorActual,
-                'min' => min($grupo),
-                'max' => max($grupo),
+                'contribution_type_id' => $currentClassifier,
+                'min' => min($group),
+                'max' => max($group),
             ];
         }
-        // Combinar la información de ambas funciones
-        $resultadosFinalesCombinados = [];
+        // Unir la información de (1) y (2)
+        $finalResults = [];
         foreach ($list as $row) {
             $afiliadoId = $row->nup;
-            if (isset($resultadosFinales[$afiliadoId])) {
-                $resultadosFinalesCombinados[] = [
+            if (isset($resultContributions[$afiliadoId])) {
+                $finalResults[] = [
                     'nup' => $afiliadoId,
                     'identity_card' => $row->identity_card,
                     'first_name' => $row->first_name,
@@ -269,11 +269,11 @@ class ReportController extends Controller
                     'date_cert' => $row->date_cert,
                     'name_unit' => $row->name_unit,
                     'code_unit' => $row->code_unit,
-                    'clasificadores' => array_values($resultadosFinales[$afiliadoId]['clasificadores']),
+                    'clasificadores' => array_values($resultContributions[$afiliadoId]['clasificadores']),
                 ];
             }
         }
-        //return $resultadosFinalesCombinados;
+
         //Unificar encabezados
         $contribution_type_shortened= ContributionType::orderBy('id')->pluck('shortened')->toArray();
         
@@ -286,17 +286,17 @@ class ReportController extends Controller
     
         //Unificar datos relacionados a cada encabezado
         $i = 1;
-        foreach ($resultadosFinalesCombinados as &$row) {
-            $clasificadoresPorTipo = [];
+        foreach ($finalResults as &$row) {
+            $classifiersByType = [];
         
             // Iterar sobre los diferentes tipos de contribution_type_id
             for ($tipo = 1; $tipo <= 14; $tipo++) {
-                $clasificadoresPorTipo[$tipo] = implode(", ", array_map(function ($clasificador) {
-                    $clasificador['min']= Carbon::createFromFormat('Y-m-d', $clasificador['min'])->format('m/Y');
-                    $clasificador['max']= Carbon::createFromFormat('Y-m-d', $clasificador['max'])->format('m/Y');
-                    return "{$clasificador['min']} - {$clasificador['max']}";
-                }, array_filter($row['clasificadores'], function ($clasificador) use ($tipo) {
-                    return $clasificador['contribution_type_id'] == $tipo;
+                $classifiersByType[$tipo] = implode(PHP_EOL, array_map(function ($classifier) {
+                    $classifier['min']= Carbon::createFromFormat('Y-m-d', $classifier['min'])->format('m/Y');
+                    $classifier['max']= Carbon::createFromFormat('Y-m-d', $classifier['max'])->format('m/Y');
+                    return "{$classifier['min']} - {$classifier['max']}";
+                }, array_filter($row['clasificadores'], function ($classifier) use ($tipo) {
+                    return $classifier['contribution_type_id'] == $tipo;
                 })));
             }
     
@@ -317,20 +317,20 @@ class ReportController extends Controller
                 $row['date_cert'],
                 $row['name_unit'],
                 $row['code_unit'],
-                $clasificadoresPorTipo[1],
-                $clasificadoresPorTipo[2],
-                $clasificadoresPorTipo[3],
-                $clasificadoresPorTipo[4],
-                $clasificadoresPorTipo[5],
-                $clasificadoresPorTipo[6],
-                $clasificadoresPorTipo[7],
-                $clasificadoresPorTipo[8],
-                $clasificadoresPorTipo[9],
-                $clasificadoresPorTipo[10],
-                $clasificadoresPorTipo[11],
-                $clasificadoresPorTipo[12],
-                $clasificadoresPorTipo[13],
-                $clasificadoresPorTipo[14]
+                $classifiersByType[1],
+                $classifiersByType[2],
+                $classifiersByType[3],
+                $classifiersByType[4],
+                $classifiersByType[5],
+                $classifiersByType[6],
+                $classifiersByType[7],
+                $classifiersByType[8],
+                $classifiersByType[9],
+                $classifiersByType[10],
+                $classifiersByType[11],
+                $classifiersByType[12],
+                $classifiersByType[13],
+                $classifiersByType[14]
             ));
         
             $i++;
