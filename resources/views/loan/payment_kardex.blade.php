@@ -47,7 +47,6 @@
             <tr class="bg-grey-darker text-xxs text-white">
                 <td class="w-50">Solicitante</td>
                 <td class="w-15">CI</td>
-                <td class="w-15">Matricula</td>
                 <td class="w-20">Sector</td>
             </tr>
             <tr>
@@ -57,7 +56,6 @@
                 @endif
                 {{ $lender->full_name }}</td>
                 <td class="data-row py-5">{{ $lender->identity_card_ext }}</td>
-                <td class="data-row py-5">{{ $lender->registration }}</td>
                 @if(!$is_dead)
                 <td class="data-row py-5">{{ $lender->affiliate_state->affiliate_state_type->name }}</td>
                 @else
@@ -184,10 +182,6 @@
                     <th class="w-9"><div>Total Pagado</div></th>
                     <th class="w-9"><div>Saldo</div><div>Capital</div> </th>
                     <th class="w-9"><div>Cbte</div> </th>
-                    <th class="w-11"><div>Código de</div><div> Transacción</div> </th>
-                    <th class="w-9"><div>Estado</div> </th>
-                    <th class="w-9"><div>Pagado</div> </th>
-                    <th class="w-9"><div>Observación</div> </th>
                 </tr>
             </thead>
             <tbody>
@@ -204,10 +198,6 @@
                     <td class=" text-right">{{ Util::money_format($parent_loan_payment->estimated_quota) }}</td> {{-- total pagado--}}
                     <td class=" text-right">{{ Util::money_format($parent_loan_payment->previous_balance - $parent_loan_payment->capital_payment) }}</td>
                     <td class=" text-right">{{ $parent_loan_payment->voucher }}</td>
-                    <td class=" text-right">{{ $parent_loan_payment->voucher_treasury ? $parent_loan_payment->voucher_treasury->code : ''}}</td>
-                    <td> {{ $parent_loan_payment->state->name }}</td>
-                    <td> {{ $parent_loan_payment->paid_by }}-{{ $parent_loan_payment->initial_affiliate }}</td>
-                    <td> {{ $parent_loan_payment->modality->shortened }}</td>
                 </tr>
                 @php ($sum_estimated_quota += $parent_loan_payment->estimated_quota)
                 @php ($sum_capital_payment += $parent_loan_payment->capital_payment)
@@ -228,10 +218,6 @@
                         <th class="w-9"><div>Total Pagado</div></th>
                         <th class="w-9"><div>Saldo</div><div>Capital</div> </th>
                         <th class="w-9"><div>Cbte</div> </th>
-                        <th class="w-11"><div>Código de</div><div> Transacción</div> </th>
-                        <th class="w-9"><div>Estado</div> </th>
-                        <th class="w-9"><div>Pagado</div> </th>
-                        <th class="w-9"><div>Observación</div> </th>
                     </tr>
                 </thead>
                 @php ($res_saldo_capital = 0)
@@ -248,10 +234,6 @@
                     <td class="w-9 text-right">{{ Util::money_format($payment->estimated_quota) }}</td> {{-- total pagado--}}
                     <td class="w-9 text-right">{{ Util::money_format($res_saldo_capital) }}</td>
                     <td class="w-9 text-right">{{ $payment->voucher }}</td>
-                    <td class="w-11 text-right">{{ $payment->voucher_treasury ? $payment->voucher_treasury->code : '' }}</td>
-                    <td class="w-9">{{ $payment->state->name }}</td>
-                    <td class="w-12">{{ $payment->paid_by }}-{{ $payment->initial_affiliate }}</td>
-                    <td class="w-9">{{ $payment->modality->shortened }}</td>
                 </tr>
                 @php ($sum_capital_payment += $payment->capital_payment)
                 @php ($sum_interest_payment += $payment->interest_payment)
@@ -266,7 +248,6 @@
                     <td class="text-right">{{ Util::money_format($sum_penal_payment) }}</td>
                     <td class="text-right">{{ Util::money_format($sum_estimated_quota) }}</td>
                     <td class="text-right">{{ Util::money_format($res_saldo_capital) }}</td>
-                    <td colspan="4"></td>
                 </tr>
             </tbody>
         </table>
