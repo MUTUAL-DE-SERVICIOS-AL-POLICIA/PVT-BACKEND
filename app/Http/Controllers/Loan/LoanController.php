@@ -140,7 +140,7 @@ class LoanController extends Controller
                     'is_dead' => $is_dead
                 ];
                 $pdf=PDF::loadView('loan.payment_kardex', $data);
-                return $pdf->setPaper('a4', 'landscape')->stream();
+                return $pdf->setPaper('a4', 'portrait')->stream();
             }else{
                 return "prestamo no desembolsado";
             }
