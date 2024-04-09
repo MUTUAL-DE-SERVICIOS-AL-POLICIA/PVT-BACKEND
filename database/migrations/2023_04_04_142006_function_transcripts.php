@@ -137,17 +137,19 @@ return new class extends Migration
                 type_reg integer := 10;
                 update_affiliate varchar;
                 record_row_payroll record;
-                hierarchy_id_into int :=0 ;
+                hierarchy_id_into int :=0;
+                breakdown_id_into int:=10;
+                unit_id_into int:=0;
                 degree_id_into int := 0;
                 affiliate_type_into varchar;
                 category_id_into int := 0;
 
                 ------------------------------
                 --- Declaración EXPLICITA del cursor
-                cur_payroll_create_affiliate CURSOR for (SELECT * FROM dblink(db_name_intext,'SELECT id,car,pat,mat,nom,nom2,
+                cur_payroll_create_affiliate CURSOR for (SELECT * FROM dblink(db_name_intext,'SELECT id,uni,car,pat,mat,nom,nom2,
                       niv,gra,cat,sue,criteria,affiliate_id,mes,a_o  FROM payroll_copy_transcripts
                       WHERE criteria=''6-CREAR''and affiliate_id is null and mes = '||month_copy||' and a_o = '||year_copy||'')
-                      AS  payroll_copy_transcripts(id integer,car character varying(250),pat character varying(250),mat character varying(250),nom character varying(250),
+                      AS  payroll_copy_transcripts(id integer,uni character varying(250),car character varying(250),pat character varying(250),mat character varying(250),nom character varying(250),
                         nom2 character varying(250),niv character varying(250),gra character varying(250),cat NUMERIC(13,2),sue NUMERIC(13,2),criteria character varying(250), affiliate_id character varying(250),mes integer, a_o integer ));
                   begin
                   --************************************************************
@@ -162,15 +164,16 @@ return new class extends Migration
                      hierarchy_id_into:= (SELECT id  FROM hierarchies  WHERE code::numeric = record_row.niv::numeric);
                      degree_id_into:= (SELECT id FROM degrees d  WHERE d.code::numeric = record_row.gra::numeric AND d.hierarchy_id = hierarchy_id_into);
                      category_id_into:= (SELECT get_category_id(record_row.cat,record_row.sue));
-                     INSERT INTO affiliates (user_id, affiliate_state_id, first_name, second_name, last_name, mothers_last_name, identity_card, degree_id, category_id, gender, created_at, updated_at)
-                     VALUES (user_id_reg, affiliate_state_id_reg_jub, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.car, degree_id_into, category_id_into,'M', current_timestamp, current_timestamp);
+                     unit_id_into:= (SELECT get_unit_id(breakdown_id_into, record_row.uni));
+                     INSERT INTO affiliates (user_id, affiliate_state_id, first_name, second_name, last_name, mothers_last_name, identity_card, degree_id, unit_id, category_id, gender, created_at, updated_at)
+                     VALUES (user_id_reg, affiliate_state_id_reg_jub, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.car, degree_id_into, unit_id_into, category_id_into,'M', current_timestamp, current_timestamp);
                      id_affiliate:= (SELECT id  FROM affiliates a  WHERE a.identity_card = record_row.car) ;
                      ---Realizar Actualización del affiliate _id en la tabla payroll_copy_transcripts
                      update_affiliate:=  (SELECT dblink_exec(db_name_intext, 'UPDATE payroll_copy_transcripts SET affiliate_id='||id_affiliate||' WHERE payroll_copy_transcripts.id= '||record_row.id||''));  
                      ---Registro historial de creación del afiliado
                      message_into := 'Creación de Afiliado';
-                     INSERT INTO affiliate_records(user_id, affiliate_id, degree_id, category_id, type_id, message,created_at, updated_at)
-                     VALUES (user_id_reg, id_affiliate, degree_id_into, category_id_into, type_reg,message_into, current_timestamp, current_timestamp);
+                     INSERT INTO affiliate_records(user_id, affiliate_id, degree_id, unit_id, category_id, type_id, message,created_at, updated_at)
+                     VALUES (user_id_reg, id_affiliate, degree_id_into, unit_id_into, category_id_into, type_reg,message_into, current_timestamp, current_timestamp);
                      END LOOP;
                       --************************************************************
                       --* Importación de planillas
@@ -190,9 +193,10 @@ return new class extends Migration
                          hierarchy_id_into:= (SELECT id  FROM hierarchies  WHERE code::numeric = record_row_payroll.niv::numeric);
                          degree_id_into:= (SELECT id FROM degrees d  WHERE d.code::numeric = record_row_payroll.gra::numeric AND d.hierarchy_id = hierarchy_id_into);
                          category_id_into:= (SELECT get_category_id(record_row_payroll.cat,record_row_payroll.sue));
-                         INSERT INTO payroll_transcripts(affiliate_id,month_p, year_p, identity_card, last_name, mothers_last_name, first_name, second_name, hierarchy_id, degree_id,category_id, base_wage, seniority_bonus, gain, total, study_bonus, position_bonus, border_bonus, east_bonus, affiliate_type, created_at, updated_at) 
+                         unit_id_into:= (SELECT get_unit_id(breakdown_id_into, record_row_payroll.uni));
+                         INSERT INTO payroll_transcripts(affiliate_id,month_p, year_p, identity_card, last_name, mothers_last_name, first_name, second_name, hierarchy_id, degree_id,category_id, base_wage, seniority_bonus, gain, total, study_bonus, position_bonus, border_bonus, east_bonus, affiliate_type, created_at, updated_at, unit_id) 
                          VALUES(record_row_payroll.affiliate_id::bigint, record_row_payroll.mes, record_row_payroll.a_o, record_row_payroll.car, record_row_payroll.pat, record_row_payroll.mat, record_row_payroll.nom, record_row_payroll.nom2, hierarchy_id_into, degree_id_into, category_id_into, record_row_payroll.sue, record_row_payroll.cat, 
-                         record_row_payroll.gan, record_row_payroll.mus, record_row_payroll.est, record_row_payroll.carg, record_row_payroll.fro, record_row_payroll.ori, affiliate_type_into, current_timestamp, current_timestamp);
+                         record_row_payroll.gan, record_row_payroll.mus, record_row_payroll.est, record_row_payroll.carg, record_row_payroll.fro, record_row_payroll.ori, affiliate_type_into, current_timestamp, current_timestamp, unit_id_into);
                      END LOOP;
                       RETURN TRUE;
                    END;
@@ -258,7 +262,7 @@ AS $$
                                if contribution_id is null then
                                     INSERT INTO contributions (
                                     user_id,affiliate_id,degree_id,
-                                    --unit_id,
+                                    unit_id,
                                     --breakdown_id,
                                     category_id,
                                     month_year,type,base_wage,seniority_bonus,
@@ -272,7 +276,7 @@ AS $$
                                     user_id_into,
                                     record_row.affiliate_id,
                                     record_row.degree_id,
-                                    --record_row.unit_id,
+                                    record_row.unit_id,
                                     --record_row.breakdown_id,
                                     record_row.category_id,
                                     date_period,
