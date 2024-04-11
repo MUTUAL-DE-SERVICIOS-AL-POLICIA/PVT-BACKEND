@@ -19,6 +19,7 @@ class KioskAuthenticationDataController extends Controller
         ]);
         $kioskAuthenticationData = KioskKioskAuthenticationData::create([
             'identity_card' => $request->input('identity_card'),
+            'affiliate_id' => $request->input('affiliate_id'),
             'left_text' => $request->input('left_text'),
             'middle_text' => $request->input('middle_text'),
             'right_text' => $request->input('right_text'),
