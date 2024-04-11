@@ -14,7 +14,7 @@
             font-size: 65px;
             font-weight: 500px;
             display: grid;
-            opacity: 0.3;
+            opacity: 0.8;
             transform: rotate(-30deg);
 
             top: 35%;
@@ -65,10 +65,26 @@
                         <td class="data-row py-2">{{ $num = $num + 1 }}</td>
                         <td class="data-row py-2">{{ date('Y', strtotime($contribution->month_year)) }}</td>
                         <td class="data-row py-2">{{ date('m', strtotime($contribution->month_year)) }}</td>
-                        <td class="data-row py-2">{{ Util::money_format($contribution->quotable) }}</td>
-                        <td class="data-row py-2">{{ Util::money_format($contribution->retirement_fund) }}</td>
+                        @if ( $contribution->quotable>0 )
+                            <td class="data-row py-2">{{ Util::money_format($contribution->quotable) }}</td>
+                        @else
+                            <td class="data-row py-2">-</td>
+                        @endif
+                        @if ($contribution->retirement_fund>0)
+                            <td class="data-row py-2">{{ Util::money_format($contribution->retirement_fund) }}</td>
+                        @else
+                            <td class="data-row py-2">-</td>
+                        @endif
+                        @if ($contribution->mortuary_quota>0)
                         <td class="data-row py-2">{{ Util::money_format($contribution->mortuary_quota) }}</td>
-                        <td class="data-row py-2">{{ Util::money_format($contribution->total) }}</td>
+                        @else
+                            <td class="data-row py-2">-</td>
+                        @endif
+                        @if ($contribution->total>0)
+                            <td class="data-row py-2">{{ Util::money_format($contribution->total) }}</td>
+                        @else
+                            <td class="data-row py-2">-</td>
+                        @endif
                     </tr>
                     @foreach ($reimbursements as $reimbursement)
                         @if ($contribution->month_year == $reimbursement->month_year)
