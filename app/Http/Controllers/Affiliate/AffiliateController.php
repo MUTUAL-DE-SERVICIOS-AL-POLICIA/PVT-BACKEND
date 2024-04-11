@@ -653,33 +653,5 @@ class AffiliateController extends Controller
     public function get_spouse(Affiliate $affiliate) {
         return response()->json($affiliate->spouse);
     }
-    public function save_photo(Request $request)
-    {
-        $request->validate([
-            'photo_ci' => 'image|max:2048',
-            'photo_face' => 'image|max:2048',
-            'affiliate_id' => 'required'
-        ]);
-        $basePathIdentityCard = 'ci';
-        $basePathFace = 'face';
-        $subdirectory = $request->affiliate_id;
-        if ($request->photo_ci != null) {
-            if (!Storage::disk('custom_storage')->exists("$basePathIdentityCard/$subdirectory")) {
-                Storage::disk('custom_storage')->makeDirectory("$basePathIdentityCard/$subdirectory");
-            }
-        $photoIdentityCard = $request->file('photo_ci');
-        $filenameIdentityCard = 'ci_anverso_' . now()->format('YmdHis') . '.' . $photoIdentityCard->getClientOriginalExtension();
-        $path = Storage::disk('custom_storage')->put("$basePathIdentityCard/$subdirectory/$filenameIdentityCard", file_get_contents($photoIdentityCard));
-        }
-        if ($request->photo_face != null) {
-            if (!Storage::disk('custom_storage')->exists("$basePathFace/$subdirectory")) {
-                Storage::disk('custom_storage')->makeDirectory("$basePathFace/$subdirectory");
-            }
-            $photoFace = $request->file('photo_face');
-            $filenameFace = 'rostro_' . now()->format('YmdHis') . '.' . $photoFace->getClientOriginalExtension();
-            $path = Storage::disk('custom_storage')->put("$basePathFace/$subdirectory/$filenameFace", file_get_contents($photoFace));
-        }
-        return response()->json(['path' => $path], 201);
-    }
 }
 
