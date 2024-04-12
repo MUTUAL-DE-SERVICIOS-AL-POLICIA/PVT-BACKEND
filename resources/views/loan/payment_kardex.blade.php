@@ -14,7 +14,7 @@
             font-size: 80px;
             font-weight: 500px;
             display: grid;
-            opacity: 0.3;
+            opacity: 0.7;
             transform: rotate(-30deg);
 
             top: 35%;
@@ -34,20 +34,16 @@
     @include('partials.header', $header)
 
     <div class="block">
-        <div class="font-semibold leading-tight text-center m-b-10 text-xs">{{ $title }}</div>
+        <div class="font-semibold leading-tight text-center m-b-5 text-2xl">{{ $title }}</div>
     </div>
-
-
     <div class="block">
-        <div class="font-semibold leading-tight text-left m-b-10 text-xs">{{ $n++ }}. DATOS DEL TITULAR</div>
+        <div class="font-semibold leading-tight text-left m-b-5 text-xs">{{ $n++ }}. DATOS DEL TITULAR</div>
     </div>
-
     <div class="block">
-        <table class="table-info w-100 text-center uppercase my-20">
+        <table class="table-info w-100 text-center uppercase m-b-5">
             <tr class="bg-grey-darker text-xxs text-white">
                 <td class="w-50">Solicitante</td>
                 <td class="w-15">CI</td>
-                <td class="w-15">Matricula</td>
                 <td class="w-20">Sector</td>
             </tr>
             <tr>
@@ -57,7 +53,6 @@
                 @endif
                 {{ $lender->full_name }}</td>
                 <td class="data-row py-5">{{ $lender->identity_card_ext }}</td>
-                <td class="data-row py-5">{{ $lender->registration }}</td>
                 @if(!$is_dead)
                 <td class="data-row py-5">{{ $lender->affiliate_state->affiliate_state_type->name }}</td>
                 @else
@@ -69,12 +64,12 @@
 
     @if ($loan->guarantors()->count())
     <div class="block">
-        <div class="font-semibold leading-tight text-left m-b-10 text-xs">{{ $n++ }}. DATOS DE{{ $plural ? ' LOS' : 'L' }} GARANTE{{ $plural ? 'S' : ''}}</div>
+        <div class="font-semibold leading-tight text-left m-b-5 text-xs">{{ $n++ }}. DATOS DE{{ $plural ? ' LOS' : 'L' }} GARANTE{{ $plural ? 'S' : ''}}</div>
     </div>
 
     <div class="block">
         @foreach ($loan->guarantors as $guarantor)
-        <table class="table-info w-100 text-center uppercase my-20">
+        <table class="table-info w-100 text-center uppercase m-b-5 ">
             <tr class="bg-grey-darker text-xxs text-white">
                 <td class="w-70">Garante</td>
                 <td class="w-15">CI</td>
@@ -92,11 +87,11 @@
 
 
     <div class="block">
-        <div class="font-semibold leading-tight text-left m-b-10 text-xs">{{ $n++ }}. DATOS DEL TRÁMITE</div>
+        <div class="font-semibold leading-tight text-left m-b-5 text-xs">{{ $n++ }}. DATOS DEL TRÁMITE</div>
     </div>
 
     <div class="block">
-        <table class="table-info w-100 text-center uppercase my-20">
+        <table class="table-info w-100 text-center uppercase m-b-5">
             <tr class="bg-grey-darker text-xxs text-white">
                 <td class="w-15">Código Trámite</td>
                 @if ($loan->parent_loan)
@@ -107,13 +102,13 @@
                 <td class="w-25">Cuota Fija Mensual</td>
             </tr>
             <tr>
-                <td class="data-row py-5 m-b-10 text-xs">{{ $loan->code }}</td>
+                <td class="data-row text-xs">{{ $loan->code }}</td>
                 @if ($loan->parent_loan)
-                <td class="data-row py-5 m-b-10 text-xs">{{ $loan->parent_loan->code }}</td>
+                <td class="data-row text-xs">{{ $loan->parent_loan->code }}</td>
                 @endif
-                <td class="data-row py-5 m-b-10 text-xs" colspan="{{ $loan->parent_loan ? 1 : 2 }}">{{ $loan->modality->name }}</td>
-                <td class="m-b-10 text-xs">{{ Util::money_format($loan->interest->annual_interest)}}</td>
-                <td class="m-b-10 text-xs" colspan="2">{{Util::money_format($loan->estimated_quota)}}</td>
+                <td class="data-row text-xs" colspan="{{ $loan->parent_loan ? 1 : 2 }}">{{ $loan->modality->name }}</td>
+                <td class=" text-xs">{{ Util::money_format($loan->interest->annual_interest)}}</td>
+                <td class="text-xs" colspan="2">{{Util::money_format($loan->estimated_quota)}}</td>
             </tr>
             <tr class="bg-grey-darker text-xxs text-white">
                 <td class="w-25">Plazo</td>
@@ -121,9 +116,9 @@
                 <td class="w-25">Fecha de Desembolso</td>
                 <td colspan="2">Monto Desembolsado</td>
             </tr>
-            <tr>
-                <td class="data-row py-5 m-b-10 text-xs">{{ $loan->loan_term }} <span class="capitalize">Meses</span></td>
-                <td class="data-row py-5 m-b-10 text-xs">
+            <tr class="text-xs">
+                <td class="data-row ">{{ $loan->loan_term }} <span class="capitalize">Meses</span></td>
+                <td class="data-row ">
                     @if($loan->payment_type->name=='Deposito Bancario')
                         <div class="font-bold">Cuenta Banco Union</div>
                         <div>{{ $loan->number_payment_type }}</div>
@@ -131,38 +126,37 @@
                         {{ $loan->payment_type->name}}
                     @endif
                 </td>
-                <td class="data-row py-5 m-b-10 text-xs" >{{Carbon::parse($loan->disbursement_date)->format('d/m/Y H:i:s')}}</td>
+                <td class="data-row " >{{Carbon::parse($loan->disbursement_date)->format('d/m/Y H:i:s')}}</td>
                 @if($loan->parent_loan && $loan->parent_reason == "REPROGRAMACIÓN")
-                <td colspan="2" class="data-row py-5 m-b-10 text-xs" >{{ Util::money_format($loan->parent_loan->amount_approved) }} <span class="capitalize">Bs.</span></td>
+                <td colspan="2" class="data-row  " >{{ Util::money_format($loan->parent_loan->amount_approved) }} <span class="capitalize">Bs.</span></td>
                 @else
-                <td colspan="2" class="data-row py-5 m-b-10 text-xs" >{{ Util::money_format($loan->amount_approved) }} <span class="capitalize">Bs.</span></td>
+                <td colspan="2" class="data-row " >{{ Util::money_format($loan->amount_approved) }} <span class="capitalize">Bs.</span></td>
                 @endif
             </tr>
             <tr class="bg-grey-darker text-xxs text-white">
-                <td class="w-25">Certificacion Presupuestaria Contable</td>
+                <td colspan="2">Certificacion Presupuestaria Contable</td>
                 <td colspan="2">Intereses Corrientes Pendientes</td>
-                <td colspan="2">Intereses Penales Pendientes</td>
+                <td>Intereses Penales Pendientes</td>
             </tr>
-            <tr class="data-row py-5 m-b-10 text-xs">
+            <tr class="data-row text-xs" >
             @if($loan->paymentsKardex->first() != null)
-                <td >{{$loan->num_accounting_voucher}}</td>
+                <td colspan="2">{{$loan->num_accounting_voucher}}</td>
                 <td colspan="2">{{ Util::money_format($loan->paymentsKardex->first()->interest_accumulated)}}</td>
-                <td colspan="2">{{ Util::money_format($loan->paymentsKardex->first()->penal_accumulated)}}</td>
+                <td >{{ Util::money_format($loan->paymentsKardex->first()->penal_accumulated)}}</td>
                 @else
-                <td class="data-row py-5 m-b-10 text-xs">0</td>
                 <td colspan="2">0</td>
                 <td colspan="2">0</td>
+                <td >0</td>
             @endif
             </tr>
         </table>
     </div>
-<br>
     <div class="block">
-        <div class="font-semibold leading-tight text-left m-b-10 text-xs">{{ $n++ }}. KARDEX DE PAGOS (EXPRESADO EN BOLIVIANOS)</div>
+        <div class="font-semibold leading-tight text-left text-xs m-b-5">{{ $n++ }}. KARDEX DE PAGOS (EXPRESADO EN BOLIVIANOS)</div>
     </div>
 
     <div class="block">
-        <table class="table-info w-100 text-center uppercase my-20">
+        <table class="table-info w-100 text-center uppercase">
                 @php ($sum_capital_payment = 0)
                 @php ($sum_interest_payment = 0)
                 @php ($sum_penal_payment = 0)
@@ -184,10 +178,6 @@
                     <th class="w-9"><div>Total Pagado</div></th>
                     <th class="w-9"><div>Saldo</div><div>Capital</div> </th>
                     <th class="w-9"><div>Cbte</div> </th>
-                    <th class="w-11"><div>Código de</div><div> Transacción</div> </th>
-                    <th class="w-9"><div>Estado</div> </th>
-                    <th class="w-9"><div>Pagado</div> </th>
-                    <th class="w-9"><div>Observación</div> </th>
                 </tr>
             </thead>
             <tbody>
@@ -204,10 +194,6 @@
                     <td class=" text-right">{{ Util::money_format($parent_loan_payment->estimated_quota) }}</td> {{-- total pagado--}}
                     <td class=" text-right">{{ Util::money_format($parent_loan_payment->previous_balance - $parent_loan_payment->capital_payment) }}</td>
                     <td class=" text-right">{{ $parent_loan_payment->voucher }}</td>
-                    <td class=" text-right">{{ $parent_loan_payment->voucher_treasury ? $parent_loan_payment->voucher_treasury->code : ''}}</td>
-                    <td> {{ $parent_loan_payment->state->name }}</td>
-                    <td> {{ $parent_loan_payment->paid_by }}-{{ $parent_loan_payment->initial_affiliate }}</td>
-                    <td> {{ $parent_loan_payment->modality->shortened }}</td>
                 </tr>
                 @php ($sum_estimated_quota += $parent_loan_payment->estimated_quota)
                 @php ($sum_capital_payment += $parent_loan_payment->capital_payment)
@@ -228,10 +214,6 @@
                         <th class="w-9"><div>Total Pagado</div></th>
                         <th class="w-9"><div>Saldo</div><div>Capital</div> </th>
                         <th class="w-9"><div>Cbte</div> </th>
-                        <th class="w-11"><div>Código de</div><div> Transacción</div> </th>
-                        <th class="w-9"><div>Estado</div> </th>
-                        <th class="w-9"><div>Pagado</div> </th>
-                        <th class="w-9"><div>Observación</div> </th>
                     </tr>
                 </thead>
                 @php ($res_saldo_capital = 0)
@@ -248,10 +230,6 @@
                     <td class="w-9 text-right">{{ Util::money_format($payment->estimated_quota) }}</td> {{-- total pagado--}}
                     <td class="w-9 text-right">{{ Util::money_format($res_saldo_capital) }}</td>
                     <td class="w-9 text-right">{{ $payment->voucher }}</td>
-                    <td class="w-11 text-right">{{ $payment->voucher_treasury ? $payment->voucher_treasury->code : '' }}</td>
-                    <td class="w-9">{{ $payment->state->name }}</td>
-                    <td class="w-12">{{ $payment->paid_by }}-{{ $payment->initial_affiliate }}</td>
-                    <td class="w-9">{{ $payment->modality->shortened }}</td>
                 </tr>
                 @php ($sum_capital_payment += $payment->capital_payment)
                 @php ($sum_interest_payment += $payment->interest_payment)
@@ -259,14 +237,13 @@
                 @php ($sum_estimated_quota += $payment->estimated_quota)
                 @php ($capital = $res_saldo_capital)
                 @endforeach
-                <tr>
-                    <td colspan="3" class="data-row py-2 font-semibold leading-tight text-xs">TOTALES</td>
+                <tr class="font-semibold">
+                    <td colspan="3" class="data-row py-2 leading-tight text-x">TOTALES</td>
                     <td class="text-right">{{ Util::money_format($sum_capital_payment) }}</td>
                     <td class="text-right">{{ Util::money_format($sum_interest_payment) }}</td>
                     <td class="text-right">{{ Util::money_format($sum_penal_payment) }}</td>
                     <td class="text-right">{{ Util::money_format($sum_estimated_quota) }}</td>
                     <td class="text-right">{{ Util::money_format($res_saldo_capital) }}</td>
-                    <td colspan="4"></td>
                 </tr>
             </tbody>
         </table>

@@ -13,6 +13,7 @@ class KioskAuthenticationData extends Model
 
     protected $fillable = [
         'identity_card',
+        'affiliate_id',
         'left_text',
         'middle_text',
         'right_text',
