@@ -74,14 +74,18 @@
         <table class="w-100 text-xxs p-10">
             <tbody>
                 <tr>
-                    <td>
-                        <b>NOTA.- </b>La presente certificación contiene informacion de aportes registrados en la Base de
-                        Datos
-                        de la MUSERPOL (considerando la existencia de registros de aportes aportes en la Base de Datos Institucional).
-                        Asímismo, este documento no contempla toda la
-                        información de la planilla de pago, por lo que no es válido para trámites administrativos,
-                        siendo de uso exclusivo de la MUSERPOL.<br>
-                        Es cuanto se certifica, para fines consiguientes.
+                    <td class="text-justify">
+                        <i><b>NOTA.- </b>La presente certificación contiene información de aportes registrados en la Base de Datos 
+                        de la MUSERPOL (considerando la existencia de registros de aportes en la Base de Datos Institucional).
+                        Asimismo, este documento no contempla toda la información de la planilla de pago, por lo que no es válido 
+                        para trámites administrativos, siendo de uso exclusivo de la MUSERPOL.<br><br>
+                        Finalmente, con respecto al descuento que figura en las boletas de pago salarial, bajo la denominación 
+                        <b>MUSERPOL F. RETIRO + CM</b>, conforme los Decretos Supremos N° 1446, N° 2829, N° 3231, N° 5007 , los Reglamentos 
+                        de los beneficios de Fondo de Retiro Policial Solidario, Cuota Mortuoria y Auxilio Mortuorio, se determina que 
+                        corresponde a los aportes realizados por los efectivos policiales que son de carácter <u><b>mensual, obligatorio y 
+                        financian los beneficios de Fondo de Retiro Policial Solidario y Cuota Mortuoria</b></u>, no siendo considerados como 
+                        pago de deuda por préstamos contraídos con la <b>MUSERPOL</b>.
+                        <br<br>Es cuanto se certifica, para fines consiguientes.</i>
                     </td>
                 </tr>
             </tbody>
