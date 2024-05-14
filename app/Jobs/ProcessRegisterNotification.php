@@ -59,7 +59,7 @@ class ProcessRegisterNotification implements ShouldQueue
                     'sendable_id' => $shipping['id'],
                     'send_date' => Carbon::now(),
                     'delivered' => true,
-                    'message' => json_encode(['data' => ['text' => $shipping['message']]]),
+                    'message' => json_encode(['data' => $shipping['message']]),
                     'subject' => null,
                     'receiver_number' => $shipping['sms_num'],
                     'notification_type_id' => $this->type
