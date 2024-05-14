@@ -942,6 +942,7 @@ class NotificationController extends Controller
      * @return void
      */
     public function get_report(Request $request) {
+        ini_set('max_execution_time', '300000');
         $start_date = $request->start_date;
         $end_date = $request->end_date;
         $media_type = $request->type; // todos, SMS, notificaciones App,
@@ -1013,12 +1014,11 @@ class NotificationController extends Controller
                 $temp->push($code);
                 $temp->push($nup);
                 $temp->push($it->created_at);
-                // if($it->sendable_type == 'loans') {
-                //     $temp->push(json_decode($it->message)->data);
-                // } else {
-                //     $temp->push(json_decode($it->message)->data->text);
-                // }
-                $temp->push(json_decode($it->message)->data);
+                if($it->sendable_type == 'economic_complements') {
+                    $temp->push(json_decode($it->message)->data->text);
+                } else {
+                    $temp->push(json_decode($it->message)->data);
+                }
                 $temp->push($it->receiver_number);
                 $result->push($temp);
             }
