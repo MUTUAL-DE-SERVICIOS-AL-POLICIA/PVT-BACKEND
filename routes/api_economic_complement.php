@@ -13,5 +13,7 @@ Route::group([
         'middleware' => ['api_auth']
     ], function () {
         Route::get('/eco_com_procedure_list',[App\Http\Controllers\EconomicComplement\EcoComProcedureController::class,'index']);
+        Route::get('/movement_list/{affiliate_id}', [App\Http\Controllers\EconomicComplement\EcoComMovementController::class, 'index']);
+        Route::post('/register_devolution', [App\Http\Controllers\EconomicComplement\EcoComMovementController::class, 'storeDevolution']);
     });
 });
