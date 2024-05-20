@@ -12,6 +12,6 @@ Route::group([
     Route::group([
         'middleware' => ['api_auth']
     ], function () {
-
+        Route::get('/eco_com_procedure_list',[App\Http\Controllers\EconomicComplement\EcoComProcedureController::class,'index']);
     });
 });
