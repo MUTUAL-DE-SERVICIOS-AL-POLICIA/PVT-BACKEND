@@ -5,6 +5,7 @@ namespace App\Http\Controllers\EconomicComplement;
 use App\Http\Controllers\Controller;
 use App\Models\Devolution;
 use App\Models\Due;
+use App\Models\EconomicComplement\EcoComDirectPayment;
 use App\Models\EconomicComplement\EcoComMovement;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -84,5 +85,53 @@ class EcoComMovementController extends Controller
             'payload' => [
                 'movements' => $eco_com_movement
             ]]);
+    }
+    public function storeDirectPayment(Request $request)
+    {
+        $exist_movement = EcoComMovement::where('affiliate_id', $request->affiliate_id)->exists();
+        if ($exist_movement) {
+            $last_movement = EcoComMovement::where('affiliate_id', $request->affiliate_id)->latest()->first();
+            if ($last_movement->balance > 0) {
+                $direct_payment = new EcoComDirectPayment();
+                $direct_payment->amount = $request->amount;
+                $direct_payment->voucher = $request->voucher;
+                if ($direct_payment->amount <= $last_movement->balance) {
+                    $direct_payment->save();
+                    $eco_com_movement = new EcoComMovement();
+                    $eco_com_movement->affiliate_id = $request->affiliate_id;
+                    $eco_com_movement->movement_id = $direct_payment->id;
+                    $eco_com_movement->movement_type = $direct_payment->getTable();
+                    $eco_com_movement->description = 'PAGO DIRECTO';
+                    $eco_com_movement->amount = $direct_payment->amount;
+                    $eco_com_movement->balance = $last_movement->balance - $direct_payment->amount;
+                    $eco_com_movement->save();
+                    return response()->json([
+                        'error' => false,
+                        'message' => 'Pago registrado exitosamente',
+                        'payload' => [
+                            'movement' => $eco_com_movement
+                        ]
+                    ]);
+                } else {
+                    return response()->json([
+                        'error' => true,
+                        'message' => 'No se puede registrar el pago, el monto registrado es mayor a la deuda',
+                        'payload' => []
+                    ]);
+                }
+            } else {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'No se puede registrar el pago, la deuda es 0',
+                    'payload' => []
+                ]);
+            }
+        } else {
+            return response()->json([
+                'error' => true,
+                'message' => 'No se encontraron movimientos anteriores',
+                'payload' => []
+            ]);
+        }
     }
 }
