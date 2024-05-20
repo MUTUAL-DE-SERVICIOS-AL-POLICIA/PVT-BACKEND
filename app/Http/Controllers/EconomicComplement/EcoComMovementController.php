@@ -41,5 +41,48 @@ class EcoComMovementController extends Controller
             ]
             ]);
     }
-
+    public function storeDevolution(Request $request)
+    {
+        $request->validate([
+            'affiliate_id' => 'required|int'
+        ]);
+        $devolution=new Devolution();
+        $devolution->affiliate_id=$request->affiliate_id;
+        $devolution->observation_type_id=13;
+        $dues=$request->dues;
+        $totalMount = 0;
+        foreach ($dues as $due) {
+           $totalMount += $due['amount'];
+        }
+        $devolution->total=$totalMount;
+        $devolution->save();
+        foreach ($dues as $due) {
+            $due_object=new Due();
+            $due_object->devolution_id = $devolution->id;
+            $due_object->eco_com_procedure_id = $due['eco_com_procedure_id'] ;
+            $due_object->amount=$due['amount'];
+            $due_object->save();
+        }
+        $eco_com_movement=new EcoComMovement();
+        $eco_com_movement->affiliate_id=$request->affiliate_id;
+        $eco_com_movement->movement_id=$devolution->id;
+        $eco_com_movement->movement_type=$devolution->getTable();
+        $eco_com_movement->description = "DEUDA";
+        $eco_com_movement->amount = $totalMount;
+        $exists_last_movement=EcoComMovement::where("affiliate_id",$request->affiliate_id)->exists();
+        if ($exists_last_movement) {
+            $last_movement = EcoComMovement::where("affiliate_id", $request->affiliate_id)->latest()->first();
+            $previous_balance = $last_movement->balance;
+            $eco_com_movement->balance = $previous_balance+$totalMount;
+        }else{
+            $eco_com_movement->balance=$totalMount;
+        }
+        $eco_com_movement->save();
+        return response()->json([
+            'error' => "false",
+            'message' => 'Listado de movimientos de dinero de pagos en demasia',
+            'payload' => [
+                'movements' => $eco_com_movement
+            ]]);
+    }
 }
