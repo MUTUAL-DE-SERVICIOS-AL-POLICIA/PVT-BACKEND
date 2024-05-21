@@ -22,6 +22,7 @@ return new class extends Migration
             $table->decimal('amount', 10, 2)->nullable(false)->comment('monto de dinero');
             $table->decimal('balance', 10, 2)->nullable(false)->comment('Balance acumulado');
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 
