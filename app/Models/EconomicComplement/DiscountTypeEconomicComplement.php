@@ -6,10 +6,12 @@ use App\Models\DiscountType;
 use App\Models\EconomicComplement\EconomicComplement;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class DiscountTypeEconomicComplement extends Model
 {
     use HasFactory;
+    use SoftDeletes;
     protected $table = "discount_type_economic_complement";
 
     public $timestamps = true;

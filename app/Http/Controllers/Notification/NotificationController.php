@@ -1013,11 +1013,12 @@ class NotificationController extends Controller
                 $temp->push($code);
                 $temp->push($nup);
                 $temp->push($it->created_at);
-                if($it->sendable_type == 'loans') {
-                    $temp->push(json_decode($it->message)->data);
-                } else {
-                    $temp->push(json_decode($it->message)->data->text);
-                }
+                // if($it->sendable_type == 'loans') {
+                //     $temp->push(json_decode($it->message)->data);
+                // } else {
+                //     $temp->push(json_decode($it->message)->data->text);
+                // }
+                $temp->push(json_decode($it->message)->data);
                 $temp->push($it->receiver_number);
                 $result->push($temp);
             }
