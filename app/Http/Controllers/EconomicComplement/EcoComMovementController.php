@@ -5,6 +5,7 @@ namespace App\Http\Controllers\EconomicComplement;
 use App\Http\Controllers\Controller;
 use App\Models\Devolution;
 use App\Models\Due;
+use App\Models\EconomicComplement\DiscountTypeEconomicComplement;
 use App\Models\EconomicComplement\EcoComDirectPayment;
 use App\Models\EconomicComplement\EcoComMovement;
 use Carbon\Carbon;
@@ -130,6 +131,50 @@ class EcoComMovementController extends Controller
             return response()->json([
                 'error' => true,
                 'message' => 'No se encontraron movimientos anteriores',
+                'payload' => []
+            ]);
+        }
+    }
+    public function softDeleteMovement(Request $request, $affiliate_id){
+        $request['affiliate_id']=$affiliate_id;
+        $request->validate([
+            'affiliate_id' => 'required|int'
+        ]);
+        $movement = EcoComMovement::where('affiliate_id', $request->affiliate_id)->latest()->first();
+        if ($movement) {
+            $movement_type=$movement->movement_type;
+            switch ($movement_type) {
+                case 'devolutions':
+                    $devolution=Devolution::find($movement->movement_id);
+                    $dues=Due::where("devolution_id",$devolution->id)->get();
+                    foreach ($dues as $due ) {
+                        $due->delete();
+                    }
+                    $devolution->delete();
+                    break;
+                case 'eco_com_direct_payments':
+                    $direct_payment=EcoComDirectPayment::find($movement->movement_id);
+                    $direct_payment->delete();
+                    break;
+                case 'discount_type_economic_complement':
+                    $discount_type=DiscountTypeEconomicComplement::find($movement->movement_id);
+                    $discount_type->delete();
+                    break;
+                default:
+                    break;
+            }
+            $movement->delete();
+            return response()->json([
+                'error' => false,
+                'message' => 'Movimiento eliminado',
+                'payload' => [
+                    "movement"=>$movement
+                ]
+            ]);
+        } else {
+            return response()->json([
+                'error' => true,
+                'message' => 'Movimiento no encontrado',
                 'payload' => []
             ]);
         }
