@@ -166,7 +166,7 @@ class EcoComMovementController extends Controller
             $movement->delete();
             return response()->json([
                 'error' => false,
-                'message' => 'Movimiento eliminado suavemente',
+                'message' => 'Movimiento eliminado',
                 'payload' => [
                     "movement"=>$movement
                 ]
