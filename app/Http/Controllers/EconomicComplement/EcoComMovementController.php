@@ -20,7 +20,7 @@ class EcoComMovementController extends Controller
         $request->validate([
             'affiliate_id' => 'required|int',
         ]);
-        $movements= EcoComMovement::where("affiliate_id",$affiliate_id)->get();
+        $movements= EcoComMovement::where("affiliate_id",$affiliate_id)->orderby('id')->get();
         $movement_objects= collect();
         $correlative=1;
         foreach ($movements as $movement)
@@ -36,7 +36,7 @@ class EcoComMovementController extends Controller
             $movement_objects->push($movement_object);
         }
         return response()->json([
-            'error' => "false",
+            'error' => false,
             'message' => 'Listado de movimientos de dinero de pagos en demasia',
             'payload' => [
                 'movements' => $movement_objects
@@ -73,7 +73,7 @@ class EcoComMovementController extends Controller
         $eco_com_movement->amount = $totalMount;
         $exists_last_movement=EcoComMovement::where("affiliate_id",$request->affiliate_id)->exists();
         if ($exists_last_movement) {
-            $last_movement = EcoComMovement::where("affiliate_id", $request->affiliate_id)->latest()->first();
+            $last_movement = EcoComMovement::where("affiliate_id", $request->affiliate_id)->latest()->orderBy('id', 'desc')->first();
             $previous_balance = $last_movement->balance;
             $eco_com_movement->balance = $previous_balance+$totalMount;
         }else{
@@ -81,7 +81,7 @@ class EcoComMovementController extends Controller
         }
         $eco_com_movement->save();
         return response()->json([
-            'error' => "false",
+            'error' => false,
             'message' => 'Listado de movimientos de dinero de pagos en demasia',
             'payload' => [
                 'movements' => $eco_com_movement
@@ -91,7 +91,7 @@ class EcoComMovementController extends Controller
     {
         $exist_movement = EcoComMovement::where('affiliate_id', $request->affiliate_id)->exists();
         if ($exist_movement) {
-            $last_movement = EcoComMovement::where('affiliate_id', $request->affiliate_id)->latest()->first();
+            $last_movement = EcoComMovement::where('affiliate_id', $request->affiliate_id)->latest()->orderBy('id', 'desc')->first();
             if ($last_movement->balance > 0) {
                 $direct_payment = new EcoComDirectPayment();
                 $direct_payment->amount = $request->amount;
