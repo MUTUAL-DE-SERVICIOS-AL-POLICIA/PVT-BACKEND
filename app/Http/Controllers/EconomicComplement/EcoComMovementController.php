@@ -75,11 +75,7 @@ class EcoComMovementController extends Controller
         if ($exists_last_movement) {
             $last_movement = EcoComMovement::where("affiliate_id", $request->affiliate_id)->latest()->orderBy('id', 'desc')->first();
             $previous_balance = $last_movement->balance;
-            logger($previous_balance);
             $eco_com_movement->balance = $previous_balance+$totalMount;
-            logger("entro acá");
-
-
         }else{
             $eco_com_movement->balance=$totalMount;
         }
@@ -94,10 +90,8 @@ class EcoComMovementController extends Controller
     public function storeDirectPayment(Request $request)
     {
         $exist_movement = EcoComMovement::where('affiliate_id', $request->affiliate_id)->exists();
-        logger($exist_movement);
         if ($exist_movement) {
             $last_movement = EcoComMovement::where('affiliate_id', $request->affiliate_id)->latest()->orderBy('id', 'desc')->first();
-            logger("el movimiento es ".$last_movement->amount);
             if ($last_movement->balance > 0) {
                 $direct_payment = new EcoComDirectPayment();
                 $direct_payment->amount = $request->amount;
