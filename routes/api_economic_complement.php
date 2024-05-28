@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Auth\AuthenticationException;
@@ -17,5 +16,6 @@ Route::group([
         Route::post('/register_devolution', [App\Http\Controllers\EconomicComplement\EcoComMovementController::class, 'storeDevolution']);
         Route::post('/register_direct_payment', [App\Http\Controllers\EconomicComplement\EcoComMovementController::class, 'storeDirectPayment']);
         Route::delete('/delete_movement/{affiliate_id}', [App\Http\Controllers\EconomicComplement\EcoComMovementController::class, 'softDeleteMovement']);
+        Route::get('/report_eco_com_movement',[App\Http\Controllers\ReportController::class, 'report_overpayments']);
     });
 });
