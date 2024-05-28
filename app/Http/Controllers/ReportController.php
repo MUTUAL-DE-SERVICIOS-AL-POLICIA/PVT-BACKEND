@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\ArchivoPrimarioExport;
+use App\Exports\EcoComMovementsExport;
 use App\Models\Affiliate\Affiliate;
 use App\Models\Contribution\ContributionType;
 use App\Models\RetirementFund\RetirementFund;
@@ -159,7 +160,7 @@ class ReportController extends Controller
      */
 
     public function report_retirement_funds(Request $request)
-    {    
+    {
         $date = date('Y-m-d');
         if ($request->start_date == NULL || $request->end_date == NULL) {
             $start_date = $date;
@@ -186,7 +187,7 @@ class ReportController extends Controller
             'u.name as name_unit',
             'u.code as code_unit'
         )
-        ->from('retirement_funds as rf') 
+        ->from('retirement_funds as rf')
         ->leftJoin('affiliates as a', 'rf.affiliate_id', '=', 'a.id')
         ->leftJoin('ret_fun_correlatives as rfc', function($join){
             $join->on('rf.id', '=','rfc.retirement_fund_id')
@@ -276,19 +277,19 @@ class ReportController extends Controller
 
         //Unificar encabezados
         $contribution_type_shortened= ContributionType::orderBy('id')->pluck('shortened')->toArray();
-        
+
         $data_header = array(
             "NRO", "NUP", "CÉDULA DE IDENTIDAD", "PRIMER NOMBRE", "SEGUNDO NOMBRE", "AP. PATERNO", "AP. MATERNO",
             "AP. CASADA", "FECHA NACIMIENTO", "FECHA FALLECIMIENTO", "NRO TRÁMITE", "FECHA RECEPCIÓN",
             "NRO CERTIFICACIÓN", "FECHA CERTIFICACIÓN", "UNIDAD INICIO DE FUNCIONES","CODIGO DE UNIDAD",
         );
         $data_header = array(array_merge($data_header, $contribution_type_shortened));
-    
+
         //Unificar datos relacionados a cada encabezado
         $i = 1;
         foreach ($finalResults as &$row) {
             $classifiersByType = [];
-        
+
             // Iterar sobre los diferentes tipos de contribution_type_id
             for ($tipo = 1; $tipo <= 14; $tipo++) {
                 $classifiersByType[$tipo] = implode(PHP_EOL, array_map(function ($classifier) {
@@ -299,7 +300,7 @@ class ReportController extends Controller
                     return $classifier['contribution_type_id'] == $tipo;
                 })));
             }
-    
+
             array_push($data_header, array(
                 $i,
                 $row['nup'],
@@ -332,16 +333,16 @@ class ReportController extends Controller
                 $classifiersByType[13],
                 $classifiersByType[14]
             ));
-        
+
             $i++;
         }
-        
+
         $export = new ArchivoPrimarioExport($data_header);
         $file_name = "reporte_fondo_de_retiro_" . $date;
         $type = $request->type;
         $extension = $type ?? '.xls';
         return Excel::download($export, $file_name . $extension);
-        
+
     }
 
     /**
@@ -516,5 +517,26 @@ class ReportController extends Controller
         ];
         $data = collect(DB::connection('db_survey')->select($query, $bindings));
         return Excel::download(new QualificationReportExport($data), 'qualification_report.xls');
+    }
+    public function report_overpayments(){
+        $subquery = DB::table('eco_com_movements as e1')
+                    ->select('e1.affiliate_id',
+                            'e1.description',
+                            DB::raw("CONCAT(a.first_name, ' ', COALESCE(a.second_name, ''), ' ', a.last_name, ' ', a.mothers_last_name) as affiliate_name"),
+                            'a.identity_card',
+                            'e1.amount',
+                            'e1.balance')
+                    ->join('affiliates as a', 'e1.affiliate_id', '=', 'a.id')
+                    ->whereRaw('e1.id = (
+                        SELECT MAX(e2.id)
+                        FROM eco_com_movements as e2
+                        WHERE e2.affiliate_id = e1.affiliate_id
+                    )');
+
+        $data= DB::table(DB::raw("({$subquery->toSql()}) as sub"))
+            ->mergeBindings($subquery)
+            ->orderBy('affiliate_id')
+            ->get();
+        return Excel::download(new EcoComMovementsExport($data), 'eco_com_movements_report.xls');
     }
 }
