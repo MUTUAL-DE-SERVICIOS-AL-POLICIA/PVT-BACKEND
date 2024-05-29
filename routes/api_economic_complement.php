@@ -9,7 +9,7 @@ Route::group([
 ], function () {
     // Rutas autenticadas con token
     Route::group([
-        'middleware' => ['api_auth']
+        'middleware' => ['auth:sanctum']
     ], function () {
         Route::get('/eco_com_procedure_list',[App\Http\Controllers\EconomicComplement\EcoComProcedureController::class,'index']);
         Route::get('/movement_list/{affiliate_id}', [App\Http\Controllers\EconomicComplement\EcoComMovementController::class, 'index']);
