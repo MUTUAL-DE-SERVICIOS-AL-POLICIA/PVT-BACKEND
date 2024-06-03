@@ -14,6 +14,14 @@ use Auth;
 use App\Models\Affiliate\Affiliate;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Observers\AffiliateObserver;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
+use App\Models\Affiliate\Spouse;
+use App\Models\ObservationType;
+use App\Models\Observation;
+use App\Models\Admin\Module;
+use App\Models\EconomicComplement\EcoComProcedure;
+use App\Models\EconomicComplement\EconomicComplement;
 
 class ImportAffiliatesController extends Controller
 {
@@ -943,6 +951,236 @@ class ImportAffiliatesController extends Controller
                 'message' => 'Hubo un error al generar el archivo',
                 'payload' => [
                     'successfull' => false
+                ]
+            ], 500);
+        }
+    }
+
+     /**
+     * @OA\Post(
+     *      path="/api/affiliate/validate_import_affiliate_mora",
+     *      tags={"IMPORTACION-AFILIADOS-MORA"},
+     *      summary="PASO 1 COPIADO DE DATOS AFILIADOS MORA",
+     *      operationId="validate_import_affiliate_mora",
+     *      description="Copiado de datos del archivo de afiliados en mora",
+     *      @OA\RequestBody(
+     *          description="Provide auth credentials",
+     *          required=true,
+     *          @OA\MediaType(mediaType="multipart/form-data",@OA\Schema(
+     *              @OA\Property(property="file", type="file", description="file required", example="file"),
+     *              )
+     *          ),
+     *      ),
+     *      security={
+     *          {"bearerAuth":{}}
+     *      },
+     *      @OA\Response(
+     *          response=200,
+     *          description="Success",
+     *          @OA\JsonContent(
+     *             type="object"
+     *          )
+     *      )
+     * )
+    */
+    public function validate_import_affiliate_mora(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:csv,txt'
+        ]);
+        $path = $request->file->store('temp');
+        $fullPath = storage_path('app/' . $path);
+        Schema::dropIfExists('temporary_table');
+        Schema::create('temporary_table', function (Blueprint $table) {
+            $table->string('ci');
+            $table->string('observacion');
+            $table->string('nup')->nullable();
+        });
+        if (($handle = fopen($fullPath, 'r')) !== FALSE) {
+            fgetcsv($handle, 1000, ':');
+            while (($data = fgetcsv($handle, 1000, ':')) !== FALSE) {
+                DB::table('temporary_table')->insert([
+                    'ci' => $data[0],
+                    'observacion' => $data[1],
+                    'nup' => null,
+                ]);
+            }
+            fclose($handle);
+        }
+        Storage::delete($path);
+        $importation_data = DB::table('temporary_table')->get();
+        foreach($importation_data as $data)
+        {
+            if ($affiliate = Affiliate::where('identity_card', $data->ci)->first()) {
+                DB::table('temporary_table')
+                    ->where('ci', $data->ci)
+                    ->update(['nup' => $affiliate->id]);
+            } elseif ($spouse = Spouse::where('identity_card', $data->ci)->first()) {
+                DB::table('temporary_table')
+                    ->where('ci', $data->ci)
+                    ->update(['nup' => $spouse->affiliate_id]);
+            }
+        }
+        if(DB::table('temporary_table')->where('nup', null)->count() > 0)
+        {
+            $route = '/affiliate/download_error_mora_archive';
+            $route_file_name = 'mora_observados_archivo.xls';
+            return response()->json([
+                'message' => 'Excel',
+                'payload' => [
+                    'successfully' => false,
+                    'error' => 'Existen carnets que no son incorrectos, favor revisar.',
+                    'route' =>$route,
+                    'route_file_name' => $route_file_name
+                ]
+            ]);
+        }
+        else{
+            return response()->json([
+                'message' => 'Copiado correcto',
+                'payload' => [
+                    'successfully' => true,
+                    'data_count' => DB::table('temporary_table')->count(),
+                ]
+            ]);
+        }
+    }
+
+    /**
+    * @OA\Post(
+    *      path="/api/affiliate/download_error_mora_archive",
+    *      tags={"IMPORTACION-AFILIADOS-MORA"},
+    *      summary="DESCARGA EL ARCHIVO, CON EL LISTADO DE AFILIADOS QUE TENGAN OBSERVACIONES EN EL ARCHIVO",
+    *      operationId="download_error_mora_archive",
+    *      description="Descarga el archivo con el listado de afiliados con CI inexistentes",
+    *      security={
+    *          {"bearerAuth": {}}
+    *      },
+    *      requestBody={
+    *          "description": "Provide auth credentials",
+    *          "required": true,
+    *      },
+    *      @OA\Response(
+    *          response=200,
+    *          description="Success",
+    *          @OA\JsonContent(
+    *              type="object"
+    *          )
+    *      )
+    * )
+    *
+    * Descarga el archivo de observaciones mora.
+    *
+    * @return void
+    */
+    public function download_error_mora_archive(Request $request)
+    {
+        try{
+            $data_header = array(array("CI", "OBSERVACION"));
+            $data_error = DB::table('temporary_table')->where('nup', null)->get();
+            foreach($data_error as $row) {
+                array_push($data_header, array($row->ci, $row->observacion));
+            }
+            $export = new ArchivoPrimarioExport($data_header);
+            $file_name = "observados";
+            $extension = '.xls';
+            return Excel::download($export, $file_name."_".$extension);
+        }catch(\Exception $e) {
+            logger($e->getMessage());
+            return response()->json([
+                'message' => 'Hubo un error al importar el archivo',
+                'payload' => [
+                    'successfull' => $e
+                ]
+            ], 500);
+        }
+    }
+
+    /**
+    * @OA\Post(
+    *      path="/api/affiliate/import_affiliate_mora",
+    *      tags={"IMPORTACION-AFILIADOS-MORA"},
+    *      summary="PASO 2 IMPORTACION AFILIADOS MORA",
+    *      operationId="import_affiliate_mora",
+    *      description="Importación de Afiliados en mora",
+    *      security={
+    *          {"bearerAuth": {}}
+    *      },
+    *      requestBody={
+    *          "description": "Provide auth credentials",
+    *          "required": true
+    *      },
+    *      @OA\Response(
+    *          response=200,
+    *          description="Success",
+    *          @OA\JsonContent(
+    *              type="object"
+    *          )
+    *      )
+    * )
+    *
+    * Importa afiliados en mora.
+    *
+    * @param Request $request
+    * @return void
+    */
+    public function import_affiliate_mora()
+    {
+        try
+        {
+            $affiliate_data = DB::table('temporary_table')->get();
+            $observation_type = ObservationType::where('name', 'Suspendido - Préstamo en mora.')->first();
+            $module = Module::where('name', 'prestamos')->first();
+            $count = 0;
+            $eco_com = EcoComProcedure::orderBy('id', 'desc')->get()->first();
+            foreach($affiliate_data as $affiliate)
+            {
+                if($affiliate->nup <> null){
+                    $count++;
+                    if(Observation::where('observation_type_id', $observation_type->id)->where('observable_id', $affiliate->nup)->where('observable_type', 'affiliates')->where('enabled', true)->count() == 0)
+                    {
+                        Observation::create([
+                            'user_id' => Auth::user()->id,
+                            'observation_type_id' => $observation_type->id,
+                            'observable_id' => $affiliate->nup,
+                            'observable_type' => 'affiliates',
+                            'message' => $affiliate->observacion,
+                            'date' => Carbon::now(),
+                            'enabled' => true
+                        ]);
+                    }
+                    if(EconomicComplement::where('affiliate_id', $affiliate->nup)->where('eco_com_procedure_id', $eco_com->id)->count() > 0)
+                    {
+                        $economic_complement = EconomicComplement::where('affiliate_id', $affiliate->nup)->where('eco_com_procedure_id', $eco_com->id)->first();
+                        if(Observation::where('observation_type_id', $observation_type->id)->where('observable_id', $economic_complement->id)->where('observable_type', 'economic_complements')->count() == 0)
+                        {
+                            Observation::create([
+                                'user_id' => Auth::user()->id,
+                                'observation_type_id' => $observation_type->id,
+                                'observable_id' => $economic_complement->id,
+                                'observable_type' => 'economic_complements',
+                                'message' => $affiliate->observacion,
+                                'date' => Carbon::now(),
+                                'enabled' => true
+                             ]);
+                        }
+                    }
+                }
+                Schema::dropIfExists('temporary_table');
+            }
+            return response()->json([
+                'message' => 'Registro Correcto',
+                'payload' => [
+                    'successfully' => true,
+                    'data_count' => $count,
+                ]
+            ]);
+        } catch(\Exception $e) {
+            logger($e->getMessage());
+            return response()->json([
+                'message' => 'Hubo un error al importar el archivo',
+                'payload' => [
+                    'successfull' => $e
                 ]
             ], 500);
         }
