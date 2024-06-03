@@ -8,22 +8,27 @@ Route::group([
     'middleware' => 'api',
     'prefix' => 'affiliate'
 ], function () {
-    // Rutas abiertas
+    //Rutas abiertas
     Route::patch('change_password', [App\Http\Controllers\Affiliate\AffiliateUserController::class, 'change_password']);
     Route::post('auth', [App\Http\Controllers\Affiliate\AffiliateUserController::class, 'auth']);
-    Route::post('upload_copy_affiliates_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'upload_copy_affiliates_availability']);
-    Route::post('validate_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'validate_affiliates_availability']);
-    Route::post('download_error_data_archive', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'download_error_data_archive']);
-    Route::post('download_data_revision', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'download_data_revision']);
-    Route::post('download_data_revision_suggestion', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'download_data_revision_suggestion']);
-    Route::post('list_months_import_affiliates_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'list_months_import_affiliates_availability']);
-    Route::post('rollback_import_affiliates_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'rollback_import_affiliates_availability']);
-    Route::post('import_affiliates_availability_progress_bar', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'import_affiliates_availability_progress_bar']);
-    Route::post('report_import_affiliates_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'report_import_affiliates_availability']);
     // Rutas autenticadas con token
     Route::group([
         'middleware' => ['auth:sanctum']
     ], function () {
+        //
+        Route::post('upload_copy_affiliates_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'upload_copy_affiliates_availability']);
+        Route::post('validate_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'validate_affiliates_availability']);
+        Route::post('download_error_data_archive', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'download_error_data_archive']);
+        Route::post('download_data_revision', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'download_data_revision']);
+        Route::post('download_data_revision_suggestion', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'download_data_revision_suggestion']);
+        Route::post('list_months_import_affiliates_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'list_months_import_affiliates_availability']);
+        Route::post('rollback_import_affiliates_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'rollback_import_affiliates_availability']);
+        Route::post('import_affiliates_availability_progress_bar', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'import_affiliates_availability_progress_bar']);
+        Route::post('report_import_affiliates_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'report_import_affiliates_availability']);
+        Route::post('validate_import_affiliate_mora', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'validate_import_affiliate_mora']);
+        Route::post('import_affiliate_mora', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'import_affiliate_mora']);
+        Route::post('download_error_mora_archive', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'download_error_mora_archive']);
+        //
         Route::get('/credential_status/{id}', [App\Http\Controllers\Affiliate\AffiliateUserController::class, 'credential_status']);
         Route::get('/credential_status/{id}', [App\Http\Controllers\Affiliate\AffiliateController::class, 'credential_status']);
         Route::get('credential_document/{id}',[App\Http\Controllers\Affiliate\AffiliateUserController::class, 'credential_document']);
