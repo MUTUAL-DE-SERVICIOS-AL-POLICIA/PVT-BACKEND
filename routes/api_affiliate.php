@@ -20,6 +20,9 @@ Route::group([
     Route::post('rollback_import_affiliates_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'rollback_import_affiliates_availability']);
     Route::post('import_affiliates_availability_progress_bar', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'import_affiliates_availability_progress_bar']);
     Route::post('report_import_affiliates_availability', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'report_import_affiliates_availability']);
+    Route::post('validate_import_affiliate_mora', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'validate_import_affiliate_mora']);
+    Route::post('import_affiliate_mora', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'import_affiliate_mora']);
+    Route::post('download_error_mora_archive', [App\Http\Controllers\Affiliate\ImportAffiliatesController::class, 'download_error_mora_archive']);
     // Rutas autenticadas con token
     Route::group([
         'middleware' => ['auth:sanctum']
