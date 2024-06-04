@@ -1056,10 +1056,6 @@ class ImportAffiliatesController extends Controller
     *      security={
     *          {"bearerAuth": {}}
     *      },
-    *      requestBody={
-    *          "description": "Provide auth credentials",
-    *          "required": true,
-    *      },
     *      @OA\Response(
     *          response=200,
     *          description="Success",
@@ -1146,7 +1142,7 @@ class ImportAffiliatesController extends Controller
                             'observable_type' => 'affiliates',
                             'message' => $affiliate->observacion,
                             'date' => Carbon::now(),
-                            'enabled' => true
+                            'enabled' => false
                         ]);
                     }
                     if(EconomicComplement::where('affiliate_id', $affiliate->nup)->where('eco_com_procedure_id', $eco_com->id)->count() > 0)
@@ -1161,7 +1157,7 @@ class ImportAffiliatesController extends Controller
                                 'observable_type' => 'economic_complements',
                                 'message' => $affiliate->observacion,
                                 'date' => Carbon::now(),
-                                'enabled' => true
+                                'enabled' => false
                              ]);
                         }
                     }
