@@ -157,8 +157,11 @@ class EcoComMovementController extends Controller
                     $direct_payment->delete();
                     break;
                 case 'discount_type_economic_complement':
-                    $discount_type=DiscountTypeEconomicComplement::find($movement->movement_id);
-                    $discount_type->delete();
+                    return response()->json([
+                        'error' => false,
+                        'message' => 'No se puede eliminar el movimiento debido a que ya se pago el complemento',
+                        'payload' => []
+                    ]);
                     break;
                 default:
                     break;
