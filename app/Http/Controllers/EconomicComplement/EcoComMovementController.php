@@ -226,7 +226,7 @@ class EcoComMovementController extends Controller
             $devolution->save();
             return response()->json([
                 'error' => false,
-                'message' => 'se guado correctamento',
+                'message' => 'se registro el compromiso de pago correctamente',
                 'payload' => [
                     'devolution' => $devolution
                 ]
