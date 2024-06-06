@@ -17,5 +17,6 @@ Route::group([
         Route::post('/register_direct_payment', [App\Http\Controllers\EconomicComplement\EcoComMovementController::class, 'storeDirectPayment']);
         Route::delete('/delete_movement/{affiliate_id}', [App\Http\Controllers\EconomicComplement\EcoComMovementController::class, 'softDeleteMovement']);
         Route::get('/report_eco_com_movement',[App\Http\Controllers\ReportController::class, 'report_overpayments']);
+        Route::get('/show_dues/{movement_id}', [App\Http\Controllers\EconomicComplement\EcoComMovementController::class, 'show_dues']);
     });
 });

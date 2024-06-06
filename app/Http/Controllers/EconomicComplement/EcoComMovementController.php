@@ -179,4 +179,37 @@ class EcoComMovementController extends Controller
             ]);
         }
     }
+    public function show_dues(Request $request, $movement_id)
+    {
+        $request['movement_id'] = $movement_id;
+        $request->validate([
+            'movement_id' => 'required|int'
+        ]);
+        $eco_com_movement = EcoComMovement::find($movement_id);
+        if ($eco_com_movement->movement_type == "devolutions") {
+            $devolution_id = $eco_com_movement->movement_id;
+            $list_dues = Due::where("devolution_id", $devolution_id)->get();
+            $dues_objects = collect();
+            $correlative = 1;
+            foreach ($list_dues as $due) {
+                $due_object = new \stdClass();
+                $due_object->correlative = $correlative++;
+                $due_object->name = $due->eco_com_procedure->semester . " SEMESTRE " . $due->eco_com_procedure->year;
+                $due_object->amount = $due->amount;
+                $dues_objects->push($due_object);
+            }
+            return response()->json([
+                'error' => false,
+                'message' => 'Listado de deudas',
+                'payload' => [
+                    'list_dues' => $dues_objects
+                ]
+            ]);
+        }
+        return response()->json([
+            'error' => true,
+            'message' => 'El tipo de movimiento no es deuda',
+            'payload' => []
+        ]);
+    }
 }
