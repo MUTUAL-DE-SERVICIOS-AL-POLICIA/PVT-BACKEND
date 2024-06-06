@@ -212,4 +212,26 @@ class EcoComMovementController extends Controller
             'payload' => []
         ]);
     }
+    public function register_payment_commitement(Request $request, $movement_id){
+        $request['movement_id'] = $movement_id;
+        $eco_com_movement = EcoComMovement::find($request->movement_id);
+        if ($eco_com_movement->movement_type == "devolutions") {
+            $devolution=Devolution::find($eco_com_movement->movement_id);
+            $devolution->percentage = $request->percentage;
+            $devolution->start_eco_com_procedure_id = $request->start_eco_com_procedure_id;
+            $devolution->has_payment_commitment=true;
+            $devolution->save();
+            return response()->json([
+                'error' => false,
+                'message' => 'se guado correctamento',
+                'payload' => [
+                    'devolution' => $devolution
+                ]
+            ]);
+        }
+        return response()->json([
+            'error' => true,
+            'message' => 'el movimiento no es una deuda'
+        ]);
+    }
 }
