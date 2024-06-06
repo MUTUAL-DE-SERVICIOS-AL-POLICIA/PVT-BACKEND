@@ -96,6 +96,7 @@ class EcoComMovementController extends Controller
                 $direct_payment = new EcoComDirectPayment();
                 $direct_payment->amount = $request->amount;
                 $direct_payment->voucher = $request->voucher;
+                $direct_payment->payment_date = $request->payment_date;
                 if ($direct_payment->amount <= $last_movement->balance) {
                     $direct_payment->save();
                     $eco_com_movement = new EcoComMovement();
