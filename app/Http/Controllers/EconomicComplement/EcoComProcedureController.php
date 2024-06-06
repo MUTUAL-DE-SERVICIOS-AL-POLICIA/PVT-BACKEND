@@ -15,12 +15,12 @@ class EcoComProcedureController extends Controller
      */
     public function index()
     {
-        $eco_com_procedures=EcoComProcedure::all();
-        $eco_com_procedure_list=collect();
+        $eco_com_procedures = EcoComProcedure::orderBy('year')->get();;
+        $eco_com_procedure_list = collect();
         foreach ($eco_com_procedures as $eco_com_procedure) {
             $eco_com_procedure_object = new \stdClass();
-            $eco_com_procedure_object->id=$eco_com_procedure->id;
-            $eco_com_procedure_object->name=$eco_com_procedure->semester . " SEMESTRE " . $eco_com_procedure->year;
+            $eco_com_procedure_object->id = $eco_com_procedure->id;
+            $eco_com_procedure_object->name = $eco_com_procedure->semester . " SEMESTRE " . $eco_com_procedure->year;
             $eco_com_procedure_list->push($eco_com_procedure_object);
         }
         return response()->json([
@@ -29,8 +29,7 @@ class EcoComProcedureController extends Controller
             'payload' => [
                 'eco_com_procedures' => $eco_com_procedure_list
             ]
-            ]);
-
+        ]);
     }
 
     /**
