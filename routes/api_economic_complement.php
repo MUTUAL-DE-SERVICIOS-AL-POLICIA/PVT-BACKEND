@@ -7,6 +7,7 @@ Route::group([
     'middleware' => 'api',
     'prefix' => 'economic_complement'
 ], function () {
+    Route::patch('/register_payment_commitement/{movement_id}', [App\Http\Controllers\EconomicComplement\EcoComMovementController::class, 'register_payment_commitement']);
     // Rutas autenticadas con token
     Route::group([
         'middleware' => ['auth:sanctum']
@@ -17,7 +18,7 @@ Route::group([
         Route::post('/register_direct_payment', [App\Http\Controllers\EconomicComplement\EcoComMovementController::class, 'storeDirectPayment']);
         Route::delete('/delete_movement/{affiliate_id}', [App\Http\Controllers\EconomicComplement\EcoComMovementController::class, 'softDeleteMovement']);
         Route::get('/report_eco_com_movement',[App\Http\Controllers\ReportController::class, 'report_overpayments']);
-        Route::get('/show_dues/{movement_id}', [App\Http\Controllers\EconomicComplement\EcoComMovementController::class, 'show_dues']);
-        Route::patch('/register_payment_commitement/{movement_id}',[App\Http\Controllers\EconomicComplement\EcoComMovementController::class, 'register_payment_commitement']);
+        Route::get('/show_details/{movement_id}', [App\Http\Controllers\EconomicComplement\EcoComMovementController::class, 'show_details']);
+
     });
 });

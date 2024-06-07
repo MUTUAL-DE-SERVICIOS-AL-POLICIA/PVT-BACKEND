@@ -183,38 +183,73 @@ class EcoComMovementController extends Controller
             ]);
         }
     }
-    public function show_dues(Request $request, $movement_id)
+    public function show_details(Request $request, $movement_id)
     {
         $request['movement_id'] = $movement_id;
         $request->validate([
             'movement_id' => 'required|int'
         ]);
         $eco_com_movement = EcoComMovement::find($movement_id);
-        if ($eco_com_movement->movement_type == "devolutions") {
-            $devolution_id = $eco_com_movement->movement_id;
-            $list_dues = Due::where("devolution_id", $devolution_id)->get();
-            $dues_objects = collect();
-            $correlative = 1;
-            foreach ($list_dues as $due) {
-                $due_object = new \stdClass();
-                $due_object->correlative = $correlative++;
-                $due_object->name = $due->eco_com_procedure->semester . " SEMESTRE " . $due->eco_com_procedure->year;
-                $due_object->amount = $due->amount;
-                $dues_objects->push($due_object);
-            }
-            return response()->json([
-                'error' => false,
-                'message' => 'Listado de deudas',
-                'payload' => [
-                    'list_dues' => $dues_objects
-                ]
-            ]);
+        $detail_objects = collect();
+        switch ($eco_com_movement->movement_type) {
+            case 'devolutions':
+                $devolution_id = $eco_com_movement->movement_id;
+                $list_dues = Due::where("devolution_id", $devolution_id)->get();
+                $correlative = 1;
+                foreach ($list_dues as $due) {
+                    $due_object = new \stdClass();
+                    $due_object->correlative = $correlative++;
+                    $due_object->name = $due->eco_com_procedure->semester . " SEMESTRE " . $due->eco_com_procedure->year;
+                    $due_object->amount = $due->amount;
+                    $detail_objects->push($due_object);
+                }
+                return response()->json([
+                    'error' => false,
+                    'message' => 'Detalle de deudas',
+                    'payload' => [
+                        'detail' => $detail_objects
+                    ]
+                ]);
+                break;
+            case 'eco_com_direct_payments':
+                $eco_com_direct_payment = EcoComDirectPayment::find($eco_com_movement->movement_id);
+                $eco_com_direct_payment_object = new \stdClass();
+                $eco_com_direct_payment_object->voucher = $eco_com_direct_payment->voucher;
+                $eco_com_direct_payment_object->payment_date = $eco_com_direct_payment->payment_date;
+                $detail_objects->push($eco_com_direct_payment_object);
+                return response()->json([
+                    'error' => false,
+                    'message' => 'Detalle de pagos directos',
+                    'payload' => [
+                        'detail' => $detail_objects
+                    ]
+                ]);
+                break;
+            case 'discount_type_economic_complement':
+                $discount = DiscountTypeEconomicComplement::find($eco_com_movement->movement_id);
+                $discount_object = new \stdClass();
+                $procedure = $discount->economic_complement->eco_com_procedure;
+                $discount_object->procedure = $procedure-> semester . " SEMESTRE ".$procedure->year;
+                $detail_objects->push($discount_object);
+                return response()->json([
+                    'error' => false,
+                    'message' => 'Detalle de pagos mediante trámite',
+                    'payload' => [
+                        'detail' => $detail_objects
+                    ]
+                ]);
+                break;
+
+            default:
+                return response()->json([
+                    'error' => true,
+                    'message' => 'hubo un problema',
+                    'payload' => [
+                        'detail' => $detail_objects
+                    ]
+                ]);
+                break;
         }
-        return response()->json([
-            'error' => true,
-            'message' => 'El tipo de movimiento no es deuda',
-            'payload' => []
-        ]);
     }
     public function register_payment_commitement(Request $request, $movement_id){
         $request['movement_id'] = $movement_id;
