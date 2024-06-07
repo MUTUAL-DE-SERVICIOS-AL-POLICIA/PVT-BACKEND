@@ -18,6 +18,7 @@ return new class extends Migration
             $table->timestamps();
             $table->decimal('amount', 10, 2)->nullable(false)->comment('monto de dinero');
             $table->string('voucher')->comment('número de comprobante');
+            $table->date('payment_date')->comment('Fecha de pago');
             $table->softDeletes();
         });
     }

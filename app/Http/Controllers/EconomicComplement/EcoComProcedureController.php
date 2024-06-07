@@ -24,7 +24,7 @@ class EcoComProcedureController extends Controller
             $eco_com_procedure_list->push($eco_com_procedure_object);
         }
         return response()->json([
-            'error' => "false",
+            'error' => false,
             'message' => 'Listado de movimientos de complementos economicos',
             'payload' => [
                 'eco_com_procedures' => $eco_com_procedure_list
