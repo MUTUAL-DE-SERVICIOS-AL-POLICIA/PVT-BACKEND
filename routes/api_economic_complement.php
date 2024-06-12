@@ -13,6 +13,7 @@ Route::group([
         'middleware' => ['auth:sanctum']
     ], function () {
         Route::get('/eco_com_procedure_list',[App\Http\Controllers\EconomicComplement\EcoComProcedureController::class,'index']);
+        Route::get('/economic_complement_list/{affiliate_id}',[App\Http\Controllers\EconomicComplement\EconomicComplementController::class,'ListEconomicComplement']);
         Route::get('/movement_list/{affiliate_id}', [App\Http\Controllers\EconomicComplement\EcoComMovementController::class, 'index']);
         Route::post('/register_devolution', [App\Http\Controllers\EconomicComplement\EcoComMovementController::class, 'storeDevolution']);
         Route::post('/register_direct_payment', [App\Http\Controllers\EconomicComplement\EcoComMovementController::class, 'storeDirectPayment']);
