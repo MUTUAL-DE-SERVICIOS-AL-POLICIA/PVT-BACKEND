@@ -33,6 +33,9 @@ class EcoComMovementController extends Controller
             $movement_object->amount=$movement->amount;
             $movement_object->balance=$movement->balance;
             $movement_object->created_at = Carbon::parse($movement->created_at)->format('d-m-Y');
+            if ($movement->movement_type == "devolutions") {
+                $movement_object->has_payment_commitment = Devolution::find($movement->movement_id)->has_payment_commitment;
+            }
             $movement_objects->push($movement_object);
         }
         return response()->json([
