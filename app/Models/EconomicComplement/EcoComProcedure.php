@@ -3,6 +3,7 @@
 namespace App\Models\EconomicComplement;
 
 use App\Models\Admin\User;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -30,5 +31,13 @@ class EcoComProcedure extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+    public function getTextName()
+    {
+        return ($this->semester == 'Primer' ?  '1ER.' : '2DO.') ." SEMESTRE ". $this->getYear();
+    }
+    public function getYear()
+    {
+        return Carbon::parse($this->year)->year;
     }
 }
