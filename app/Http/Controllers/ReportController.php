@@ -123,7 +123,7 @@ class ReportController extends Controller
         $export = new ArchivoPrimarioExport($data_header);
         $file_name = "reporte_afiliados_conyuges_" . $date;
         $type = $request->type;
-        $extension = $type ?? '.xls';
+        $extension = $type ?? '.xlsx';
         return Excel::download($export, $file_name . $extension);
     }
 
