@@ -1,14 +1,12 @@
 <?php
 namespace App\Exports;
 
-use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class EcoComMovementsExport implements FromCollection, WithHeadings, WithColumnWidths, WithStyles
+class EcoComMovementsExport implements FromCollection, WithHeadings, WithStyles
 {
     protected $data;
 
@@ -30,30 +28,14 @@ class EcoComMovementsExport implements FromCollection, WithHeadings, WithColumnW
     public function headings(): array
     {
         return [
-            'Nup',
-            'Concepto',
-            'Nombre Completo',
+            'N',
+            'NUP',
             'CI',
-            'Monto',
-            'Deuda pendiente'
-        ];
-    }
-
-    /**
-     * Define the column widths for the Excel file.
-     *
-     * @return array
-     */
-    public function columnWidths(): array
-    {
-        return [
-            'A' => 10,
-            'B' => 25,
-            'C' => 40,
-            'D' => 20,
-            'E' => 15,
-            'F' => 20,
-            // Agrega aquí los anchos de columna que necesites
+            'NOMBRE COMPLETO',
+            'TOTAL DE LA DEUDA',
+            "TOTAL\nAMORTIZADO CON\nEL COMPLEMENTO ECONÓMICO",
+            "TOTAL\nDEPÓSITOS\nDIRECTOS",
+            "TOTAL\nDEUDA\nPENDIENTE"
         ];
     }
 
@@ -65,7 +47,19 @@ class EcoComMovementsExport implements FromCollection, WithHeadings, WithColumnW
      */
     public function styles(Worksheet $sheet)
     {
-        $sheet->getDefaultColumnDimension()->setAutoSize(false);
+        foreach (range('A', 'H') as $column) {
+            $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+        $sheet->getStyle('A1:H1')->getAlignment()->setWrapText(true);
+        $sheet->getRowDimension(1)->setRowHeight(-1);
+        foreach ($sheet->getRowIterator() as $row) {
+            foreach ($row->getCellIterator() as $cell) {
+                $cell->getStyle()->getAlignment()->setWrapText(true);
+            }
+            if ($row->getRowIndex() != 1) {
+                $sheet->getRowDimension($row->getRowIndex())->setRowHeight(-1);
+            }
+        }
         return [];
     }
 }
