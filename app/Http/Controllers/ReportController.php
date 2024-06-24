@@ -520,22 +520,35 @@ class ReportController extends Controller
     }
     public function report_overpayments(){
         $subquery = DB::table('eco_com_movements as e1')
-                    ->select('e1.affiliate_id',
-                            'e1.description',
-                            DB::raw("CONCAT(a.first_name, ' ', COALESCE(a.second_name, ''), ' ', a.last_name, ' ', a.mothers_last_name) as affiliate_name"),
-                            'a.identity_card',
-                            'e1.amount',
-                            'e1.balance')
-                    ->join('affiliates as a', 'e1.affiliate_id', '=', 'a.id')
-                    ->whereRaw('e1.id = (
-                        SELECT MAX(e2.id)
-                        FROM eco_com_movements as e2
-                        WHERE e2.affiliate_id = e1.affiliate_id
-                    )');
-
-        $data= DB::table(DB::raw("({$subquery->toSql()}) as sub"))
+            ->select(
+                DB::raw("ROW_NUMBER() OVER (ORDER BY e1.affiliate_id) as iterativo"),
+                'e1.affiliate_id',
+                'a.identity_card',
+                DB::raw("CONCAT(a.first_name, ' ', COALESCE(a.second_name, ''), ' ', a.last_name, ' ', a.mothers_last_name) as affiliate_name"),
+                DB::raw("(SELECT COALESCE(SUM(e2.amount), 0)
+                    FROM eco_com_movements as e2
+                    WHERE e2.affiliate_id = e1.affiliate_id
+                    AND e2.movement_type = 'devolutions') as total_devolutions"),
+                DB::raw("(SELECT COALESCE(SUM(e3.amount), 0)
+                    FROM eco_com_movements as e3
+                    WHERE e3.affiliate_id = e1.affiliate_id
+                    AND e3.movement_type = 'discount_type_economic_complement') as total_discount_complement"),
+                DB::raw("(SELECT COALESCE(SUM(e4.amount), 0)
+                    FROM eco_com_movements as e4
+                    WHERE e4.affiliate_id = e1.affiliate_id
+                    AND e4.movement_type = 'eco_com_direct_payments') as total_direct_payments"),
+                'e1.balance'
+            )
+            ->join('affiliates as a', 'e1.affiliate_id', '=', 'a.id')
+            ->whereRaw('e1.id = (
+                SELECT MAX(e2.id)
+                FROM eco_com_movements as e2
+                WHERE e2.affiliate_id = e1.affiliate_id
+            )')
+            ->orderBy('e1.affiliate_id');
+        $data = DB::table(DB::raw("({$subquery->toSql()}) as sub"))
             ->mergeBindings($subquery)
-            ->orderBy('affiliate_id')
+            ->orderBy('sub.iterativo')
             ->get();
         return Excel::download(new EcoComMovementsExport($data), 'eco_com_movements_report.xls');
     }
