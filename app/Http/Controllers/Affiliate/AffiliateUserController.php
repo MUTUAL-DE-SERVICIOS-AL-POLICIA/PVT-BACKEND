@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use PhpParser\Node\Stmt\Return_;
+use Illuminate\Validation\Rules\Password;
 
 class AffiliateUserController extends Controller
 {
@@ -411,8 +412,8 @@ class AffiliateUserController extends Controller
                                             "id" => $affiliate->id,
                                             "full_name"=> $affiliate->fullname,
                                             "identity_card"=> $affiliate->identity_card,
-                                            "degree"=> $affiliate->degree->name,
-                                            "category"=> $affiliate->category->name,
+                                            "degree"=> $affiliate->degree->name??null,
+                                            "category"=> $affiliate->category->name??null,
                                             "pension_entity"=>$affiliate->pension_entity->name??null
                                         ],
                                     ],
@@ -432,8 +433,8 @@ class AffiliateUserController extends Controller
                                         "id" => $affiliate->id,
                                         "full_name"=> $spouse->fullname,
                                         "identity_card"=> $spouse->identity_card,
-                                        "degree"=> $affiliate->degree->name,
-                                        "category"=> $affiliate->category->name,
+                                        "degree"=> $affiliate->degree->name??null,
+                                        "category"=> $affiliate->category->name??null,
                                     ],
                                 ],
                             ]
@@ -509,7 +510,12 @@ class AffiliateUserController extends Controller
         $request->validate([
             'username' => 'required|exists:affiliate_users,username',
             'password' => 'required',
-            'new_password' => 'required',
+            'new_password' =>  [
+                'required',
+                Password::min(4)
+                    ->letters()
+                    ->numbers()
+            ],
             'device_id' => 'required',
             'firebase_token' => 'required'
         ]);
