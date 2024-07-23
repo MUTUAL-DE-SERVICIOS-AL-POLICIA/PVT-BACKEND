@@ -140,7 +140,7 @@ class Handler extends ExceptionHandler
 			}
 		} elseif ($exception instanceof ValidationException) {
 			return response()->json([
-				'message' => 'Validation error',
+				'message' => 'Verifique datos',
 				'errors' => $exception->errors()
 			], 409);
 		} else {
