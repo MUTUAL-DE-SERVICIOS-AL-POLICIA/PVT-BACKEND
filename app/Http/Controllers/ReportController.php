@@ -528,22 +528,27 @@ class ReportController extends Controller
                 DB::raw("(SELECT COALESCE(SUM(e2.amount), 0)
                     FROM eco_com_movements as e2
                     WHERE e2.affiliate_id = e1.affiliate_id
-                    AND e2.movement_type = 'devolutions') as total_devolutions"),
+                    AND e2.movement_type = 'devolutions'
+                    AND e2.deleted_at IS NULL) as total_devolutions"), // Añadido AND e2.deleted_at IS NULL
                 DB::raw("(SELECT COALESCE(SUM(e3.amount), 0)
                     FROM eco_com_movements as e3
                     WHERE e3.affiliate_id = e1.affiliate_id
-                    AND e3.movement_type = 'discount_type_economic_complement') as total_discount_complement"),
+                    AND e3.movement_type = 'discount_type_economic_complement'
+                    AND e3.deleted_at IS NULL) as total_discount_complement"), // Añadido AND e3.deleted_at IS NULL
                 DB::raw("(SELECT COALESCE(SUM(e4.amount), 0)
                     FROM eco_com_movements as e4
                     WHERE e4.affiliate_id = e1.affiliate_id
-                    AND e4.movement_type = 'eco_com_direct_payments') as total_direct_payments"),
+                    AND e4.movement_type = 'eco_com_direct_payments'
+                    AND e4.deleted_at IS NULL) as total_direct_payments"), // Añadido AND e4.deleted_at IS NULL
                 'e1.balance'
             )
             ->join('affiliates as a', 'e1.affiliate_id', '=', 'a.id')
+            ->whereNull('e1.deleted_at') // Añadido ->whereNull('e1.deleted_at')
             ->whereRaw('e1.id = (
                 SELECT MAX(e2.id)
                 FROM eco_com_movements as e2
                 WHERE e2.affiliate_id = e1.affiliate_id
+                AND e2.deleted_at IS NULL
             )')
             ->orderBy('e1.affiliate_id');
         $data = DB::table(DB::raw("({$subquery->toSql()}) as sub"))
