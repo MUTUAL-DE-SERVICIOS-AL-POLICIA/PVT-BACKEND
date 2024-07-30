@@ -3,10 +3,11 @@
 namespace App\Http\Controllers\EconomicComplement;
 
 use App\Http\Controllers\Controller;
-use App\Models\EconomicComplement\EcoComProcedure;
+use App\Models\EconomicComplement\EconomicComplement;
 use Illuminate\Http\Request;
+use stdClass;
 
-class EcoComProcedureController extends Controller
+class EconomicComplementController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -15,21 +16,41 @@ class EcoComProcedureController extends Controller
      */
     public function index()
     {
-        $eco_com_procedures = EcoComProcedure::orderBy('year')->get();;
-        $eco_com_procedure_list = collect();
-        foreach ($eco_com_procedures as $eco_com_procedure) {
-            $eco_com_procedure_object = new \stdClass();
-            $eco_com_procedure_object->id = $eco_com_procedure->id;
-            $eco_com_procedure_object->name = $eco_com_procedure->getTextName();
-            $eco_com_procedure_list->push($eco_com_procedure_object);
+        //
+    }
+    public function ListEconomicComplement(Request $request, $affiliate_id )
+    {
+        $request["affiliate_id"] = $affiliate_id;
+        $list_economic_complement = EconomicComplement::where("affiliate_id",$affiliate_id)->get();
+        if (!$list_economic_complement->isEmpty()) {
+            $procedures= collect();
+            foreach ($list_economic_complement as $economic_complement) {
+                $economic_complement_object = new \stdClass();
+                $economic_complement_object->id = $economic_complement->eco_com_procedure->id;
+                $economic_complement_object->name = $economic_complement->eco_com_procedure->getTextName();
+                $procedures->push($economic_complement_object);
+            }
+            return response()->json([
+                    'error' => false,
+                    'message' => 'Detalle de deudas',
+                    'payload' => [
+                        "eco_com_procedures" => $procedures
+                    ]
+            ]);
         }
+    else{
         return response()->json([
-            'error' => false,
-            'message' => 'Listado de movimientos de complementos economicos',
-            'payload' => [
-                'eco_com_procedures' => $eco_com_procedure_list
-            ]
+
+                'error' => true,
+                'message' => 'El afiliado no tiene complementos pagados',
+                'payload' => [
+                    "eco_com_procedures"=>[]
+                ]
+
         ]);
+    }
+
+
     }
 
     /**

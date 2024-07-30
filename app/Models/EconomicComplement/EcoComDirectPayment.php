@@ -14,7 +14,8 @@ class EcoComDirectPayment extends Model
     public $guarded = ['id'];
     protected $fillable = [
         'amount',
-        'voucher'
+        'voucher',
+        'payment_date'
     ];
     public function comments()
     {

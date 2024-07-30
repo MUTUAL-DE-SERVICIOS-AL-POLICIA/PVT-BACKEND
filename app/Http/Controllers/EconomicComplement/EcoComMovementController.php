@@ -20,7 +20,7 @@ class EcoComMovementController extends Controller
         $request->validate([
             'affiliate_id' => 'required|int',
         ]);
-        $movements= EcoComMovement::where("affiliate_id",$affiliate_id)->get();
+        $movements= EcoComMovement::where("affiliate_id",$affiliate_id)->orderby('id')->get();
         $movement_objects= collect();
         $correlative=1;
         foreach ($movements as $movement)
@@ -33,10 +33,13 @@ class EcoComMovementController extends Controller
             $movement_object->amount=$movement->amount;
             $movement_object->balance=$movement->balance;
             $movement_object->created_at = Carbon::parse($movement->created_at)->format('d-m-Y');
+            if ($movement->movement_type == "devolutions") {
+                $movement_object->has_payment_commitment = Devolution::find($movement->movement_id)->has_payment_commitment;
+            }
             $movement_objects->push($movement_object);
         }
         return response()->json([
-            'error' => "false",
+            'error' => false,
             'message' => 'Listado de movimientos de dinero de pagos en demasia',
             'payload' => [
                 'movements' => $movement_objects
@@ -73,7 +76,7 @@ class EcoComMovementController extends Controller
         $eco_com_movement->amount = $totalMount;
         $exists_last_movement=EcoComMovement::where("affiliate_id",$request->affiliate_id)->exists();
         if ($exists_last_movement) {
-            $last_movement = EcoComMovement::where("affiliate_id", $request->affiliate_id)->latest()->first();
+            $last_movement = EcoComMovement::where("affiliate_id", $request->affiliate_id)->latest()->orderBy('id', 'desc')->first();
             $previous_balance = $last_movement->balance;
             $eco_com_movement->balance = $previous_balance+$totalMount;
         }else{
@@ -81,7 +84,7 @@ class EcoComMovementController extends Controller
         }
         $eco_com_movement->save();
         return response()->json([
-            'error' => "false",
+            'error' => false,
             'message' => 'Listado de movimientos de dinero de pagos en demasia',
             'payload' => [
                 'movements' => $eco_com_movement
@@ -91,11 +94,12 @@ class EcoComMovementController extends Controller
     {
         $exist_movement = EcoComMovement::where('affiliate_id', $request->affiliate_id)->exists();
         if ($exist_movement) {
-            $last_movement = EcoComMovement::where('affiliate_id', $request->affiliate_id)->latest()->first();
+            $last_movement = EcoComMovement::where('affiliate_id', $request->affiliate_id)->latest()->orderBy('id', 'desc')->first();
             if ($last_movement->balance > 0) {
                 $direct_payment = new EcoComDirectPayment();
                 $direct_payment->amount = $request->amount;
                 $direct_payment->voucher = $request->voucher;
+                $direct_payment->payment_date = $request->payment_date;
                 if ($direct_payment->amount <= $last_movement->balance) {
                     $direct_payment->save();
                     $eco_com_movement = new EcoComMovement();
@@ -157,8 +161,11 @@ class EcoComMovementController extends Controller
                     $direct_payment->delete();
                     break;
                 case 'discount_type_economic_complement':
-                    $discount_type=DiscountTypeEconomicComplement::find($movement->movement_id);
-                    $discount_type->delete();
+                    return response()->json([
+                        'error' => false,
+                        'message' => 'No se puede eliminar el movimiento debido a que ya se pago el complemento',
+                        'payload' => []
+                    ]);
                     break;
                 default:
                     break;
@@ -178,5 +185,95 @@ class EcoComMovementController extends Controller
                 'payload' => []
             ]);
         }
+    }
+    public function show_details(Request $request, $movement_id)
+    {
+        $request['movement_id'] = $movement_id;
+        $request->validate([
+            'movement_id' => 'required|int'
+        ]);
+        $eco_com_movement = EcoComMovement::find($movement_id);
+        $detail_objects = collect();
+        switch ($eco_com_movement->movement_type) {
+            case 'devolutions':
+                $devolution_id = $eco_com_movement->movement_id;
+                $list_dues = Due::where("devolution_id", $devolution_id)->get();
+                $correlative = 1;
+                foreach ($list_dues as $due) {
+                    $due_object = new \stdClass();
+                    $due_object->correlative = $correlative++;
+                    $due_object->name = $due->eco_com_procedure->semester . " SEMESTRE " . $due->eco_com_procedure->year;
+                    $due_object->amount = $due->amount;
+                    $detail_objects->push($due_object);
+                }
+                return response()->json([
+                    'error' => false,
+                    'message' => 'Detalle de deudas',
+                    'payload' => [
+                        'detail' => $detail_objects
+                    ]
+                ]);
+                break;
+            case 'eco_com_direct_payments':
+                $eco_com_direct_payment = EcoComDirectPayment::find($eco_com_movement->movement_id);
+                $eco_com_direct_payment_object = new \stdClass();
+                $eco_com_direct_payment_object->voucher = $eco_com_direct_payment->voucher;
+                $eco_com_direct_payment_object->payment_date = $eco_com_direct_payment->payment_date;
+                $detail_objects->push($eco_com_direct_payment_object);
+                return response()->json([
+                    'error' => false,
+                    'message' => 'Detalle de pagos directos',
+                    'payload' => [
+                        'detail' => $detail_objects
+                    ]
+                ]);
+                break;
+            case 'discount_type_economic_complement':
+                $discount = DiscountTypeEconomicComplement::find($eco_com_movement->movement_id);
+                $discount_object = new \stdClass();
+                $procedure = $discount->economic_complement->eco_com_procedure;
+                $discount_object->procedure = $procedure-> semester . " SEMESTRE ".$procedure->year;
+                $detail_objects->push($discount_object);
+                return response()->json([
+                    'error' => false,
+                    'message' => 'Detalle de pagos mediante trámite',
+                    'payload' => [
+                        'detail' => $detail_objects
+                    ]
+                ]);
+                break;
+
+            default:
+                return response()->json([
+                    'error' => true,
+                    'message' => 'hubo un problema',
+                    'payload' => [
+                        'detail' => $detail_objects
+                    ]
+                ]);
+                break;
+        }
+    }
+    public function register_payment_commitement(Request $request, $movement_id){
+        $request['movement_id'] = $movement_id;
+        $eco_com_movement = EcoComMovement::find($request->movement_id);
+        if ($eco_com_movement->movement_type == "devolutions") {
+            $devolution=Devolution::find($eco_com_movement->movement_id);
+            $devolution->percentage = $request->percentage;
+            $devolution->start_eco_com_procedure_id = $request->start_eco_com_procedure_id;
+            $devolution->has_payment_commitment=true;
+            $devolution->save();
+            return response()->json([
+                'error' => false,
+                'message' => 'se registro el compromiso de pago correctamente',
+                'payload' => [
+                    'devolution' => $devolution
+                ]
+            ]);
+        }
+        return response()->json([
+            'error' => true,
+            'message' => 'el movimiento no es una deuda'
+        ]);
     }
 }
