@@ -378,7 +378,9 @@ class ReportController extends Controller
      */
     public function report_payments_beneficiaries(Request $request)
     {
+        ini_set('max_execution_time', '300000');
         $date = date('Y-m-d');
+        $data_header = [];
 
         if ($request->start_date == NULL || $request->end_date == NULL) {
             $start_date = $date;
@@ -388,108 +390,195 @@ class ReportController extends Controller
             $end_date = $request->end_date;
         }
 
-        $list = Affiliate::leftjoin('retirement_funds', 'retirement_funds.affiliate_id', '=', 'affiliates.id')
-            ->leftJoin('cities', 'cities.id', '=', 'affiliates.city_identity_card_id')
-            ->leftJoin('ret_fun_beneficiaries', 'ret_fun_beneficiaries.retirement_fund_id', '=', 'retirement_funds.id')
-            ->leftJoin('kinships', 'kinships.id', '=', 'ret_fun_beneficiaries.kinship_id')
-            ->leftJoin('procedure_modalities', 'procedure_modalities.id', '=', 'retirement_funds.procedure_modality_id')
-            ->leftJoin('discount_type_retirement_fund', 'discount_type_retirement_fund.retirement_fund_id', '=', 'retirement_funds.id')
-            ->leftJoin('discount_types', 'discount_types.id', '=', 'discount_type_retirement_fund.discount_type_id')
-            ->leftJoin('ret_fun_correlatives', 'ret_fun_correlatives.retirement_fund_id', '=', 'retirement_funds.id')
-            ->whereBetween(DB::raw('DATE(retirement_funds.created_at)'), [$start_date, $end_date])
-            ->where('ret_fun_correlatives.wf_state_id', '=', 26)
-            ->where('retirement_funds.ret_fun_state_id', '!=', 3)
-            ->whereNull('ret_fun_correlatives.deleted_at')
-            ->whereIn('discount_type_retirement_fund.discount_type_id', [1, 2, 3])
-            ->select(
-                'affiliates.id as nup',
-                'retirement_funds.code as code',
-                'procedure_modalities.name as procedure_modality',
-                'affiliates.first_name as first_name',
-                'affiliates.second_name as second_name',
-                'affiliates.last_name as last_name',
-                'affiliates.mothers_last_name as mothers_last_name',
-                'affiliates.surname_husband as surname_husband',
-                'affiliates.identity_card as identity_card',
-                'cities.first_shortened as city',
-                'retirement_funds.total_ret_fun as total_ret_fun',
-                'retirement_funds.total_availability as total_availability',
-                'ret_fun_correlatives.code as nro_res',
-                'ret_fun_correlatives.date as date',
-                DB::raw('MAX(CASE WHEN discount_types.id = 1 THEN discount_type_retirement_fund.amount END) AS advance_ret_fun'),
-                DB::raw('MAX(CASE WHEN discount_types.id = 2 THEN discount_type_retirement_fund.amount END) AS loan_retention'),
-                DB::raw('MAX(CASE WHEN discount_types.id = 3 THEN discount_type_retirement_fund.amount END) AS guarantor_retention'),
-                DB::raw('concat_full_name(ret_fun_beneficiaries.first_name, ret_fun_beneficiaries.second_name, ret_fun_beneficiaries.last_name, ret_fun_beneficiaries.mothers_last_name, ret_fun_beneficiaries.surname_husband) AS beneficiary_full_name'),
-                'kinships.name as kinship',
-                'ret_fun_beneficiaries.amount_ret_fun as amount_ret_fun'
-            )
-            ->groupBy(
-                'affiliates.id',
-                'retirement_funds.code',
-                'procedure_modalities.name',
-                'affiliates.first_name',
-                'affiliates.second_name',
-                'affiliates.last_name',
-                'affiliates.mothers_last_name',
-                'affiliates.surname_husband',
-                'affiliates.identity_card',
-                'cities.first_shortened',
-                'retirement_funds.total_ret_fun',
-                'retirement_funds.total_availability',
-                'ret_fun_correlatives.code',
-                'ret_fun_correlatives.date',
-                'kinships.name',
-                'ret_fun_beneficiaries.amount_ret_fun',
-                'ret_fun_beneficiaries.first_name',
-                'ret_fun_beneficiaries.second_name',
-                'ret_fun_beneficiaries.last_name',
-                'ret_fun_beneficiaries.mothers_last_name',
-                'ret_fun_beneficiaries.surname_husband'
-            )
-            ->orderBy('affiliates.id')
-            ->get();
+        switch($request->type) {
+            case 'Fondo de Retiro Policial':
+                $list = Affiliate::leftjoin('retirement_funds', 'retirement_funds.affiliate_id', '=', 'affiliates.id')
+                    ->leftJoin('cities', 'cities.id', '=', 'affiliates.city_identity_card_id')
+                    ->leftJoin('ret_fun_beneficiaries', 'ret_fun_beneficiaries.retirement_fund_id', '=', 'retirement_funds.id')
+                    ->leftJoin('kinships', 'kinships.id', '=', 'ret_fun_beneficiaries.kinship_id')
+                    ->leftJoin('procedure_modalities', 'procedure_modalities.id', '=', 'retirement_funds.procedure_modality_id')
+                    ->leftJoin('discount_type_retirement_fund', 'discount_type_retirement_fund.retirement_fund_id', '=', 'retirement_funds.id')
+                    ->leftJoin('discount_types', 'discount_types.id', '=', 'discount_type_retirement_fund.discount_type_id')
+                    ->leftJoin('ret_fun_correlatives', 'ret_fun_correlatives.retirement_fund_id', '=', 'retirement_funds.id')
+                    ->whereBetween(DB::raw('DATE(retirement_funds.created_at)'), [$start_date, $end_date])
+                    ->where('ret_fun_correlatives.wf_state_id', '=', 26)
+                    ->where('retirement_funds.ret_fun_state_id', '!=', 3)
+                    ->whereNull('ret_fun_correlatives.deleted_at')
+                    ->whereIn('discount_type_retirement_fund.discount_type_id', [1, 2, 3])
+                    ->select(
+                        'affiliates.id as nup',
+                        'retirement_funds.code as code',
+                        'procedure_modalities.name as procedure_modality',
+                        'affiliates.first_name as first_name',
+                        'affiliates.second_name as second_name',
+                        'affiliates.last_name as last_name',
+                        'affiliates.mothers_last_name as mothers_last_name',
+                        'affiliates.surname_husband as surname_husband',
+                        'affiliates.identity_card as identity_card',
+                        'cities.first_shortened as city',
+                        'retirement_funds.total_ret_fun as total_ret_fun',
+                        'retirement_funds.total_availability as total_availability',
+                        'ret_fun_correlatives.code as nro_res',
+                        'ret_fun_correlatives.date as date',
+                        DB::raw('MAX(CASE WHEN discount_types.id = 1 THEN discount_type_retirement_fund.amount END) AS advance_ret_fun'),
+                        DB::raw('MAX(CASE WHEN discount_types.id = 2 THEN discount_type_retirement_fund.amount END) AS loan_retention'),
+                        DB::raw('MAX(CASE WHEN discount_types.id = 3 THEN discount_type_retirement_fund.amount END) AS guarantor_retention'),
+                        DB::raw('concat_full_name(ret_fun_beneficiaries.first_name, ret_fun_beneficiaries.second_name, ret_fun_beneficiaries.last_name, ret_fun_beneficiaries.mothers_last_name, ret_fun_beneficiaries.surname_husband) AS beneficiary_full_name'),
+                        'kinships.name as kinship',
+                        'ret_fun_beneficiaries.amount_ret_fun as amount_ret_fun'
+                    )
+                    ->groupBy(
+                        'affiliates.id',
+                        'retirement_funds.code',
+                        'procedure_modalities.name',
+                        'affiliates.first_name',
+                        'affiliates.second_name',
+                        'affiliates.last_name',
+                        'affiliates.mothers_last_name',
+                        'affiliates.surname_husband',
+                        'affiliates.identity_card',
+                        'cities.first_shortened',
+                        'retirement_funds.total_ret_fun',
+                        'retirement_funds.total_availability',
+                        'ret_fun_correlatives.code',
+                        'ret_fun_correlatives.date',
+                        'kinships.name',
+                        'ret_fun_beneficiaries.amount_ret_fun',
+                        'ret_fun_beneficiaries.first_name',
+                        'ret_fun_beneficiaries.second_name',
+                        'ret_fun_beneficiaries.last_name',
+                        'ret_fun_beneficiaries.mothers_last_name',
+                        'ret_fun_beneficiaries.surname_husband'
+                    )
+                    ->orderBy('affiliates.id')
+                    ->get();
 
-        $dataHeader = array(
-            [
-                "NRO", "NUP", "NRO TRÁMITE", "MODALIDAD", "PRIMER NOMBRE", "SEGUNDO NOMBRE", "AP. PATERNO", "AP. MATERNO",
-                "AP. CASADA", "CÉDULA DE IDENTIDAD", "EXPEDICIÓN", "TOTAL FONDO DE RETIRO", "TOTAL DISPONIBILIDAD",
-                "NRO RESOLUCIÓN", "FECHA RESOLUCIÓN", "ANTICIPO FONDO DE RETIRO", "RETENCIÓN PAGO PRÉSTAMO",
-                "RETENCIÓN GARANTES", "TITULAR/BENEFICIARIO", "PARENTESCO", "MONTO PARA BENEFICIARIOS"
-            ]
-        );
+                $data_header = array(
+                    [
+                        "NRO", "NUP", "NRO TRÁMITE", "MODALIDAD", "PRIMER NOMBRE", "SEGUNDO NOMBRE", "AP. PATERNO", "AP. MATERNO",
+                        "AP. CASADA", "CÉDULA DE IDENTIDAD", "EXPEDICIÓN", "TOTAL FONDO DE RETIRO", "TOTAL DISPONIBILIDAD",
+                        "NRO RESOLUCIÓN", "FECHA RESOLUCIÓN", "ANTICIPO FONDO DE RETIRO", "RETENCIÓN PAGO PRÉSTAMO",
+                        "RETENCIÓN GARANTES", "TITULAR/BENEFICIARIO", "PARENTESCO", "MONTO PARA BENEFICIARIOS"
+                    ]
+                );
 
-        $i = 1;
-        foreach ($list as $row) {
-            $dataHeader[] = [
-                $i,
-                $row->nup,
-                $row->code,
-                $row->procedure_modality,
-                $row->first_name,
-                $row->second_name,
-                $row->last_name,
-                $row->mothers_last_name,
-                $row->surname_husband,
-                $row->identity_card,
-                $row->city,
-                $row->total_ret_fun,
-                $row->total_availability,
-                $row->nro_res,
-                $row->date,
-                $row->advance_ret_fun,
-                $row->loan_retention,
-                $row->guarantor_retention,
-                $row->beneficiary_full_name,
-                $row->kinship,
-                $row->amount_ret_fun
-            ];
-            $i++;
+                $i = 1;
+                foreach ($list as $row) {
+                    $data_header[] = [
+                        $i,
+                        $row->nup,
+                        $row->code,
+                        $row->procedure_modality,
+                        $row->first_name,
+                        $row->second_name,
+                        $row->last_name,
+                        $row->mothers_last_name,
+                        $row->surname_husband,
+                        $row->identity_card,
+                        $row->city,
+                        $row->total_ret_fun,
+                        $row->total_availability,
+                        $row->nro_res,
+                        $row->date,
+                        $row->advance_ret_fun,
+                        $row->loan_retention,
+                        $row->guarantor_retention,
+                        $row->beneficiary_full_name,
+                        $row->kinship,
+                        $row->amount_ret_fun
+                    ];
+                    $i++;
+                }
+                break;
+            case 'Cuota Mortuoria':
+                $data = Affiliate::leftjoin('quota_aid_mortuaries as qam', 'qam.affiliate_id', '=', 'affiliates.id')
+                        ->leftjoin('procedure_modalities as pm', 'pm.id', '=', 'qam.procedure_modality_id')
+                        ->leftjoin('quota_aid_beneficiaries as qab', 'qab.quota_aid_mortuary_id', '=', 'qam.id')
+                        ->leftjoin('kinships as k', 'k.id', '=', 'qab.kinship_id')
+                        ->whereNull('qam.deleted_at')
+                        ->whereIn('qam.procedure_modality_id', [8, 9])
+                        ->where('qam.code', 'not ilike', '%A')
+                        ->select('affiliates.identity_card','affiliates.first_name', 'affiliates.second_name', 'affiliates.last_name', 'affiliates.mothers_last_name', 'qam.code', 'pm.name',
+                                 'qab.first_name as first_name_beneficiary', 'qab.second_name as second_name_beneficiary', 'qab.last_name as last_name_beneficiary', 'qab.mothers_last_name as mothers_last_name_beneficiary',
+                                 'qab.identity_card as identity_card_beneficiary', 'k.name as kinship', 'qab.paid_amount')
+                        ->groupBy('affiliates.identity_card','affiliates.first_name', 'affiliates.second_name', 'affiliates.last_name', 'affiliates.mothers_last_name', 'qam.code', 'pm.name',
+                                 'first_name_beneficiary', 'second_name_beneficiary', 'last_name_beneficiary', 'mothers_last_name_beneficiary', 'identity_card_beneficiary', 'kinship', 'qab.paid_amount')
+                        ->orderBy('affiliates.identity_card')
+                        ->get();
+                $data_header = array(
+                    [
+                        "C.I. TITULAR", "PRIMER NOMBRE TITULAR", "SEGUNDO NOMBRE TITULAR", "AP. PATERNO TITULAR", "AP. MATERNO TITULAR",
+                        "TRÁMITE", "MODALIDAD", "BENEFICIARIO PRIMER NOMBRE", "BENEFICIARIO SEGUNDO NOMBRE", "BENEFICIARIO AP. PATERNO",
+                        "BENEFICIARIO AP.MATERNO", "BENEFICIARIO C.I.", "PARENTESCO", "MONTO"
+                    ]
+                );
+                foreach($data as $row) {
+                    $data_header[] = [
+                        $row->identity_card,
+                        $row->first_name,
+                        $row->second_name,
+                        $row->last_name,
+                        $row->mothers_last_name,
+                        $row->code,
+                        $row->name,
+                        $row->first_name_beneficiary,
+                        $row->second_name_beneficiary,
+                        $row->last_name_beneficiary,
+                        $row->mothers_last_name_beneficiary,
+                        $row->identity_card_beneficiary,
+                        $row->kinship,
+                        $row->paid_amount
+                    ];
+                }
+                break;
+            case 'Auxilio Mortuorio':
+                $data = Affiliate::leftjoin('quota_aid_mortuaries as qam', 'qam.affiliate_id', '=', 'affiliates.id')
+                        ->leftjoin('procedure_modalities as pm', 'pm.id', '=', 'qam.procedure_modality_id')
+                        ->leftjoin('quota_aid_beneficiaries as qab', 'qab.quota_aid_mortuary_id', '=', 'qam.id')
+                        ->leftjoin('kinships as k', 'k.id', '=', 'qab.kinship_id')
+                        ->whereNull('qam.deleted_at')
+                        ->whereIn('qam.procedure_modality_id', [13,14,15])
+                        ->where('qam.code', 'not ilike', '%A')
+                        ->select('affiliates.identity_card','affiliates.first_name', 'affiliates.second_name', 'affiliates.last_name', 'affiliates.mothers_last_name', 'qam.code', 'pm.name',
+                                 'qab.first_name as first_name_beneficiary', 'qab.second_name as second_name_beneficiary', 'qab.last_name as last_name_beneficiary', 'qab.mothers_last_name as mothers_last_name_beneficiary',
+                                 'qab.identity_card as identity_card_beneficiary', 'k.name as kinship', 'qab.paid_amount')
+                        ->groupBy('affiliates.identity_card','affiliates.first_name', 'affiliates.second_name', 'affiliates.last_name', 'affiliates.mothers_last_name', 'qam.code', 'pm.name',
+                                 'first_name_beneficiary', 'second_name_beneficiary', 'last_name_beneficiary', 'mothers_last_name_beneficiary', 'identity_card_beneficiary', 'kinship', 'qab.paid_amount')
+                        ->orderBy('affiliates.identity_card')
+                        ->get();
+                $data_header = array(
+                    [
+                        "C.I. TITULAR", "PRIMER NOMBRE TITULAR", "SEGUNDO NOMBRE TITULAR", "AP. PATERNO TITULAR", "AP. MATERNO TITULAR",
+                        "TRÁMITE", "MODALIDAD", "BENEFICIARIO PRIMER NOMBRE", "BENEFICIARIO SEGUNDO NOMBRE", "BENEFICIARIO AP. PATERNO",
+                        "BENEFICIARIO AP.MATERNO", "BENEFICIARIO C.I.", "PARENTESCO", "MONTO"
+                    ]
+                );
+                foreach($data as $row) {
+                    $data_header[] = [
+                        $row->identity_card,
+                        $row->first_name,
+                        $row->second_name,
+                        $row->last_name,
+                        $row->mothers_last_name,
+                        $row->code,
+                        $row->name,
+                        $row->first_name_beneficiary,
+                        $row->second_name_beneficiary,
+                        $row->last_name_beneficiary,
+                        $row->mothers_last_name_beneficiary,
+                        $row->identity_card_beneficiary,
+                        $row->kinship,
+                        $row->paid_amount
+                    ];
+                }
+                break;
         }
-        $export = new ArchivoPrimarioExport($dataHeader);
-        $fileName = "reporte_pagos_derechohabientes_" . $date;
+
+        $export = new ArchivoPrimarioExport($data_header);
+        $file_name = "reporte_pagos_derechohabientes_" . $date;
         $type = $request->type;
-        $extension = $type ?? '.xls';
-        return Excel::download($export, $fileName . $extension);
+        $extension = $type_file ?? '.xls';
+        return Excel::download($export, $file_name . $extension);
     }
 
     public function download_qualification_report(request $request)
