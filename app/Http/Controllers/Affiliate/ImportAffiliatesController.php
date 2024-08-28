@@ -543,14 +543,15 @@ class ImportAffiliatesController extends Controller
 
     public static function update_availability_status($month, $year) {
         try {
-            $affiliate_states = collect([1, 2, 9, null]); // Servicio, Comisión, Disponibilidad y Baja Temporal
+            $affiliate_states = collect([1, 2, 9, null]); // Servicio, Comisión y Baja Temporal
             $count = 0;
             AffiliateObserver::$importAvailability = true;
-            $affiliates = DB::connection('db_aux')->select("SELECT affiliate_id FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND (situacion_laboral LIKE '%DISPONIBILIDAD%' OR situacion_laboral LIKE '%DISP.%' OR situacion_laboral LIKE '%CATEGORIA%')");
+            $affiliates = DB::connection('db_aux')->select("SELECT affiliate_id, situacion_laboral FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND (situacion_laboral LIKE '%DISPONIBILIDAD%' OR situacion_laboral LIKE '%DISP.%' OR situacion_laboral LIKE '%CATEGORIA%')");
             foreach($affiliates as $affiliate) {
                 $affiliate_model = Affiliate::find($affiliate->affiliate_id);
                 if($affiliate_states->contains($affiliate_model->affiliate_state_id)) {
                     $affiliate_model->affiliate_state_id = 3;
+                    $affiliate_model->availability_info = $affiliate->situacion_laboral;
                     $affiliate_model->save();
                     $count++;
                 } else if($affiliate_model->affiliate_state_id == 3){
