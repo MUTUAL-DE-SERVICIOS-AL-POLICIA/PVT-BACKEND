@@ -89,6 +89,18 @@ class ContributionPermissionSeedeer extends Seeder
                 'name' => 'download-report-affiliates-availability',
                 'display_name' => 'Descargar reporte de importación afiliados en disponibilidad'
             ],[
+                'action_id' => Action::where('name', 'read')->first()->id,
+                'name' => 'read-import-payroll-senasir',
+                'display_name' => 'Ver importación de planillas Senasir'
+            ],[
+                'action_id' => Action::where('name', 'read')->first()->id,
+                'name' => 'read-import-payroll-comando',
+                'display_name' => 'Ver importación de planillas Comando'
+            ],[
+                'action_id' => Action::where('name', 'read')->first()->id,
+                'name' => 'read-import-payroll-transcript',
+                'display_name' => 'Ver importación de planillas Transcripción'
+            ],[
                 'action_id' => Action::where('name', 'create')->first()->id,
                 'name' => 'create-import-mora',
                 'display_name' => 'Crear importación de afiliados en Mora'
