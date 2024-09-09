@@ -100,6 +100,10 @@ class ContributionPermissionSeedeer extends Seeder
                 'action_id' => Action::where('name', 'read')->first()->id,
                 'name' => 'read-import-payroll-transcript',
                 'display_name' => 'Ver importación de planillas Transcripción'
+            ],[
+                'action_id' => Action::where('name', 'create')->first()->id,
+                'name' => 'create-import-mora',
+                'display_name' => 'Crear importación de afiliados en Mora'
             ]
         ];
         foreach ($permissions as $permission) {
