@@ -93,6 +93,17 @@ return [
             'username' => env('DB_USERNAME_MYSQL', 'goip'),
             'password' => env('DB_PASSWORD_MYSQL', 'goip'),
         ],
+         'db_survey' => [
+            'driver' => 'pgsql',
+            'url' => env('DATABASE_URL'),
+            'host' => env('DB_HOST_SURVEY', '127.0.0.1'),
+            'port' => env('DB_PORT_SURVEY', '5432'),
+            'database' => env('DB_DATABASE_SURVEY', 'db'),
+            'username' => env('DB_USERNAME_SURVEY', 'admin'),
+            'password' => env('DB_PASSWORD_SURVEY', 'admin'),
+            'charset' => 'utf8',
+            'prefix' => '',
+        ],
     ],
 
     /*

@@ -16,9 +16,11 @@
             <td class="px-15 py text-center">
                 APELLIDO MATERNO
             </td>
-            <td class="px-15 py text-center">
-                APELLIDO DE CASADA
-            </td>
+            @if ($affiliate->surname_husband!=null)
+                <td class="px-15 py text-center">
+                    APELLIDO DE CASADA(O)
+                </td>
+            @endif
             <td class="px-15 py text-center">
                 C.I.
             </td>
@@ -32,7 +34,9 @@
             <td class="text-center uppercase font-bold px-5 py-3">{{ $affiliate->second_name }}</td>
             <td class="text-center uppercase font-bold px-5 py-3">{{ $affiliate->last_name }}</td>
             <td class="text-center uppercase font-bold px-5 py-3">{{ $affiliate->mothers_last_name }}</td>
-            <td class="text-center uppercase font-bold px-5 py-3">{{ $affiliate->surname_husband }}</td>
+            @if ($affiliate->surname_husband!=null)
+                <td class="text-center uppercase font-bold px-5 py-3">{{ $affiliate->surname_husband }}</td>
+            @endif
             <td class="text-center uppercase font-bold px-5 py-3">{{ $affiliate->identity_card }}</td>
         </tr>
     </tbody>

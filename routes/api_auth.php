@@ -10,6 +10,7 @@ Route::group([
 ], function () {
     // Rutas abiertas
     Route::post('/login', [App\Http\Controllers\Auth\AuthController::class, 'login']);
+    Route::post('/login_ext', [App\Http\Controllers\Auth\AuthController::class, 'login_ext']);
     // Rutas autenticadas con token
     Route::group([
         'middleware' => ['auth:sanctum']

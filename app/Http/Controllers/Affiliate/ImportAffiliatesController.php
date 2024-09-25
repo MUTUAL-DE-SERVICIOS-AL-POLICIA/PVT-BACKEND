@@ -14,6 +14,14 @@ use Auth;
 use App\Models\Affiliate\Affiliate;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Observers\AffiliateObserver;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
+use App\Models\Affiliate\Spouse;
+use App\Models\ObservationType;
+use App\Models\Observation;
+use App\Models\Admin\Module;
+use App\Models\EconomicComplement\EcoComProcedure;
+use App\Models\EconomicComplement\EconomicComplement;
 
 class ImportAffiliatesController extends Controller
 {
@@ -221,7 +229,7 @@ class ImportAffiliatesController extends Controller
                     ELSE
                         first_name := record.nombres;
                     END IF;
-                    INSERT INTO copy_affiliates_availability (cedula, grado, paterno, materno, primer_nombre, segundo_nombre, situacion_laboral, unidad, mes, a_o) VALUES (record.cedula, record.grado, record.paterno, record.materno, first_name, second_name, record.situacion_laboral, record.unidad, $month, $year);
+                    INSERT INTO copy_affiliates_availability (cedula, grado, paterno, materno, primer_nombre, segundo_nombre, situacion_laboral, unidad, mes, a_o, created_at, updated_at) VALUES (record.cedula, record.grado, record.paterno, record.materno, first_name, second_name, record.situacion_laboral, record.unidad, $month, $year, NOW(), NOW());
                 END LOOP;
 
                 RETURN true;
@@ -535,21 +543,22 @@ class ImportAffiliatesController extends Controller
 
     public static function update_availability_status($month, $year) {
         try {
-            $affiliate_states = collect([1, 2, 9, null]); // Servicio, Comisión, Disponibilidad y Baja Temporal
+            $affiliate_states = collect([1, 2, 9, null]); // Servicio, Comisión y Baja Temporal
             $count = 0;
             AffiliateObserver::$importAvailability = true;
-            $affiliates = DB::connection('db_aux')->select("SELECT affiliate_id FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND (situacion_laboral LIKE '%DISPONIBILIDAD%' OR situacion_laboral LIKE '%DISP.%' OR situacion_laboral LIKE '%CATEGORIA%')");
+            $affiliates = DB::connection('db_aux')->select("SELECT affiliate_id, situacion_laboral FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND (situacion_laboral LIKE '%DISPONIBILIDAD%' OR situacion_laboral LIKE '%DISP.%' OR situacion_laboral LIKE '%CATEGORIA%')");
             foreach($affiliates as $affiliate) {
                 $affiliate_model = Affiliate::find($affiliate->affiliate_id);
                 if($affiliate_states->contains($affiliate_model->affiliate_state_id)) {
                     $affiliate_model->affiliate_state_id = 3;
+                    $affiliate_model->availability_info = $affiliate->situacion_laboral;
                     $affiliate_model->save();
                     $count++;
                 } else if($affiliate_model->affiliate_state_id == 3){
-                    DB::connection('db_aux')->select("UPDATE copy_affiliates_availability SET error_mensaje = 'EL AFILIADO YA SE ENCUENTRA EN DISPONIBILIDAD' WHERE a_o = $year AND mes = $month AND affiliate_id = $affiliate->affiliate_id");
-                } else DB::connection('db_aux')->select("UPDATE copy_affiliates_availability SET error_mensaje = 'EL AFILIADO ES PASIVO' WHERE mes = $month AND a_o = $year AND affiliate_id = $affiliate->affiliate_id");
+                    DB::connection('db_aux')->select("UPDATE copy_affiliates_availability SET error_mensaje = 'EL AFILIADO YA SE ENCUENTRA EN DISPONIBILIDAD', updated_at = NOW() WHERE a_o = $year AND mes = $month AND affiliate_id = $affiliate->affiliate_id");
+                } else DB::connection('db_aux')->select("UPDATE copy_affiliates_availability SET error_mensaje = 'EL AFILIADO ES PASIVO', updated_at = NOW() WHERE mes = $month AND a_o = $year AND affiliate_id = $affiliate->affiliate_id");
             }
-            $update_message = "UPDATE copy_affiliates_availability SET error_mensaje = 'NO ACTUALIZADO' WHERE mes = $month AND a_o = $year AND situacion_laboral NOT LIKE '%DISPONIBILIDAD%' AND situacion_laboral NOT LIKE '%DISP.%' AND situacion_laboral NOT LIKE '%CATEGORIA%'";
+            $update_message = "UPDATE copy_affiliates_availability SET error_mensaje = 'NO ACTUALIZADO', updated_at = NOW() WHERE mes = $month AND a_o = $year AND situacion_laboral NOT LIKE '%DISPONIBILIDAD%' AND situacion_laboral NOT LIKE '%DISP.%' AND situacion_laboral NOT LIKE '%CATEGORIA%'";
             $update_message = DB::connection('db_aux')->select($update_message);
             $affiliates_not_updated = DB::connection('db_aux')->select("SELECT count(*) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year AND error_mensaje IN ('NO ACTUALIZADO','EL AFILIADO YA SE ENCUENTRA EN DISPONIBILIDAD','EL AFILIADO ES PASIVO')");
             $amount = DB::connection('db_aux')->select("SELECT count(*) FROM copy_affiliates_availability WHERE mes = $month AND a_o = $year");
@@ -943,6 +952,232 @@ class ImportAffiliatesController extends Controller
                 'message' => 'Hubo un error al generar el archivo',
                 'payload' => [
                     'successfull' => false
+                ]
+            ], 500);
+        }
+    }
+
+     /**
+     * @OA\Post(
+     *      path="/api/affiliate/validate_import_affiliate_mora",
+     *      tags={"IMPORTACION-AFILIADOS-MORA"},
+     *      summary="PASO 1 COPIADO DE DATOS AFILIADOS MORA",
+     *      operationId="validate_import_affiliate_mora",
+     *      description="Copiado de datos del archivo de afiliados en mora",
+     *      @OA\RequestBody(
+     *          description="Provide auth credentials",
+     *          required=true,
+     *          @OA\MediaType(mediaType="multipart/form-data",@OA\Schema(
+     *              @OA\Property(property="file", type="file", description="file required", example="file"),
+     *              )
+     *          ),
+     *      ),
+     *      security={
+     *          {"bearerAuth":{}}
+     *      },
+     *      @OA\Response(
+     *          response=200,
+     *          description="Success",
+     *          @OA\JsonContent(
+     *             type="object"
+     *          )
+     *      )
+     * )
+    */
+    public function validate_import_affiliate_mora(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:csv,txt'
+        ]);
+        $path = $request->file->store('temp');
+        $fullPath = storage_path('app/' . $path);
+        Schema::dropIfExists('temporary_table');
+        Schema::create('temporary_table', function (Blueprint $table) {
+            $table->string('ci');
+            $table->string('observacion');
+            $table->string('nup')->nullable();
+        });
+        if (($handle = fopen($fullPath, 'r')) !== FALSE) {
+            fgetcsv($handle, 1000, ':');
+            while (($data = fgetcsv($handle, 1000, ':')) !== FALSE) {
+                DB::table('temporary_table')->insert([
+                    'ci' => $data[0],
+                    'observacion' => $data[1],
+                    'nup' => null,
+                ]);
+            }
+            fclose($handle);
+        }
+        Storage::delete($path);
+        $importation_data = DB::table('temporary_table')->get();
+        foreach($importation_data as $data)
+        {
+            if ($affiliate = Affiliate::where('identity_card', $data->ci)->first()) {
+                DB::table('temporary_table')
+                    ->where('ci', $data->ci)
+                    ->update(['nup' => $affiliate->id]);
+            } elseif ($spouse = Spouse::where('identity_card', $data->ci)->first()) {
+                DB::table('temporary_table')
+                    ->where('ci', $data->ci)
+                    ->update(['nup' => $spouse->affiliate_id]);
+            }
+        }
+        if(DB::table('temporary_table')->where('nup', null)->count() > 0)
+        {
+            $route = '/affiliate/download_error_mora_archive';
+            $route_file_name = 'mora_observados_archivo.xls';
+            return response()->json([
+                'message' => 'Excel',
+                'payload' => [
+                    'successfully' => false,
+                    'error' => 'Existen carnets que no son incorrectos, favor revisar.',
+                    'route' =>$route,
+                    'route_file_name' => $route_file_name
+                ]
+            ]);
+        }
+        else{
+            return response()->json([
+                'message' => 'Copiado correcto',
+                'payload' => [
+                    'successfully' => true,
+                    'data_count' => DB::table('temporary_table')->count(),
+                ]
+            ]);
+        }
+    }
+
+    /**
+    * @OA\Post(
+    *      path="/api/affiliate/download_error_mora_archive",
+    *      tags={"IMPORTACION-AFILIADOS-MORA"},
+    *      summary="DESCARGA EL ARCHIVO, CON EL LISTADO DE AFILIADOS QUE TENGAN OBSERVACIONES EN EL ARCHIVO",
+    *      operationId="download_error_mora_archive",
+    *      description="Descarga el archivo con el listado de afiliados con CI inexistentes",
+    *      security={
+    *          {"bearerAuth": {}}
+    *      },
+    *      @OA\Response(
+    *          response=200,
+    *          description="Success",
+    *          @OA\JsonContent(
+    *              type="object"
+    *          )
+    *      )
+    * )
+    *
+    * Descarga el archivo de observaciones mora.
+    *
+    * @return void
+    */
+    public function download_error_mora_archive(Request $request)
+    {
+        try{
+            $data_header = array(array("CI", "OBSERVACION"));
+            $data_error = DB::table('temporary_table')->where('nup', null)->get();
+            foreach($data_error as $row) {
+                array_push($data_header, array($row->ci, $row->observacion));
+            }
+            $export = new ArchivoPrimarioExport($data_header);
+            $file_name = "observados";
+            $extension = '.xls';
+            return Excel::download($export, $file_name."_".$extension);
+        }catch(\Exception $e) {
+            logger($e->getMessage());
+            return response()->json([
+                'message' => 'Hubo un error al importar el archivo',
+                'payload' => [
+                    'successfull' => $e
+                ]
+            ], 500);
+        }
+    }
+
+    /**
+    * @OA\Post(
+    *      path="/api/affiliate/import_affiliate_mora",
+    *      tags={"IMPORTACION-AFILIADOS-MORA"},
+    *      summary="PASO 2 IMPORTACION AFILIADOS MORA",
+    *      operationId="import_affiliate_mora",
+    *      description="Importación de Afiliados en mora",
+    *      security={
+    *          {"bearerAuth": {}}
+    *      },
+    *      requestBody={
+    *          "description": "Provide auth credentials",
+    *          "required": true
+    *      },
+    *      @OA\Response(
+    *          response=200,
+    *          description="Success",
+    *          @OA\JsonContent(
+    *              type="object"
+    *          )
+    *      )
+    * )
+    *
+    * Importa afiliados en mora.
+    *
+    * @param Request $request
+    * @return void
+    */
+    public function import_affiliate_mora()
+    {
+        try
+        {
+            $affiliate_data = DB::table('temporary_table')->get();
+            $observation_type = ObservationType::where('name', 'Suspendido - Préstamo en mora.')->first();
+            $module = Module::where('name', 'prestamos')->first();
+            $count = 0;
+            $eco_com = EcoComProcedure::orderBy('id', 'desc')->get()->first();
+            foreach($affiliate_data as $affiliate)
+            {
+                if($affiliate->nup <> null){
+                    $count++;
+                    if(Observation::where('observation_type_id', $observation_type->id)->where('observable_id', $affiliate->nup)->where('observable_type', 'affiliates')->where('enabled', true)->count() == 0)
+                    {
+                        Observation::create([
+                            'user_id' => Auth::user()->id,
+                            'observation_type_id' => $observation_type->id,
+                            'observable_id' => $affiliate->nup,
+                            'observable_type' => 'affiliates',
+                            'message' => $affiliate->observacion,
+                            'date' => Carbon::now(),
+                            'enabled' => false
+                        ]);
+                    }
+                    if(EconomicComplement::where('affiliate_id', $affiliate->nup)->where('eco_com_procedure_id', $eco_com->id)->count() > 0)
+                    {
+                        $economic_complement = EconomicComplement::where('affiliate_id', $affiliate->nup)->where('eco_com_procedure_id', $eco_com->id)->first();
+                        if(Observation::where('observation_type_id', $observation_type->id)->where('observable_id', $economic_complement->id)->where('observable_type', 'economic_complements')->count() == 0)
+                        {
+                            Observation::create([
+                                'user_id' => Auth::user()->id,
+                                'observation_type_id' => $observation_type->id,
+                                'observable_id' => $economic_complement->id,
+                                'observable_type' => 'economic_complements',
+                                'message' => $affiliate->observacion,
+                                'date' => Carbon::now(),
+                                'enabled' => false
+                             ]);
+                        }
+                    }
+                }
+                Schema::dropIfExists('temporary_table');
+            }
+            return response()->json([
+                'message' => 'Registro Correcto',
+                'payload' => [
+                    'successfully' => true,
+                    'data_count' => $count,
+                ]
+            ]);
+        } catch(\Exception $e) {
+            logger($e->getMessage());
+            return response()->json([
+                'message' => 'Hubo un error al importar el archivo',
+                'payload' => [
+                    'successfull' => $e
                 ]
             ], 500);
         }

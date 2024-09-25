@@ -115,7 +115,61 @@ class AuthController extends Controller
             ]
         ], 401);
     }
-
+        /**
+     * @OA\Post(
+     *      path="/api/auth/login_ext",
+     *      tags={"AUTENTICACIÓN"},
+     *      summary="ACCESO AL SISTEMA",
+     *      operationId="login_ext",
+     *      description="Acceso al sistema con el token de manera externa",
+     *      @OA\RequestBody(
+     *          description= "Provide auth credentials",
+     *          required=true,
+     *          @OA\JsonContent(
+     *              type="object",
+     *              @OA\Property(property="username", type="string",description="username"),
+     *              @OA\Property(property="password", type="string",description="password")
+     *          )
+     *     ),
+     *      @OA\Response(
+     *          response=200,
+     *          description="Success",
+     *          @OA\JsonContent(
+     *            type="object"
+     *         )
+     *      )
+     * )
+     *
+     * Logs user into the system.
+     *
+     * @param Request $request
+     * @return void
+    */
+    public function login_ext(Request $request)
+    {
+        $user = User::whereUsername($request->username)->first();
+        if ($user->username == env('USER_EXT')) {
+            if (Hash::check($request->password, $user->password)) {
+                $token = $user->createToken('api')->plainTextToken;
+                $user->remember_token = $token;
+                $user->save();
+                return [
+                    'message' => 'Sesión iniciada',
+                    'payload' => [
+                        'access_token' => $token,
+                        'token_type' => 'Bearer',
+                        'user' => new UserResource($user),
+                    ],
+                ];
+            }
+        }
+        return response()->json([
+            'message' => 'Credenciales inválidas',
+            'errors' => [
+                'username' => ['Usuario o contraseña incorrecta']
+            ]
+        ], 401);
+    }
     /**
      * @OA\Post(
      *     path="/api/auth/logout",

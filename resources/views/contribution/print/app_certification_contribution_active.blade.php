@@ -14,7 +14,7 @@
             font-size: 65px;
             font-weight: 500px;
             display: grid;
-            opacity: 0.3;
+            opacity: 0.8;
             transform: rotate(-30deg);
 
             top: 35%;
@@ -65,10 +65,26 @@
                         <td class="data-row py-2">{{ $num = $num + 1 }}</td>
                         <td class="data-row py-2">{{ date('Y', strtotime($contribution->month_year)) }}</td>
                         <td class="data-row py-2">{{ date('m', strtotime($contribution->month_year)) }}</td>
-                        <td class="data-row py-2">{{ Util::money_format($contribution->quotable) }}</td>
-                        <td class="data-row py-2">{{ Util::money_format($contribution->retirement_fund) }}</td>
+                        @if ( $contribution->quotable>0 )
+                            <td class="data-row py-2">{{ Util::money_format($contribution->quotable) }}</td>
+                        @else
+                            <td class="data-row py-2">-</td>
+                        @endif
+                        @if ($contribution->retirement_fund>0)
+                            <td class="data-row py-2">{{ Util::money_format($contribution->retirement_fund) }}</td>
+                        @else
+                            <td class="data-row py-2">-</td>
+                        @endif
+                        @if ($contribution->mortuary_quota>0)
                         <td class="data-row py-2">{{ Util::money_format($contribution->mortuary_quota) }}</td>
-                        <td class="data-row py-2">{{ Util::money_format($contribution->total) }}</td>
+                        @else
+                            <td class="data-row py-2">-</td>
+                        @endif
+                        @if ($contribution->total>0)
+                            <td class="data-row py-2">{{ Util::money_format($contribution->total) }}</td>
+                        @else
+                            <td class="data-row py-2">-</td>
+                        @endif
                     </tr>
                     @foreach ($reimbursements as $reimbursement)
                         @if ($contribution->month_year == $reimbursement->month_year)
@@ -93,15 +109,18 @@
         <table class="w-100 text-xxs p-10">
             <tbody>
                 <tr>
-                    <td>
-                        <b>NOTA.- </b>La presente certificación contiene informacion de aportes registrados en la Base
-                        de
-                        Datos
-                        de la MUSERPOL (considerando la existencia de registros de aportes en el Sistema Institucional a
-                        partir de Febrero de 1999 en adelante). Asímismo, este documento no contempla toda la
-                        información de la planilla de pago, por lo que no es válido para trámites administrativos,
-                        siendo de uso exclusivo de la MUSERPOL.<br>
-                        Es cuanto se certifica, para fines consiguientes.
+                    <td class="text-justify">
+                        <i><b>NOTA.- </b>La presente certificación contiene información de aportes registrados en la Base de Datos 
+                        de la MUSERPOL (considerando la existencia de registros de aportes en la Base de Datos Institucional).
+                        Asimismo, este documento no contempla toda la información de la planilla de pago, por lo que no es válido 
+                        para trámites administrativos, siendo de uso exclusivo de la MUSERPOL.<br><br>
+                        Finalmente, con respecto al descuento que figura en las boletas de pago salarial, bajo la denominación 
+                        <b>MUSERPOL F. RETIRO + CM</b>, conforme los Decretos Supremos N° 1446, N° 2829, N° 3231, N° 5007 , los Reglamentos 
+                        de los beneficios de Fondo de Retiro Policial Solidario, Cuota Mortuoria y Auxilio Mortuorio, se determina que 
+                        corresponde a los aportes realizados por los efectivos policiales que son de carácter <u><b>mensual, obligatorio y 
+                        financian los beneficios de Fondo de Retiro Policial Solidario y Cuota Mortuoria</b></u>, no siendo considerados como 
+                        pago de deuda por préstamos contraídos con la <b>MUSERPOL</b>.
+                        <br<br>Es cuanto se certifica, para fines consiguientes.</i>
                     </td>
                 </tr>
             </tbody>

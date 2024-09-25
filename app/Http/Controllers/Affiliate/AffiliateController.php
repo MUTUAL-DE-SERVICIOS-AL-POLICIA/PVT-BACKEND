@@ -11,6 +11,7 @@ use App\Models\Affiliate\AffiliateUser;
 use App\Models\Affiliate\Spouse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class AffiliateController extends Controller
 {
@@ -25,7 +26,7 @@ class AffiliateController extends Controller
      *         in="query",
      *         description="Página a mostrar",
      *         example=1,
-     *         required=false, 
+     *         required=false,
      *       ),
      *     @OA\Parameter(
      *         name="per_page",
@@ -181,7 +182,7 @@ class AffiliateController extends Controller
      *              @OA\Property(property="last_name", type="string", description="apellido paterno", example="RIOS"),
      *              @OA\Property(property="mothers_last_name", type="string", description="apellido materno", example="RIOS"),
      *              @OA\Property(property="surname_husband", type="string", description="apellido de casada", example=""),
-     *              @OA\Property(property="city_birth_id", type="integer", description="id de ciudad de nacimiento", example=1),    
+     *              @OA\Property(property="city_birth_id", type="integer", description="id de ciudad de nacimiento", example=1),
      *              @OA\Property(property="date_entry", type="date", description="fecha de ingreso a la policía", example="2021-01-06"),
      *              @OA\Property(property="unit_id", type="integer", description="id de la unidad de destino", example=1),
      *              @OA\Property(property="unit_police_description", type="string", description="descripcion de la unidad policial", example=""),
@@ -343,13 +344,13 @@ class AffiliateController extends Controller
      *              @OA\Property(property="city_identity_card_id", type="integer",description="id de la ciudad del CI",example=2),
      *              @OA\Property(property="identity_card", type="string",description="carnet de identidad",example="1020566"),
      *              @OA\Property(property="registration", type="string",description="matrícula",example="440808ACG"),
-     *              @OA\Property(property="date_death", type="date",description="fecha de fallecimiento",example="2022-02-02"),   
+     *              @OA\Property(property="date_death", type="date",description="fecha de fallecimiento",example="2022-02-02"),
      *              @OA\Property(property="reason_death", type="string",description="causa de fallecimiento",example=""),
      *              @OA\Property(property="due_date", type="date",description="fecha de vencimiento del CI",example=""),
      *              @OA\Property(property="is_duedate_undefined", type="boolean",description="si la fecha de vencimiento de CI es indefinido",example=true),
-     *              @OA\Property(property="nua", type="integer",description="número de NUA",example=1301101),     
-     *              @OA\Property(property="account_number", type="integer",description="número de cuenta del afiliado",example=10000017711404),     
-     *              @OA\Property(property="financial_entity_id", type="integer",description="id de la entidad financiera de la cuenta del afiliado",example=1),  
+     *              @OA\Property(property="nua", type="integer",description="número de NUA",example=1301101),
+     *              @OA\Property(property="account_number", type="integer",description="número de cuenta del afiliado",example=10000017711404),
+     *              @OA\Property(property="financial_entity_id", type="integer",description="id de la entidad financiera de la cuenta del afiliado",example=1),
      *              @OA\Property(property="sigep_status", type="string",description="estado de la cuenta SIGEP",example="ACTIVO"),
      *              @OA\Property(property="cell_phone_number", type="array", @OA\Items(type="string"), description="número de celular", example={"(772)-36645","(787)-79597"})
      *          )
@@ -431,7 +432,7 @@ class AffiliateController extends Controller
      *     }
      * )
      *
-     * Get affiliate addresses 
+     * Get affiliate addresses
      *
      * @param Request $request
      * @return void
@@ -653,3 +654,4 @@ class AffiliateController extends Controller
         return response()->json($affiliate->spouse);
     }
 }
+

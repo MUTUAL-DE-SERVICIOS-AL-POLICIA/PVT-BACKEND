@@ -942,6 +942,7 @@ class NotificationController extends Controller
      * @return void
      */
     public function get_report(Request $request) {
+        ini_set('max_execution_time', '300000');
         $start_date = $request->start_date;
         $end_date = $request->end_date;
         $media_type = $request->type; // todos, SMS, notificaciones App,
@@ -1013,10 +1014,10 @@ class NotificationController extends Controller
                 $temp->push($code);
                 $temp->push($nup);
                 $temp->push($it->created_at);
-                if($it->sendable_type == 'loans') {
-                    $temp->push(json_decode($it->message)->data);
-                } else {
+                if($it->sendable_type == 'economic_complements') {
                     $temp->push(json_decode($it->message)->data->text);
+                } else {
+                    $temp->push(json_decode($it->message)->data);
                 }
                 $temp->push($it->receiver_number);
                 $result->push($temp);
@@ -1029,7 +1030,7 @@ class NotificationController extends Controller
         $start_date = $request->start_date;
         $end_date = $request->end_date;
 
-        $records = NotificationSend::select('economic_complements.affiliate_id', 'eco_com_applicants.first_name', 'eco_com_applicants.last_name', 'eco_com_applicants.mothers_last_name', 'economic_complements.code', 'notification_sends.send_date',
+        $records = NotificationSend::select('economic_complements.affiliate_id','eco_com_applicants.identity_card', 'eco_com_applicants.first_name', 'eco_com_applicants.last_name', 'eco_com_applicants.mothers_last_name', 'economic_complements.code', 'notification_sends.send_date',
             DB::raw("CASE WHEN notification_sends.delivered = true THEN 'si' ELSE 'no' END AS delivered"))
             ->join('economic_complements', 'notification_sends.sendable_id', '=', 'economic_complements.id')
             ->join('eco_com_applicants', 'economic_complements.id', '=', 'eco_com_applicants.economic_complement_id')

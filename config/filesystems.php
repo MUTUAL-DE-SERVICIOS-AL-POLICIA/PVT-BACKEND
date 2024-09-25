@@ -60,7 +60,16 @@ return [
             'password' => env('FTP_PASSWORD'),
             'root' => env('FTP_ROOT'),
             'ssl' => env('FTP_SSL')
-          ]
+        ],
+        'custom_storage' => [
+            'driver' => 'ftp',
+            'host' => env('FTP_STORAGE_HOST'),
+            'username' => env('FTP_STORAGE_USERNAME'),
+            'password' => env('FTP_STORAGE_PASSWORD'),
+            'root' => env('FTP_STORAGE_ROOT'),
+            'port' => 21,
+            'timeout' => 30,
+        ],
     ],
 
     /*
