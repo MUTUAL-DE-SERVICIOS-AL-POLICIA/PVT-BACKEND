@@ -959,11 +959,11 @@ class ImportAffiliatesController extends Controller
 
      /**
      * @OA\Post(
-     *      path="/api/affiliate/validate_import_affiliate_mora",
-     *      tags={"IMPORTACION-AFILIADOS-MORA"},
-     *      summary="PASO 1 COPIADO DE DATOS AFILIADOS MORA",
-     *      operationId="validate_import_affiliate_mora",
-     *      description="Copiado de datos del archivo de afiliados en mora",
+     *      path="/api/affiliate/validate_import_affiliate_observation",
+     *      tags={"IMPORTACION-DE-OBSERVACIONES-A-LOS-AFILIADOS"},
+     *      summary="PASO 1 COPIADO DE DATOS AFILIADOS CON OBSERVACIONES",
+     *      operationId="validate_import_affiliate_OBSERVATION",
+     *      description="Copiado de datos del archivo de afiliados en observados",
      *      @OA\RequestBody(
      *          description="Provide auth credentials",
      *          required=true,
@@ -984,10 +984,10 @@ class ImportAffiliatesController extends Controller
      *      )
      * )
     */
-    public function validate_import_affiliate_mora(Request $request)
+    public function validate_import_affiliate_observation(Request $request)
     {
         $request->validate([
-            'file' => 'required|file|mimes:csv,txt'
+            'file' => 'required|file|mimes:csv,txt',
         ]);
         $path = $request->file->store('temp');
         $fullPath = storage_path('app/' . $path);
@@ -1024,7 +1024,7 @@ class ImportAffiliatesController extends Controller
         }
         if(DB::table('temporary_table')->where('nup', null)->count() > 0)
         {
-            $route = '/affiliate/download_error_mora_archive';
+            $route = '/affiliate/download_error_observation_archive';
             $route_file_name = 'mora_observados_archivo.xls';
             return response()->json([
                 'message' => 'Excel',
@@ -1049,10 +1049,10 @@ class ImportAffiliatesController extends Controller
 
     /**
     * @OA\Post(
-    *      path="/api/affiliate/download_error_mora_archive",
-    *      tags={"IMPORTACION-AFILIADOS-MORA"},
+    *      path="/api/affiliate/download_error_observation_archive",
+    *      tags={"IMPORTACION-DE-OBSERVACIONES-A-LOS-AFILIADOS"},
     *      summary="DESCARGA EL ARCHIVO, CON EL LISTADO DE AFILIADOS QUE TENGAN OBSERVACIONES EN EL ARCHIVO",
-    *      operationId="download_error_mora_archive",
+    *      operationId="download_error_observation_archive",
     *      description="Descarga el archivo con el listado de afiliados con CI inexistentes",
     *      security={
     *          {"bearerAuth": {}}
@@ -1066,11 +1066,11 @@ class ImportAffiliatesController extends Controller
     *      )
     * )
     *
-    * Descarga el archivo de observaciones mora.
+    * Descarga el archivo de observaciones al afiliado.
     *
     * @return void
     */
-    public function download_error_mora_archive(Request $request)
+    public function download_error_observation_archive(Request $request)
     {
         try{
             $data_header = array(array("CI", "OBSERVACION"));
@@ -1094,39 +1094,57 @@ class ImportAffiliatesController extends Controller
     }
 
     /**
-    * @OA\Post(
-    *      path="/api/affiliate/import_affiliate_mora",
-    *      tags={"IMPORTACION-AFILIADOS-MORA"},
-    *      summary="PASO 2 IMPORTACION AFILIADOS MORA",
-    *      operationId="import_affiliate_mora",
-    *      description="Importación de Afiliados en mora",
-    *      security={
-    *          {"bearerAuth": {}}
-    *      },
-    *      requestBody={
-    *          "description": "Provide auth credentials",
-    *          "required": true
-    *      },
-    *      @OA\Response(
-    *          response=200,
-    *          description="Success",
-    *          @OA\JsonContent(
-    *              type="object"
-    *          )
-    *      )
-    * )
-    *
-    * Importa afiliados en mora.
-    *
-    * @param Request $request
-    * @return void
-    */
-    public function import_affiliate_mora()
+ * @OA\Post(
+ *      path="/api/affiliate/import_affiliate_observation",
+ *      tags={"IMPORTACION-DE-OBSERVACIONES-A-LOS-AFILIADOS"},
+ *      summary="PASO 2 IMPORTACION DE OBSERVACIONES A LOS AFILIADOS",
+ *      operationId="import_affiliate_observation",
+ *      description="Importación de observaciones a los Afiliados",
+ *      security={
+ *          {"bearerAuth": {}}
+ *      },
+ *      @OA\RequestBody(
+ *          required=true,
+ *          description="Datos para la importación de observaciones",
+ *          @OA\JsonContent(
+ *              type="object",
+ *              @OA\Property(
+ *                   property="type",
+ *                   type="string",
+ *                   description="Tipo de importación",
+ *                   example="estacional"
+ *              )
+ *          )
+ *      ),
+ *      @OA\Response(
+ *          response=200,
+ *          description="Success",
+ *          @OA\JsonContent(
+ *              type="object"
+ *          )
+ *      )
+ * )
+ *
+ * Importa afiliados en mora.
+ *
+ * @param Request $request
+ * @return void
+ */
+
+    public function import_affiliate_observation(request $request)
     {
+        $request->validate([
+            'type' => 'required|in:mora,estacional'
+        ]);
         try
         {
             $affiliate_data = DB::table('temporary_table')->get();
-            $observation_type = ObservationType::where('name', 'Suspendido - Préstamo en mora.')->first();
+            if($request->type == 'mora')
+                $observation_type = ObservationType::where('name', 'Suspendido - Préstamo en mora.')->first();
+            elseif($request->type == 'estacional')
+                $observation_type = ObservationType::where('name', 'Prestamo estacional para cobro')->first();
+            else
+                return response()->json(['error'=> true, 'message'=> 'tipo de observacion inexistente'],403);
             $module = Module::where('name', 'prestamos')->first();
             $count = 0;
             $eco_com = EcoComProcedure::orderBy('id', 'desc')->get()->first();
