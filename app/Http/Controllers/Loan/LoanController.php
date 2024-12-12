@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Admin\Module;
 use App\Models\Admin\Role;
 use App\Models\Admin\RoleSequence;
+use App\Models\Affiliate\Affiliate;
+use App\Models\Affiliate\Spouse;
 use App\Models\Loan\Loan;
 use App\Models\Loan\LoanBorrower;
 use App\Models\Loan\LoanPayment;
@@ -306,7 +308,7 @@ class LoanController extends Controller
             ]);
         }
     }
-public function get_information_current_loans(Request $request, $idAffiliate)
+    public function get_information_current_loans(Request $request, $idAffiliate)
     {
         $request['affiliate_id'] = $idAffiliate;
         $hasLoans = DB::table('loans')->where('affiliate_id',$request->id_affiliate)->exists();
@@ -362,6 +364,32 @@ public function get_information_current_loans(Request $request, $idAffiliate)
             ]);
         }
     }
+    public static function verify_loans(Request $request, $identityCard)
+    {
+        $affiliate = Affiliate::where("identity_card", $identityCard)->first();
+        if (!$affiliate) {
+            $spouse = Spouse::where("identity_card", $identityCard)->first();
+            if (!$spouse) {
+                return response()->json([
+                    'hasLoan' => false,
+                    'message' => 'El afiliado no existe',
+                ]);
+            }
+            $affiliate_id = $spouse->affiliate_id;
+        } else {
+            $affiliate_id = $affiliate->id;
+        }
+        $hasLoans = DB::table('loans')
+            ->where('affiliate_id', $affiliate_id)
+            ->where('state_id', 3)
+            ->exists();
+
+        return response()->json([
+            'hasLoan' => $hasLoans,
+        ]);
+    }
+
+
     /**
      * Remove the specified resource from storage.
      *
