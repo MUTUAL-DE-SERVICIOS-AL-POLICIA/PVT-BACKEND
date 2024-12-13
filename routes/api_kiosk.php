@@ -11,6 +11,7 @@ Route::group([
     // Rutas abiertas
     Route::post('get_session',[App\Http\Controllers\AllowedMacDevicesController::class, 'get_session']);
     Route::post('save_photo',[App\Http\Controllers\KioskAuthenticationDataController::class, 'save_photo']);
+    Route::get('/verify_loans/{id_affiliate}',[App\Http\Controllers\Loan\LoanController::class, 'verify_loans']);
     //Route::post('get_qualification_report',[App\Http\Controllers\ReportController::class, 'download_qualification_report']);
     // Rutas autenticadas con token
     Route::group([
