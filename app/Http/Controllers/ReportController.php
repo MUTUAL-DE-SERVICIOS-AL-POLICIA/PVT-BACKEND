@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\AffiliatesSpousesExport;
 use App\Exports\ArchivoPrimarioExport;
 use App\Exports\EcoComMovementsExport;
 use App\Models\Affiliate\Affiliate;
@@ -46,7 +47,7 @@ class ReportController extends Controller
     public function report_affiliates_spouses(Request $request)
     {
         $date = date('Y-m-d');
-        $list = Affiliate::leftjoin('spouses', 'spouses.affiliate_id', '=', 'affiliates.id')
+        $list = DB::table('affiliates')
             ->select(
                 'affiliates.id as nup',
                 'affiliates.identity_card as identity_card',
@@ -67,6 +68,7 @@ class ReportController extends Controller
                 'spouses.birth_date as spouse_birth_date',
                 'affiliates.registration as registration'
             )
+            ->join('spouses', 'spouses.affiliate_id', '=', 'affiliates.id')
             ->groupBy(
                 'affiliates.id',
                 'affiliates.identity_card',
@@ -76,55 +78,20 @@ class ReportController extends Controller
                 'affiliates.mothers_last_name',
                 'affiliates.surname_husband',
                 'affiliates.date_entry',
-                'affiliates.birth_date',
-                'spouses.identity_card',
+                'affiliates.birth_date', 
+                'spouses.identity_card', 
                 'spouses.first_name',
-                'spouses.second_name',
-                'spouses.last_name',
+                'spouses.second_name', 
+                'spouses.last_name', 
                 'spouses.mothers_last_name',
-                'spouses.surname_husband',
-                'spouses.birth_date',
+                'spouses.surname_husband', 
+                'spouses.birth_date', 
                 'affiliates.registration'
             )
             ->orderBy('affiliates.id', 'asc')
             ->get();
 
-        $data_header = array(array(
-            "NRO", "NUP", "CI TITULAR", "PRIMER NOMBRE", "SEGUNDO NOMBRE", "AP. PATERNO", "AP. MATERNO",
-            "AP. CASADA", "FECHA DE INGRESO", "FECHA DE NACIMIENTO", "CI VIUDA(O)", "PRIMER NOMBRE",
-            "SEGUNDO NOMBRE", "AP. PATERNO", "AP. MATERNO", "AP. CASADA", "FECHA REGISTRO VIUDA",
-            "FECHA DE NACIMIENTO", "MATRÍCULA TITULAR"
-        ));
-        $i = 1;
-        foreach ($list as $row) {
-            array_push($data_header, array(
-                $row->number = $i,
-                $row->nup,
-                $row->identity_card,
-                $row->first_name,
-                $row->second_name,
-                $row->last_name,
-                $row->mothers_last_name,
-                $row->surname_husband,
-                $row->date_entry,
-                $row->birth_date,
-                $row->spouse_identity_card,
-                $row->spouse_first_name,
-                $row->spouse_second_name,
-                $row->spouse_last_name,
-                $row->spouse_mothers_last_name,
-                $row->spouse_surname_husband,
-                $row->spouse_registration_date,
-                $row->spouse_birth_date,
-                $row->registration
-            ));
-            $i++;
-        }
-        $export = new ArchivoPrimarioExport($data_header);
-        $file_name = "reporte_afiliados_conyuges_" . $date;
-        $type = $request->type;
-        $extension = $type ?? '.xlsx';
-        return Excel::download($export, $file_name . $extension);
+        return Excel::download(new AffiliatesSpousesExport($list), 'affiliates_spouses_report.xls');
     }
 
     /**
