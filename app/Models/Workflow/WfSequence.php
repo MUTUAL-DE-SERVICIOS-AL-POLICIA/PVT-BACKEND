@@ -23,4 +23,14 @@ class WfSequence extends Model
     {
       return $this->belongsTo(Workflow::class); 
     }
+
+    public function current_state()
+    {
+        return $this->belongsTo(WfState::class, 'wf_state_current_id');
+    }
+
+    public function next_state()
+    {
+        return $this->belongsTo(WfState::class, 'wf_state_next_id');
+    }
 }

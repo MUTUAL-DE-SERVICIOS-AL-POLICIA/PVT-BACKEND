@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Loan;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Module;
 use App\Models\Admin\Role;
-use App\Models\Admin\RoleSequence;
 use App\Models\Affiliate\Affiliate;
 use App\Models\Affiliate\Spouse;
 use App\Models\Loan\Loan;
@@ -180,28 +179,19 @@ class LoanController extends Controller
      * @return void
      */
 
-    public static function get_workflow($idloan){
-        $procedure=Loan::find($idloan)->modality->procedure_type->id;
-        $flows=RoleSequence::where('procedure_type_id',$procedure)->get();
-        $location=Loan::find($idloan)->role->display_name;
+    public static function get_workflow(Loan $loan)
+    {
         $areas=[];
-        foreach($flows as $flow){
-            $name=$flow->current_role->display_name;
+        foreach($loan->modality->workflow->get_sequence() as $sequence){
             array_push($areas,array(
-                "display_name"=> $name,
-                "state"=> $location==$name?? true
+                "display_name"=> $sequence->current_state->name,
+                "state"=> ($loan->current_state->id == $sequence->current_state->id) ? true : false
                 )
             );
         }
-        $last=RoleSequence::where('procedure_type_id',$procedure)->orderby('sequence_number_flow','desc')->first()->next_role_id;
-        $roleName=Role::find($last)->display_name;
-        array_push($areas,array(
-            "display_name"=> $roleName,
-                "state"=> $location==$roleName?? true
-                )
-        );
         return $areas;
     }
+
     public static function  get_percentaje_loan(Loan $loan){
         $amount=$loan->amount_approved;
         $balance=$loan->balance;
@@ -220,18 +210,18 @@ class LoanController extends Controller
         foreach ($loans as $loan ) {
             switch ($loan->state_id) {
                 case 1:
-                $state = LoanState::find($loan->state_id);
-                $procedure = ProcedureModality::find($loan->procedure_modality_id);
+                $state = $loan->state;
+                $procedure = $loan->modality;
                 $type = $loan->modality->procedure_type->name;
-                $role = Role::find($loan->role_id);
-                $flow=$this->get_workflow($loan->id);
+                $wf_state = $loan->current_state;
+                $flow=$this->get_workflow($loan);
                 $loan->state_name = $state->name;
                 $loan->procedure_modality_name = $procedure->name;
                 array_push($inProcess,array(
                     'code' => $loan->code,
                     'procedure_modality_name' => $procedure->name,
                     'procedure_type_name' => $type,
-                    'location' => $role->display_name,
+                    'location' => $wf_state->name,
                     'validated' => $loan->validated,
                     'state_name' => $loan->state_name,
                     'flow'=> $flow
