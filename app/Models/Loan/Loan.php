@@ -18,6 +18,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Notification\NotificationSend;
+use App\Models\Workflow\WfState;
+use App\Models\Workflow\WfSequence;
 
 class Loan extends Model
 {
@@ -62,7 +64,8 @@ class Loan extends Model
         'payment_plan_compliance',
         'affiliate_id',
         'loan_procedure_id',
-        'authorize_refinancing'
+        'authorize_refinancing',
+        'wf_states_id'
     ];
 
     public function affiliate()
@@ -237,5 +240,18 @@ class Loan extends Model
             ];
         }
         return $retirement;
+    }
+
+    public function current_state()
+    {
+        return $this->belongsTo(WfState::class, 'wf_states_id');
+    }
+
+    public function getPreviousStateAttribute()
+    {
+        $previous = WfSequence::where('wf_state_next_id', $this->wf_states_id)->first();
+        if($previous)
+            return $previous->current_state;
+        return null;
     }
 }

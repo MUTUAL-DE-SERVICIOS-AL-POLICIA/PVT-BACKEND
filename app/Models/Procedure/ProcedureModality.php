@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\Loan\LoanProcedure;
 use App\Models\Loan\LoanInterest;
 use App\Models\Loan\LoanModalityParameter;
+use App\Models\Workflow\Workflow;
 
 class ProcedureModality extends Model
 {
@@ -17,7 +18,8 @@ class ProcedureModality extends Model
         'procedure_type_id',
         'name', 
         'shortened',
-        'is_valid'
+        'is_valid',
+        'workflow_id'
     ];
 
     public function procedure_type()
@@ -44,5 +46,10 @@ class ProcedureModality extends Model
     public function loan_interests()
     {
         return $this->hasMany(LoanInterest::class)->latest();
+    }
+
+    public function workflow()
+    {
+        return $this->belongsTo(Workflow::class);
     }
 }
