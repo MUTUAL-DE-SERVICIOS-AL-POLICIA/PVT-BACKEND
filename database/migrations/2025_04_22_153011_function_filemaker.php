@@ -139,6 +139,183 @@ return new class extends Migration
               $$;"
         );
 
+        DB::statement("CREATE OR REPLACE FUNCTION public.registration_payroll_filemakers(conection_db_aux character varying)
+        RETURNS numeric
+        LANGUAGE plpgsql
+        AS $$
+        declare
+            ----variables----
+            num_validated int := 0;
+            is_validated_update varchar := 'validated';
+            record_row RECORD;
+        BEGIN
+        FOR record_row IN  
+            SELECT * 
+            FROM dblink(conection_db_aux,
+             'SELECT mes, a_o, carnet, matricula, pat, mat, nom, nom2, ap_casada, desc_mens, tipo, affiliate_id, criteria 
+             FROM payroll_copy_filemaker 
+             WHERE error_messaje is null 
+             AND deleted_at is null 
+             AND state =''accomplished'' 
+             AND affiliate_id is not null') 
+             AS payroll_copy_filemaker(
+                 mes integer, 
+                 a_o integer, 
+                 carnet varchar(250), 
+                 matricula varchar(250), 
+                 pat varchar(250), 
+                 mat varchar(250), 
+                 nom varchar(250), 
+                 nom2 varchar(250), 
+                 ap_casada varchar(250), 
+                 desc_mens decimal(13,2), 
+                 tipo varchar(250), 
+                 affiliate_id integer, 
+                 criteria varchar(250)
+             )
+        LOOP
+            -- Insertar en la tabla principal
+            INSERT INTO payroll_filemakers  
+            VALUES (
+                default,
+                record_row.affiliate_id, 
+                record_row.a_o, 
+                record_row.mes, 
+                record_row.tipo, 
+                record_row.carnet, 
+                record_row.matricula, 
+                record_row.pat, 
+                record_row.mat, 
+                record_row.nom, 
+                record_row.nom2, 
+                record_row.ap_casada, 
+                record_row.desc_mens, 
+                current_timestamp, 
+                current_timestamp
+            );
+    
+            -- Actualizar la tabla auxiliar payroll_copy_filemaker
+            PERFORM dblink(conection_db_aux,
+                'UPDATE payroll_copy_filemaker 
+                 SET state = ''' || is_validated_update || ''' 
+                 WHERE affiliate_id = ' || record_row.affiliate_id || ' 
+                 AND mes = ' || record_row.mes || ' 
+                 AND a_o = ' || record_row.a_o
+            );
+    
+            num_validated := num_validated + 1;
+        END LOOP;
+        RETURN num_validated;
+        END $$;
+    ");
+
+DB::statement("CREATE OR REPLACE FUNCTION public.import_contribution_filemaker ( user_reg integer)
+        RETURNS varchar
+      as $$
+      declare
+          acction varchar;
+                 -- Declaración EXPLICITA del cursor
+                  cur_contribution CURSOR FOR select * from payroll_filemakers;
+                  registro payroll_filemakers%ROWTYPE;
+              begin
+                 --***************************************
+                 --Funcion importar planilla--
+                 --***************************************
+                 -- Procesa el cursor
+                 FOR registro IN cur_contribution loop
+                 --creación de Contribuciones
+                 PERFORM create_contribution_filemaker(registro.affiliate_id, user_reg, registro.id::INTEGER, registro.year_p::INTEGER, registro.month_p::INTEGER);
+                --  --actualizacion o creación de esposa y actualizacion de algunos datos del afiliado
+                --  PERFORM update_or_create_spouse_and_update_affiliate(registro.affiliate_id,user_reg,registro.id::INTEGER);
+
+                 END LOOP;
+                 acction:='Importación realizada con éxito';
+                  RETURN acction;
+             end;
+
+      $$ LANGUAGE 'plpgsql'
+       ");
+
+DB::statement(" CREATE OR REPLACE FUNCTION serch_affiliate_period_filemaker(affiliate bigint, year_copy integer, month_copy integer)
+RETURNS integer
+as $$
+DECLARE
+id_contribution_passive integer;
+begin
+   --************************************************************************************
+   --Funcion par buscar id de la contribucion de un afiliado de un periodo determinado
+   --************************************************************************************ 
+    SELECT cp.id INTO id_contribution_passive  FROM contribution_passives cp WHERE cp.affiliate_id = affiliate AND EXTRACT(YEAR FROM cp.month_year) = year_copy AND  EXTRACT(MONTH FROM cp.month_year) = month_copy;
+        IF id_contribution_passive is NULL THEN
+            return 0;
+        ELSE
+            RETURN  id_contribution_passive;
+        END IF;
+end;
+$$ LANGUAGE 'plpgsql';
+");
+
+DB::statement("CREATE OR REPLACE FUNCTION public.create_contribution_filemaker(affiliate bigint, user_reg integer, payroll_filemaker_id integer, year_copy integer, month_copy integer)
+RETURNS varchar
+as $$
+declare
+
+   type_acction varchar;
+   id_contribution_passive int;
+begin
+    --*******************************************************************************
+    --Funcion par crear un nuevo registro en la tabla contribution_passive--
+    --*******************************************************************************
+    id_contribution_passive:= serch_affiliate_period_filemaker(affiliate,year_copy,month_copy);
+     IF id_contribution_passive = 0 then
+           type_acction:= 'created';
+
+       -- Creacion de un nuevo registro de la contribucion con estado Pagado = 2
+           INSERT INTO public.contribution_passives(
+           user_id, 
+           affiliate_id, 
+           month_year, 
+           quotable, 
+           rent_pension, 
+           dignity_rent, 
+           interest, 
+           total, 
+           created_at,
+           updated_at,
+           affiliate_rent_class,
+           contribution_state_id, 
+           contributionable_type, 
+           contributionable_id
+           )
+           SELECT 
+           user_reg as user_id, 
+           affiliate,
+           TO_DATE(pvs.year_p || '-' || pvs.month_p || '-' || 1, 'YYYY-MM-DD') as month_year, 
+           0 as quotable, 
+           0 as rent_pension,
+           0 as dignity_rent, 
+           0 as interest, 
+           pvs.discount_contribution as total,
+           (select current_timestamp as created_at),
+           (select current_timestamp as updated_at), 
+           CASE pvs.class_rent
+                when 'VIUDEDAD' then 'VIUDEDAD'
+                else 'VEJEZ'
+                end
+            as affiliate_rent_class,
+            2 as contribution_state_id,
+            'payroll_filemakers'::character varying as contributionable_type, 
+            payroll_filemaker_id as contributionable_id 
+            from payroll_filemakers pvs
+            WHERE pvs.id=payroll_filemaker_id;
+    END IF;
+    RETURN type_acction ;
+end;
+$$ LANGUAGE 'plpgsql'
+");
+
+
+
     }
 
     /**

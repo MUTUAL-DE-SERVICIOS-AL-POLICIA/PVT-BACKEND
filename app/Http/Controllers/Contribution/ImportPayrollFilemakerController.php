@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Contribution;
 
 use App\Http\Controllers\Controller;
+use App\Models\Contribution\PayrollFilemaker;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
@@ -261,11 +262,36 @@ class ImportPayrollFilemakerController extends Controller
 
     public function data_count_payroll_filemaker(){
         $data_count['num_total_data_copy'] = 0;
+        $data_count['num_data_not_considered'] = 0;
+        $data_count['num_data_unrelated'] = 0;
+        $data_count['num_data_considered'] = 0;
+        $data_count['num_data_validated'] = 0;
+        $data_count['num_data_not_validated'] = 0;
 
         //---TOTAL DE DATOS DEL ARCHIVO
         $query_total_data = "SELECT count(id) FROM payroll_copy_filemaker ";
         $query_total_data = DB::connection('db_aux')->select($query_total_data);
         $data_count['num_total_data_copy'] = $query_total_data[0]->count;
+
+        //---NUMERO DE DATOS NO CONSIDERADOS duplicados de afilaidos y aportes
+        $query_data_not_considered = "SELECT count(id) FROM payroll_copy_filemaker where error_messaje is not null or deleted_at is not null;";
+        $query_data_not_considered = DB::connection('db_aux')->select($query_data_not_considered);
+        $data_count['num_data_not_considered'] = $query_data_not_considered[0]->count;
+
+        //---NUMERO DE DATOS NO RELACIONADOS 
+        $query_data_unrelated= "SELECT count(id) FROM payroll_copy_filemaker where error_messaje is null and deleted_at is null and criteria = '7-no-identificado';";
+        $query_data_unrelated= DB::connection('db_aux')->select($query_data_unrelated);
+        $data_count['num_data_unrelated'] = $query_data_unrelated[0]->count;
+
+        //---NUMERO DE DATOS CONSIDERADOS 
+        $query_data_considered = "SELECT count(id) FROM payroll_copy_filemaker where error_messaje is null and deleted_at is null;";
+        $query_data_considered = DB::connection('db_aux')->select($query_data_considered);
+        $data_count['num_data_considered'] = $query_data_considered[0]->count;
+
+        //---NUMERO DE DATOS VALIDADOS
+        $data_count['num_data_validated'] = PayrollFilemaker::data_period()['count_data'];
+        //  //---NUMERO DE DATOS NO VALIDADOS
+        // $data_count['num_data_not_validated'] = $data_count['num_data_considered'] - $data_count['num_data_validated'];
 
         return  $data_count;
     }
@@ -503,7 +529,201 @@ class ImportPayrollFilemakerController extends Controller
         }
     }
 
+         /**
+     * @OA\Post(
+     *      path="/api/contribution/import_payroll_filemaker",
+     *      tags={"IMPORTACION-PLANILLA-FILEMAKER"},
+     *      summary="PASO 3 VALIDACION DE DATOS APORTES",
+     *      operationId="validation_contribution_filemaker",
+     *      description="validacion de datos de aportes de payrollcopi_filemaker a la tabla payroll_filemakers",
+     *      @OA\RequestBody(
+     *          description= "Provide auth credentials",
+     *          required=true,
+     *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
+     *             @OA\Property()
+     *            )
+     *          ),
+     *     ),
+     *     security={
+     *         {"bearerAuth": {}}
+     *     },
+     *      @OA\Response(
+     *          response=200,
+     *          description="Success",
+     *          @OA\JsonContent(
+     *            type="object"
+     *         )
+     *      )
+     * )
+     *
+     * Logs user into the system.
+     *
+     * @param Request $request
+     * @return void
+    */
+
+    public function import_payroll_filemaker(Request $request){
+
+        try{
+                DB::beginTransaction();
+                $message = "No hay datos";
+                $successfully =false;
+                $connection_db_aux = Util::connection_db_aux();
     
+                if(true){
+                    if(true){
+    
+                        $query = "select registration_payroll_filemakers('$connection_db_aux');";
+                        $data_validated = DB::select($query);
+    
+                            if(true){
+                                $message = "Realizado con exito";
+                                $successfully = true;
+                                $data_payroll_copy_filemaker = "select  * from  payroll_copy_filemaker  where state ='validated';";
+                                $data_payroll_copy_filemaker = DB::connection('db_aux')->select($data_payroll_copy_filemaker);
+                                if(count($data_payroll_copy_filemaker)> 0){
+                                    $message = "Excel";                            
+                                }
+                            }
+                        DB::commit();
+                        $data_count = $this->data_count_payroll_filemaker();
+                        return response()->json([
+                            'message' => $message,
+                            'payload' => [
+                                'successfully' => $successfully,
+                                'data_count' =>  $data_count
+                            ],
+                        ]);
+                    }else{
+                        return response()->json([
+                            'message' => " Error! ya realizó la validación de datos",
+                            'payload' => [
+                                'successfully' => $successfully,
+                                'error' => 'Error! ya realizó la validación de datos.'
+                            ],
+                        ]);
+                    }
+    
+                }else{
+                    return response()->json([
+                        'message' => "Error no existen datos en la tabla del copiado de datos",
+                        'payload' => [
+                            'successfully' => $successfully,
+                            'error' => 'Error el primer paso no esta concluido o se concluyo el 3 paso.'
+                        ],
+                    ]);
+                }
+    
+            }catch(Exception $e){
+                DB::rollBack();
+                return response()->json([
+                'message' => 'Ocurrio un error.',
+                'payload' => [
+                    'successfully' => false,
+                    'error' => $e->getMessage(),
+                ],
+                ]);
+            }
+        }
+    
+    // -------------metodo para verificar si existe datos en el paso 1 -----//
+    public function exists_data_payroll_copy_filemaker(){
+        $exists_data = true;
+        $query = "SELECT * FROM payroll_copy_filemaker WHERE NOT EXISTS ( SELECT 1 FROM payroll_copy_filemaker WHERE state != 'accomplished');";
+        $verify_data = DB::connection('db_aux')->select($query);
+
+        if($verify_data == []) $exists_data = false;
+
+        return $exists_data;
+    }
+
+    /**
+     * @OA\Post(
+     *      path="/api/contribution/import_contribution_filemaker",
+     *      tags={"IMPORTACION-PLANILLA-FILEMAKER"},
+     *      summary="PASO 4 IMPORTACIÓN DE FILEMAKER",
+     *      operationId="import_contribution_filemaker",
+     *      description="Importación de aportes de filemaker a la tabla contribution_passsives",
+     *      @OA\RequestBody(
+     *          description= "Provide auth credentials",
+     *          required=true,
+     *          @OA\JsonContent(
+     *              type="object",
+     *              @OA\Property()
+     *            )
+     *     ),
+     *     security={
+     *         {"bearerAuth": {}}
+     *     },
+     *      @OA\Response(
+     *          response=200,
+     *          description="Success",
+     *          @OA\JsonContent(
+     *            type="object"
+     *         )
+     *      )
+     * )
+     *
+     * Logs user into the system.
+     *
+     * @param Request $request
+     * @return void
+    */
+    public function import_contribution_filemaker(Request $request){
+
+     try{
+        DB::beginTransaction();
+        $user_id = Auth::user()->id;
+        $message ='No existen datos de la planilla.';
+        $count_created = 0;
+        $successfully = false;
+
+        $count_data_payroll = "select count(id) from payroll_filemakers";
+        $count_data_payroll = DB::select($count_data_payroll)[0]->count;
+
+        $count_data_contribution = "select count(id) from contributions where contributionable_type = 'payroll_filemakers'";
+        $count_data_contribution = DB::select($count_data_contribution)[0]->count;
+
+        if($count_data_contribution > 0){
+            $message = 'Error al realizar la importación, ya se realizo la importación de datos.';
+            return response()->json([
+                'message' => $message,
+                'payload' => [
+                    'successfully' => $successfully,
+                    'num_total_data_contribution' => $count_data_contribution,
+                ],
+            ]);
+        }
+
+        if($count_data_payroll > 0){
+            $query ="select import_contribution_filemaker('$user_id')";
+            $query = DB::select($query);
+            $message ='Realizado con éxito!';
+            $successfully = true;
+        }
+        $count_data_contribution = "select count(id) from contributions where contributionable_type = 'payroll_filemakers'";
+        $count_data_contribution = DB::select($count_data_contribution)[0]->count;
+
+        return response()->json([
+            'message' => $message,
+            'payload' => [
+                'successfully' => $successfully,
+                'num_total_data_contribution' => $count_data_contribution,
+            ],
+        ]);
+     }catch(Exception $e){
+        DB::rollBack();
+        return response()->json([
+            'message' => 'Error al realizar la importación',
+            'payload' => [
+                'successfully' => false,
+                'error' => $e->getMessage(),
+            ],
+        ]);
+     }
+    }
+
+
     /**
      * Display a listing of the resource.
      */

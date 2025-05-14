@@ -67,6 +67,7 @@ Route::group([
             Route::post('/upload_copy_payroll_filemaker', [App\Http\Controllers\Contribution\ImportPayrollFilemakerController::class, 'upload_copy_payroll_filemaker']);
             Route::post('/download_error_data_filemaker', [App\Http\Controllers\Contribution\ImportPayrollFilemakerController::class, 'download_error_data_filemaker']);
             Route::post('/validation_affiliate_filemaker', [App\Http\Controllers\Contribution\ImportPayrollFilemakerController::class, 'validation_affiliate_filemaker']);
+            Route::post('/import_payroll_filemaker', [App\Http\Controllers\Contribution\ImportPayrollFilemakerController::class, 'import_payroll_filemaker']);
         });
         Route::group([
             'middleware' => 'permission:download-report-payroll-senasir|download-report-payroll-command|download-report-payroll-transcript'
