@@ -15,7 +15,7 @@ use App\Models\Contribution\PayrollTranscriptPeriod;
 // use App\Models\Contribution\PayrollTranscript;
 // use App\Models\Contribution\Contribution;
 // use App\Models\Contribution\ContributionImportPeriod;
-// use Auth;
+use Auth;
 
 class ImportPayrollFilemakerController extends Controller
 {
@@ -570,13 +570,19 @@ class ImportPayrollFilemakerController extends Controller
                 $successfully =false;
                 $connection_db_aux = Util::connection_db_aux();
     
-                if(true){
-                    if(true){
+                //conteo de  affiliate_id is null distito del criterio 6-CREAR
+                $count_data = "SELECT count(id) FROM payroll_copy_filemaker where error_messaje is null and deleted_at is null and affiliate_id is null and criteria!='7-no-identificado';";
+                $count_data = DB::connection('db_aux')->select($count_data);
+                if($count_data[0]->count == 0){
+                    $count_data_validated = "SELECT count(id) FROM payroll_copy_filemaker where state ='validated';";
+                    $count_data_validated = DB::connection('db_aux')->select($count_data_validated);
+
+                    if($count_data_validated[0]->count == 0){
     
                         $query = "select registration_payroll_filemakers('$connection_db_aux');";
                         $data_validated = DB::select($query);
     
-                            if(true){
+                            if($data_validated){
                                 $message = "Realizado con exito";
                                 $successfully = true;
                                 $data_payroll_copy_filemaker = "select  * from  payroll_copy_filemaker  where state ='validated';";
@@ -641,7 +647,7 @@ class ImportPayrollFilemakerController extends Controller
      * @OA\Post(
      *      path="/api/contribution/import_contribution_filemaker",
      *      tags={"IMPORTACION-PLANILLA-FILEMAKER"},
-     *      summary="PASO 4 IMPORTACIÓN DE FILEMAKER",
+     *      summary="PASO 4 IMPORTACIÓN DE CONTRIBUCIONES FILEMAKER",
      *      operationId="import_contribution_filemaker",
      *      description="Importación de aportes de filemaker a la tabla contribution_passsives",
      *      @OA\RequestBody(
@@ -681,7 +687,7 @@ class ImportPayrollFilemakerController extends Controller
         $count_data_payroll = "select count(id) from payroll_filemakers";
         $count_data_payroll = DB::select($count_data_payroll)[0]->count;
 
-        $count_data_contribution = "select count(id) from contributions where contributionable_type = 'payroll_filemakers'";
+        $count_data_contribution = "select count(id) from contribution_passives where contributionable_type = 'payroll_filemakers'";
         $count_data_contribution = DB::select($count_data_contribution)[0]->count;
 
         if($count_data_contribution > 0){
@@ -701,7 +707,7 @@ class ImportPayrollFilemakerController extends Controller
             $message ='Realizado con éxito!';
             $successfully = true;
         }
-        $count_data_contribution = "select count(id) from contributions where contributionable_type = 'payroll_filemakers'";
+        $count_data_contribution = "select count(id) from contribution_passives where contributionable_type = 'payroll_filemakers'";
         $count_data_contribution = DB::select($count_data_contribution)[0]->count;
 
         return response()->json([

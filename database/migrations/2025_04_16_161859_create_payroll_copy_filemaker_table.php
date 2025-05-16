@@ -28,7 +28,7 @@ return new class extends Migration
             $table->string('tipo')->nullable()->comment('Tipo de aportante');  
             $table->string('error_messaje')->nullable()->comment('Mensaje del error');
             $table->unsignedBigInteger('affiliate_id')->nullable()->comment('Id del afiliado titular');
-            $table->enum('state', ['accomplished','unrealized'])->default('unrealized')->comment('Estado si fue encontrado o no encontrado');
+            $table->enum('state', ['accomplished','unrealized','validated'])->default('unrealized')->comment('Estado si fue encontrado o no encontrado');
             $table->string('criteria')->nullable()->comment('critetio de identificacion del afiliado');
             $table->timestamps();
             $table->softDeletes();
