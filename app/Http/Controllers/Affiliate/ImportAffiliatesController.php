@@ -1164,22 +1164,6 @@ class ImportAffiliatesController extends Controller
                             'enabled' => false
                         ]);
                     }
-                    if(EconomicComplement::where('affiliate_id', $affiliate->nup)->where('eco_com_procedure_id', $eco_com->id)->count() > 0)
-                    {
-                        $economic_complement = EconomicComplement::where('affiliate_id', $affiliate->nup)->where('eco_com_procedure_id', $eco_com->id)->first();
-                        if(Observation::where('observation_type_id', $observation_type->id)->where('observable_id', $economic_complement->id)->where('observable_type', 'economic_complements')->count() == 0)
-                        {
-                            Observation::create([
-                                'user_id' => Auth::user()->id,
-                                'observation_type_id' => $observation_type->id,
-                                'observable_id' => $economic_complement->id,
-                                'observable_type' => 'economic_complements',
-                                'message' => $affiliate->observacion,
-                                'date' => Carbon::now(),
-                                'enabled' => false
-                             ]);
-                        }
-                    }
                 }
                 Schema::dropIfExists('temporary_table');
             }

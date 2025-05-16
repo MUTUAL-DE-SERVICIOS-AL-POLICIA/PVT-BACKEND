@@ -22,28 +22,43 @@ class WfState extends Model
         'sequence_number'
     ];
     
-    public function sequences_records()
+  public function sequences_records()
 	{
 		return $this->hasMany(SequencesRecord::class);
-    }
-    public function wf_records()
+  }
+
+  public function wf_records()
 	{
 		return $this->hasMany(WfRecord::class);
-    }
-    public function procedure_records()
+  }
+
+  public function procedure_records()
 	{
 		return $this->hasMany(ProcedureRecord::class);
-    }
-    public function module()
-    {
-      return $this->belongsTo(Module::class); 
-    } 
-    public function role()
-    {
-      return $this->belongsTo(Role::class); 
-    } 
-    public function contribution_processes()                 
-    {
-        return $this->hasMany(ContributionProcess::class,'wf_state_current_id','id');
-    }
+  }
+
+  public function module()
+  {
+    return $this->belongsTo(Module::class); 
+  } 
+
+  public function role()
+  {
+    return $this->belongsTo(Role::class); 
+  } 
+
+  public function contribution_processes()                 
+  {
+    return $this->hasMany(ContributionProcess::class,'wf_state_current_id','id');
+  }
+
+  public function currentSequences()
+  {
+      return $this->hasMany(WfSequence::class, 'wf_state_current_id', 'id');
+  }
+
+  public function nextSequences()
+  {
+      return $this->hasMany(WfSequence::class, 'wf_state_next_id', 'id');
+  }
 }

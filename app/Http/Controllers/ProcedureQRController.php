@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Loan\LoanController;
 use App\Models\Admin\Module;
 use App\Models\Admin\Role;
-use App\Models\Admin\RoleSequence;
 use App\Models\Loan\Loan;
 use App\Models\Loan\LoanBorrower;
 use App\Models\Loan\LoanState;
@@ -20,15 +19,16 @@ use Illuminate\Http\Request;
 
 class ProcedureQRController extends Controller
 {
-    public static function get_porcentage_loan($id, $state)
+    public static function get_porcentage_loan($workflow, $current_state_id)
     {
-        if ($state != 90) {
-            $flow = RoleSequence::Where('procedure_type_id', $id)->where('role_id', $state)->first();
-            $number_flows = count(RoleSequence::where('procedure_type_id', $id)->get()) + 1;
-            $porcentage = (100 * $flow->sequence_number_flow) / $number_flows;
-        } else {
-            $porcentage = 100;
+        $c = 1;
+        $sequences = $workflow->get_sequence();
+        foreach ($sequences as $sequence) {
+            if ($sequence->wf_state_current_id == $current_state_id)
+                break;
+            $c++;
         }
+        $porcentage = round((100 * (($c) / $sequences->count())),2);
         return $porcentage;
     }
     /**
@@ -86,31 +86,30 @@ class ProcedureQRController extends Controller
                     'uuid' => 'required|uuid|exists:loans,uuid'
                 ]);
                 $person = collect();
+                $loan = Loan::where('uuid', $uuid)->first();
+
                 $module = Module::find($module_id);
-                $data = Loan::where('uuid', $uuid)->first();
-                $state = LoanState::find($data->state_id);
-                $procedure = ProcedureModality::find($data->procedure_modality_id);
+                $data = $loan;
+                $state = $loan->state;
+                $procedure = $loan->modality;
                 $type = Loan::find($data->id)->modality->procedure_type->name;
                 $title = "Prestatario(a)";
-
-                $borrower = LoanBorrower::where('loan_id', $data->id)->first();
-
+                $borrower = $loan->borrower->first();
                 $person->push([
                     'full_name' => $borrower->fullName,
                     'identity_card' => $borrower->identity_card,
                 ]);
-
-                $role = Role::find($data->role_id);
-                $RoleSeq = Loan::find($data->id)->modality->procedure_type->id;
+                $wf_state = $loan->current_state;
+                $workflowSequence = $loan->modality->workflow;
                 $data->module_display_name = $module->display_name;
                 $data->state_name = $state->name;
                 $data->procedure_modality_name = $procedure->name;
                 $data->procedure_type_name = $type;
                 $data->title = $title;
                 $data->person = $person;
-                $data->location = $role->display_name;
-                $data->porcentage = $this->get_porcentage_loan($RoleSeq, $role->id);
-                $data->flow = LoanController::get_workflow($data->id);
+                $data->location = $wf_state->name;
+                $data->porcentage = $this->get_porcentage_loan($workflowSequence, $wf_state->id);
+                $data->flow = LoanController::get_workflow($loan);
                 $data->observations = null;
                 $data->observations_title = null;
                 break;
