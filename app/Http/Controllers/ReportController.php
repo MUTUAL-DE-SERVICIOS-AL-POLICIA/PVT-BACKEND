@@ -559,9 +559,9 @@ class ReportController extends Controller
                     CONCAT(ase2.first_name,
                         CASE WHEN TRIM(ase2.second_name) <> '' THEN CONCAT(' ', ase2.second_name) ELSE '' END,
                         ' ',
-                        ase2.second_last_name,
+                        ase2.last_name,
                         ' ',
-                        ase2.last_name) as full_name, asq.description as question, asa2.description as answer, TO_CHAR(ase.created_at, 'YYYY-MM-DD HH24:MI:SS') as formatted_created_at
+                        ase2.second_last_name) as full_name, asq.description as question, asa2.description as answer, TO_CHAR(ase.created_at, 'YYYY-MM-DD HH24:MI:SS') as formatted_created_at
                 FROM api_survey_answer asa
                 JOIN api_survey_question asq ON asa.question_id = asq.id
                 JOIN api_survey_answeroption asa2 ON asa.answer_option_id = asa2.id
