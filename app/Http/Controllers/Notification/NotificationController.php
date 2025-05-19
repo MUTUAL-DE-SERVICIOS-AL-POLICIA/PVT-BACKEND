@@ -752,16 +752,11 @@ class NotificationController extends Controller
             'sends'   => 'required|array|min:1',
             // 'action'  => 'required|integer',
         ]);
-
-        if($validator->fails()) {
-            $keys = $validator->errors()->keys();
-            $errors = [];
-            foreach($keys as $key) {
-                $errors[$key] = $validator->errors()->get($key);
-            }
+        
+        if ($validator->fails()) {
             return response()->json([
-                'error' => true,
-                'errors' => $errors
+                'error'  => true,
+                'errors' => $validator->errors()->toArray(),
             ], 422);
         }
 
@@ -770,11 +765,13 @@ class NotificationController extends Controller
             $title_notification = $request['title'];
             $message            = $request['message'];
             $image              = $request->image ?? "";
-            $sends              = $request['sends'];
-            $amount             = count($sends);
+            $sends              = array_filter($request['sends'], fn($s) => $s['send'] ?? false); 
+            // $amount             = count($sends);
             $is_file            = $request['is_file'] ?? false;
             $action             = $request['action'];
             $semester           = $request['semester_id'] ?? null;
+            $user_id            = $request['user_id'];
+            $subject            = $request['attached'];
             $publication_date   = Carbon::now()->format('Y-m-d');
             $data = [
                 'title' => $title_notification,
@@ -782,45 +779,41 @@ class NotificationController extends Controller
                 'PublicationDate' => $publication_date,
                 'text' => $message
             ];
-            $params = [];
-            $tokens = [];
-            $ids    = [];
-            $params['data']    = $data;
-            $params['tokens']  = $tokens;
-            $params['ids']     = $ids;
-            $params['subject'] = $request['attached'];
-            $params['user_id'] = $request['user_id'];
-
-
-            $i = 1; // Para el número de lotes
-            $shipping_indicator = 0; // indicador de envío
+            $i = 1; 
+            $shipping_indicator = 0; 
             $groups = array_chunk($sends, 500, true);
             foreach($groups as $group) {
+                $tokens = [];
+                $ids    = [];
                 foreach($group as $person) {
-                    if($person['send']) {
-                        $firebase_token = AffiliateToken::whereAffiliateId($person['affiliate_id'])->select('firebase_token')->get()[0];
-                        array_push($params['tokens'], $firebase_token['firebase_token']);
-                        array_push($params['ids'],   $person['affiliate_id']); // id del afiliado
+                    $token = AffiliateToken::where('affiliate_id', $person['affiliate_id'])->value('firebase_token');
+
+                    if ($token) {
+                        $tokens[] = $token;
+                        $ids[]    = $person['affiliate_id'];
+                    } else {
+                        logger("No se encontró token para el afiliado ID {$person['affiliate_id']}");
                     }
                 }
-                $ids = collect($params['ids']);
-                $tokens = collect($params['tokens']);
-                $unique_ids = $ids->unique();
-                $unique_tokens = $tokens->unique();
-                $ids = $unique_ids->values()->all();
-                $tokens = $unique_tokens->values()->all();
-
-                $res = $this->delegate_shipping($params['data'], $tokens, $ids);
-                if($res['status'] && count($params['tokens']) != 0) {
-                    $status = $res['delivered'];
-                    $this->to_register($params['user_id'], $status, $params['data'], $params['subject'], $ids, $is_file, $action, $semester);
-                    $shipping_indicator++;
+                $tokens = array_values(array_unique($tokens));
+                $ids    = array_values(array_unique($ids));
+                if (empty($tokens)) {
+                    logger("Nada que enviar en el lote {$i}.");
+                    $i++;
+                    sleep(1);
+                    continue;
                 }
-                logger("-----------------    ENVÍO LOTE NRO $i  --------------------------");
+
+                $res = $this->delegate_shipping($data, $tokens, $ids);
+                if ($res['status'] && count($res['delivered']) > 0) {
+                    $this->to_register($user_id, $res['delivered'], $data, $subject, $ids, $is_file, $action, $semester);
+                    logger("ENVÍO LOTE NRO {$i} | Éxitos: {$res['successCount']} | Fallos: {$res['failureCount']}");
+                    $shipping_indicator++;
+                } else {
+                    logger("Fallo en el lote {$i}: " . $res['message']);
+                }
                 sleep(1);
                 $i++;
-                $params['tokens'] = [];
-                $params['ids']  = [];
             }
             if($shipping_indicator > 0) {
                 return response()->json([
@@ -889,7 +882,8 @@ class NotificationController extends Controller
         $affiliates = [];
         foreach($rows as $row) {
             $send = false;
-            if($row[0] != null && ctype_digit($row[0])) {
+	    logger($row[0]);
+            if($row[0] != null && ctype_digit(trim($row[0]))) {
                 if(Affiliate::find($row[0]) != null && Affiliate::find($row[0])->affiliate_token != null && Affiliate::find($row[0])->affiliate_token->firebase_token != null )
                 {
                     $send = true;
