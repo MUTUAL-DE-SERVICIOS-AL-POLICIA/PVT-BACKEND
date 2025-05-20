@@ -479,22 +479,6 @@ class ImportPayrollFilemakerController extends Controller
         JOIN dblink('$connection_db_aux', 'SELECT id, affiliate_id, a_o, mes, desc_mens FROM payroll_copy_filemaker')
         AS pcf(id INT, affiliate_id INT, a_o INT, mes INT, desc_mens NUMERIC(13,2)) ON cp.affiliate_id = pcf.affiliate_id
         where EXTRACT(YEAR FROM cp.month_year) = pcf.a_o AND EXTRACT(MONTH FROM cp.month_year) = pcf.mes AND (cp.total <> pcf.desc_mens OR cp.contribution_type_mortuary_id IS NOT NULL)");
-        // foreach($payroll_filermaker as  $update_payroll){
-        //     $verify_data = "update payroll_copy_filemaker pf set error_messaje = concat(error_messaje,' - ','La contribución anterior es: $update_payroll->total difiere de la planilla $update_payroll->desc_mens') where pf.id = $update_payroll->id;";
-        //     $verify_data = DB::connection('db_aux')->select($verify_data);
-        //     $different_contribution = true;
-        // }
-
-        // $payroll_filermaker =  DB::select("SELECT pcf.id, cp.affiliate_id, pcf.desc_mens, cp.total, cp.contribution_type_mortuary_id
-        // FROM contribution_passives cp
-        // JOIN dblink('$connection_db_aux', 'SELECT id, affiliate_id, a_o, mes, desc_mens FROM payroll_copy_filemaker')
-        // AS pcf(id INT, affiliate_id INT, a_o INT, mes INT, desc_mens NUMERIC(13,2)) ON cp.affiliate_id = pcf.affiliate_id
-        // where EXTRACT(YEAR FROM cp.month_year) = pcf.a_o AND EXTRACT(MONTH FROM cp.month_year) = pcf.mes AND (cp.total <> pcf.desc_mens OR cp.contribution_type_mortuary_id IS NOT NULL)");
-        // foreach($payroll_filermaker as  $update_payroll){
-        //     $verify_data = "update payroll_copy_filemaker pf set error_messaje = concat(error_messaje,' - ','tramite clasificadco como $update_payroll->contribution_type_mortuary_id' where pf.id = $update_payroll->id;";
-        //     $verify_data = DB::connection('db_aux')->select($verify_data);
-        //     $different_contribution = true;
-        // }
 
 
         foreach($payroll_filermaker as $update_payroll) {
@@ -654,8 +638,7 @@ class ImportPayrollFilemakerController extends Controller
      *          description= "Provide auth credentials",
      *          required=true,
      *          @OA\JsonContent(
-     *              type="object",
-     *              @OA\Property()
+     *              type="object"
      *            )
      *     ),
      *     security={
@@ -681,7 +664,7 @@ class ImportPayrollFilemakerController extends Controller
         DB::beginTransaction();
         $user_id = Auth::user()->id;
         $message ='No existen datos de la planilla.';
-        $count_created = 0;
+
         $successfully = false;
 
         $count_data_payroll = "select count(id) from payroll_filemakers";
@@ -690,16 +673,16 @@ class ImportPayrollFilemakerController extends Controller
         $count_data_contribution = "select count(id) from contribution_passives where contributionable_type = 'payroll_filemakers'";
         $count_data_contribution = DB::select($count_data_contribution)[0]->count;
 
-        if($count_data_contribution > 0){
-            $message = 'Error al realizar la importación, ya se realizo la importación de datos.';
-            return response()->json([
-                'message' => $message,
-                'payload' => [
-                    'successfully' => $successfully,
-                    'num_total_data_contribution' => $count_data_contribution,
-                ],
-            ]);
-        }
+        // if($count_data_contribution > 0){
+        //     $message = 'Error al realizar la importación, ya se realizo la importación de datos.';
+        //     return response()->json([
+        //         'message' => $message,
+        //         'payload' => [
+        //             'successfully' => $successfully,
+        //             'num_total_data_contribution' => $count_data_contribution,
+        //         ],
+        //     ]);
+        // }
 
         if($count_data_payroll > 0){
             $query ="select import_contribution_filemaker('$user_id')";
@@ -707,14 +690,14 @@ class ImportPayrollFilemakerController extends Controller
             $message ='Realizado con éxito!';
             $successfully = true;
         }
-        $count_data_contribution = "select count(id) from contribution_passives where contributionable_type = 'payroll_filemakers'";
-        $count_data_contribution = DB::select($count_data_contribution)[0]->count;
+        $count_data_contribution2 = "select count(id) from contribution_passives where contributionable_type = 'payroll_filemakers'";
+        $count_data_contribution2 = DB::select($count_data_contribution2)[0]->count;
 
         return response()->json([
             'message' => $message,
             'payload' => [
                 'successfully' => $successfully,
-                'num_total_data_contribution' => $count_data_contribution,
+                'num_total_data_contribution' => $count_data_contribution2,
             ],
         ]);
      }catch(Exception $e){

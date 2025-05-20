@@ -210,31 +210,40 @@ return new class extends Migration
         ");
 
         DB::statement("CREATE OR REPLACE FUNCTION public.import_contribution_filemaker ( user_reg integer)
-            RETURNS varchar
-            as $$
-            declare
-                acction varchar;
-                        -- Declaración EXPLICITA del cursor
-                        cur_contribution CURSOR FOR select * from payroll_filemakers;
-                        registro payroll_filemakers%ROWTYPE;
-                    begin
-                        --***************************************
-                        --Funcion importar planilla--
-                        --***************************************
-                        -- Procesa el cursor
-                        FOR registro IN cur_contribution loop
-                        --creación de Contribuciones
-                        PERFORM create_contribution_filemaker(registro.affiliate_id, user_reg, registro.id::INTEGER, registro.year_p::INTEGER, registro.month_p::INTEGER);
-                        --  --actualizacion o creación de esposa y actualizacion de algunos datos del afiliado
-                        --  PERFORM update_or_create_spouse_and_update_affiliate(registro.affiliate_id,user_reg,registro.id::INTEGER);
+        RETURNS varchar
+        AS $$
+        DECLARE
+            acction varchar;
+            -- Declaración EXPLÍCITA del cursor
+            cur_contribution CURSOR FOR SELECT * FROM payroll_filemakers;
+            registro payroll_filemakers%ROWTYPE;
+            BEGIN
+                --***************************************
+                -- Función importar planilla
+                --***************************************
 
-                        END LOOP;
-                        acction:='Importación realizada con éxito';
-                        RETURN acction;
-                    end;
+                -- Procesar el cursor
+                FOR registro IN cur_contribution LOOP
+                    -- Imprimir los campos deseados del registro
+                    RAISE NOTICE 'Procesando registro: ID = %, Año = %, Mes = %, Afiliado ID = %',
+                        registro.id, registro.year_p, registro.month_p, registro.affiliate_id;
 
-            $$ LANGUAGE 'plpgsql'
-        ");
+                    -- Crear contribución
+                    PERFORM create_contribution_filemaker(
+                        registro.affiliate_id,
+                        user_reg,
+                        registro.id::INTEGER,
+                        registro.year_p::INTEGER,
+                        registro.month_p::INTEGER
+                    );
+
+                END LOOP;
+
+                acction := 'Importación realizada con éxito';
+                RETURN acction;
+            END;
+        $$ LANGUAGE plpgsql;");
+
 
         DB::statement(" CREATE OR REPLACE FUNCTION search_affiliate_period_filemaker(affiliate bigint, year_copy integer, month_copy integer)
         RETURNS integer
@@ -308,13 +317,31 @@ return new class extends Migration
                         payroll_filemaker_id as contributionable_id 
                         from payroll_filemakers pfs
                         WHERE pfs.id=payroll_filemaker_id;
+                ELSE
+                    type_acction:= 'updated';
+                    -- Actualizar el registro existente donde el aporte es el mismo monto
+                    UPDATE contribution_passives
+                    SET 
+                        user_id = user_reg,
+                        total = pfs.discount_contribution,
+                        updated_at = current_timestamp,
+                        affiliate_rent_class = CASE pfs.class_rent
+                            when 'VIUDEDAD' then 'VIUDEDAD'
+                            else 'VEJEZ'
+                            end,
+                        contribution_state_id = 2,
+                        contributionable_type = 'payroll_filemakers'::character varying,
+                        contributionable_id = payroll_filemaker_id
+                    FROM payroll_filemakers pfs
+                    WHERE contribution_passives.id = id_contribution_passive
+                    AND contribution_passives.contribution_type_mortuary_id is  NULL
+                    AND contribution_passives.contributionable_type is NULL
+                    AND contribution_passives.total = pfs.discount_contribution;
                 END IF;
                 RETURN type_acction ;
             end;
         $$ LANGUAGE 'plpgsql'
         ");
-
-
 
     }
 
