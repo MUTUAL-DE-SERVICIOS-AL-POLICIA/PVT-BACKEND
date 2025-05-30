@@ -17,7 +17,8 @@ return new class extends Migration
             $table->foreign('affiliate_id')->references('id')->on('affiliates');
             $table->integer('year_p')->comment('Año del periodo de aporte');
             $table->integer('month_p')->comment('Mes del periodo de aporte');
-            $table->string('class_rent')->nullable()->comment('Clase de renta');
+            $table->string('affiliate_state')->nullable()->comment('Estado del afiliado');
+            $table->string('rent_class')->nullable()->comment('Clase de renta');
             $table->string('identity_card')->nullable()->comment('Carnet aportante');
             $table->string('registration')->nullable()->comment('Matricula aportante');
             $table->string('last_name')->nullable()->comment('Apellido paterno');
@@ -25,7 +26,11 @@ return new class extends Migration
             $table->string('first_name')->comment('Primer nombre');
             $table->string('second_name')->nullable()->comment('Segundo nombre');
             $table->string('surname_husband')->nullable()->comment('Apellido de casada');
+            $table->string('deegre')->nullable()->comment('Grado');
+            $table->date('payment_date')->nullable()->comment('Fecha de pago');
+            $table->string('voucher')->nullable()->comment('Recibo de pago');
             $table->decimal('discount_contribution', 13, 2)->comment('Descuento aporte muserpol');
+            $table->string('observation')->nullable()->comment('Observación');
             $table->timestamps();
             $table->softDeletes();
         });

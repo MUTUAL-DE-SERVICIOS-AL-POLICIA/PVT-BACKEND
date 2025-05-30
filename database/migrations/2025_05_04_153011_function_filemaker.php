@@ -74,7 +74,7 @@ return new class extends Migration
             $$;"
         );
 
-        DB::statement("CREATE OR REPLACE FUNCTION public.search_affiliate_filemaker(db_name_intext text)
+        DB::statement("CREATE OR REPLACE FUNCTION public.search_affiliate_filemaker(conection_db_aux character varying, affiliate_state character varying)
         RETURNS character varying
         LANGUAGE plpgsql
         AS $$
@@ -89,11 +89,11 @@ return new class extends Migration
                  criterion_six integer:= 6; --spouses
                  --date_period date := (year||'-'||month||'-'||01)::date;
                  ------------------------------
-                 cant varchar ;
+                 cant varchar;
                 ---------------------------------
               -- Declaración EXPLICITA del cursor
-              cur_payroll CURSOR for (select * from dblink( db_name_intext,'SELECT id, mes, a_o, carnet, matricula, pat, mat, nom, nom2, ap_casada, grado, desc_mens, class_rent, tipo, affiliate_id, state, criteria FROM  payroll_copy_filemaker where state = ''unrealized''')
-              as  payroll_copy_filemaker( id integer, mes integer, a_o integer, carnet character varying(250), matricula character varying(250), pat character varying(250), mat character varying(250), nom character varying(250), nom2 character varying(250), ap_casada character varying(250), grado character varying(250), desc_mens decimal(13,2), class_rent character varying(250), tipo character varying(250), affiliate_id integer, state character varying(250), criteria character varying(250)));
+              cur_payroll CURSOR for (select * from dblink( conection_db_aux,'SELECT id, a_o, mes, carnet, matricula, pat, mat, nom, nom2, ap_casada, grado, cor_afi, fecha_pago, recibo, monto, observacion, affiliate_id_frcam, affiliate_state, tipo_aportante, affiliate_id, state, criteria FROM  payroll_copy_filemaker where state = ''unrealized''')
+              as  payroll_copy_filemaker( id integer,  a_o integer, mes integer, carnet character varying(250), matricula character varying(250), pat character varying(250), mat character varying(250), nom character varying(250), nom2 character varying(250), ap_casada character varying(250), grado character varying(250), cor_afi integer, fecha_pago date, recibo character varying(250), monto decimal(13,2), observacion character varying(250), affiliate_id_frcam integer, affiliate_state character varying(250), tipo_aportante character varying(250), affiliate_id integer, state character varying(250), criteria character varying(250)));
               begin
                    --************************************************************
                    --*Funcion filemaker busqueda de afiliados y affiliate_id de spouses  
@@ -103,35 +103,35 @@ return new class extends Migration
                   if identified_affiliate_filemaker(criterion_one, record_row.carnet, record_row.matricula, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada ) > 0 then
                       affiliate_id_result := identified_affiliate_filemaker( criterion_one, record_row.carnet, record_row.matricula, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada);
                       type_state:='1-CI-sPN-sPA-sSA';
-                      cant:= (select dblink_exec(db_name_intext, 'UPDATE payroll_copy_filemaker SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||', tipo=''VEJEZ'' WHERE payroll_copy_filemaker.id= '||record_row.id||''));
+                      cant:= (select dblink_exec(conection_db_aux, 'UPDATE payroll_copy_filemaker SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||', tipo_aportante=''VEJEZ'' WHERE payroll_copy_filemaker.id= '||record_row.id||''));
 
                   elsif identified_affiliate_filemaker(criterion_two,record_row.carnet, record_row.matricula, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada) > 0 THEN
                       affiliate_id_result := identified_affiliate_filemaker(criterion_two,record_row.carnet, record_row.matricula, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada);
                       type_state:='2-partCI-sPN-sPA';
-                      cant:= (select dblink_exec(db_name_intext, 'UPDATE payroll_copy_filemaker SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||', tipo=''VEJEZ''  WHERE payroll_copy_filemaker.id= '||record_row.id||''));
+                      cant:= (select dblink_exec(conection_db_aux, 'UPDATE payroll_copy_filemaker SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||', tipo_aportante=''VEJEZ''  WHERE payroll_copy_filemaker.id= '||record_row.id||''));
 
                   elsif identified_affiliate_filemaker(criterion_three,record_row.carnet, record_row.matricula, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada) > 0 THEN
                       affiliate_id_result := identified_affiliate_filemaker(criterion_three,record_row.carnet, record_row.matricula, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada);
                       type_state:='3-sCI-MAT-PN-PA';
-                      cant:= (select dblink_exec(db_name_intext, 'UPDATE payroll_copy_filemaker SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||', tipo=''VEJEZ''  WHERE payroll_copy_filemaker.id= '||record_row.id||''));
+                      cant:= (select dblink_exec(conection_db_aux, 'UPDATE payroll_copy_filemaker SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||', tipo_aportante=''VEJEZ''  WHERE payroll_copy_filemaker.id= '||record_row.id||''));
 
                   elsif identified_affiliate_filemaker(criterion_four,record_row.carnet, record_row.matricula, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada) > 0 THEN
                       affiliate_id_result := identified_affiliate_filemaker(criterion_four,record_row.carnet, record_row.matricula, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada);
                       type_state:='4-MAT-APCAS';
-                      cant:= (select dblink_exec(db_name_intext, 'UPDATE payroll_copy_filemaker SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||', tipo=''VEJEZ''  WHERE payroll_copy_filemaker.id= '||record_row.id||''));
+                      cant:= (select dblink_exec(conection_db_aux, 'UPDATE payroll_copy_filemaker SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||', tipo_aportante=''VEJEZ''  WHERE payroll_copy_filemaker.id= '||record_row.id||''));
 
                   elsif identified_affiliate_filemaker(criterion_five,record_row.carnet, record_row.matricula, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada) > 0 THEN
                       affiliate_id_result := identified_affiliate_filemaker(criterion_five,record_row.carnet, record_row.matricula, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada);
                       type_state:='5-cCI-sPN-sPA';
-                      cant:= (select dblink_exec(db_name_intext, 'UPDATE payroll_copy_filemaker SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||', tipo=''VIUDEDAD''  WHERE payroll_copy_filemaker.id= '||record_row.id||''));
+                      cant:= (select dblink_exec(conection_db_aux, 'UPDATE payroll_copy_filemaker SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||', tipo_aportante=''VIUDEDAD''  WHERE payroll_copy_filemaker.id= '||record_row.id||''));
 
                   elsif identified_affiliate_filemaker(criterion_six,record_row.carnet, record_row.matricula, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada) > 0 THEN
                       affiliate_id_result := identified_affiliate_filemaker(criterion_six,record_row.carnet, record_row.matricula, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada);
                       type_state:='6-partcCI-sPN-sPA';
-                      cant:= (select dblink_exec(db_name_intext, 'UPDATE payroll_copy_filemaker SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||', tipo=''VIUDEDAD''  WHERE payroll_copy_filemaker.id= '||record_row.id||''));
+                      cant:= (select dblink_exec(conection_db_aux, 'UPDATE payroll_copy_filemaker SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||', tipo_aportante=''VIUDEDAD''  WHERE payroll_copy_filemaker.id= '||record_row.id||''));
                   else
                       type_state:='7-no-identificado';
-                      cant:= (select dblink_exec(db_name_intext, 'UPDATE payroll_copy_filemaker SET state=''accomplished'',criteria='''||type_state||''' WHERE payroll_copy_filemaker.id= '||record_row.id||''));
+                      cant:= (select dblink_exec(conection_db_aux, 'UPDATE payroll_copy_filemaker SET state=''accomplished'',criteria='''||type_state||''' WHERE payroll_copy_filemaker.id= '||record_row.id||''));
                   END IF;
               END LOOP;
               return true;
@@ -139,7 +139,7 @@ return new class extends Migration
               $$;"
         );
 
-        DB::statement("CREATE OR REPLACE FUNCTION public.registration_payroll_filemakers(conection_db_aux character varying)
+        DB::statement("CREATE OR REPLACE FUNCTION public.registration_payroll_filemakers(conection_db_aux character varying, affiliate_state character varying)
         RETURNS numeric
         LANGUAGE plpgsql
         AS $$
@@ -152,24 +152,30 @@ return new class extends Migration
             FOR record_row IN  
                 SELECT * 
                 FROM dblink(conection_db_aux,
-                'SELECT mes, a_o, carnet, matricula, pat, mat, nom, nom2, ap_casada, desc_mens, tipo, affiliate_id, criteria 
+                'SELECT a_o, mes, carnet, matricula, pat, mat, nom, nom2, ap_casada, grado, fecha_pago, recibo, monto, observacion, affiliate_state, tipo_aportante, affiliate_id, criteria 
                 FROM payroll_copy_filemaker 
-                WHERE error_messaje is null 
+                WHERE affiliate_state = affiliate_state
+                AND error_message is null 
                 AND deleted_at is null 
                 AND state =''accomplished'' 
                 AND affiliate_id is not null') 
                 AS payroll_copy_filemaker(
-                    mes integer, 
                     a_o integer, 
+                    mes integer, 
                     carnet varchar(250), 
                     matricula varchar(250), 
                     pat varchar(250), 
                     mat varchar(250), 
                     nom varchar(250), 
                     nom2 varchar(250), 
-                    ap_casada varchar(250), 
-                    desc_mens decimal(13,2), 
-                    tipo varchar(250), 
+                    ap_casada varchar(250),
+                    grado varchar(250),
+                    fecha_pago date,
+                    recibo varchar(250), 
+                    monto decimal(13,2), 
+                    observacion varchar(250),
+                    affiliate_state varchar(250),
+                    tipo_aportante varchar(250), 
                     affiliate_id integer, 
                     criteria varchar(250)
                 )
@@ -180,8 +186,9 @@ return new class extends Migration
                     default,
                     record_row.affiliate_id, 
                     record_row.a_o, 
-                    record_row.mes, 
-                    record_row.tipo, 
+                    record_row.mes,
+                    record_row.affiliate_state,
+                    record_row.tipo_aportante, 
                     record_row.carnet, 
                     record_row.matricula, 
                     record_row.pat, 
@@ -189,7 +196,11 @@ return new class extends Migration
                     record_row.nom, 
                     record_row.nom2, 
                     record_row.ap_casada, 
-                    record_row.desc_mens, 
+                    record_row.grado,
+                    record_row.fecha_pago,
+                    record_row.recibo,
+                    record_row.monto, 
+                    record_row.observacion,
                     current_timestamp, 
                     current_timestamp
                 );
@@ -199,8 +210,8 @@ return new class extends Migration
                     'UPDATE payroll_copy_filemaker 
                     SET state = ''' || is_validated_update || ''' 
                     WHERE affiliate_id = ' || record_row.affiliate_id || ' 
-                    AND mes = ' || record_row.mes || ' 
-                    AND a_o = ' || record_row.a_o
+                    AND a_o = ' || record_row.a_o || ' 
+                    AND mes = ' || record_row.mes
                 );
         
                 num_validated := num_validated + 1;
@@ -208,14 +219,14 @@ return new class extends Migration
             RETURN num_validated;
             END $$;
         ");
-
-        DB::statement("CREATE OR REPLACE FUNCTION public.import_contribution_filemaker ( user_reg integer)
+        //4.1
+        DB::statement("CREATE OR REPLACE FUNCTION public.import_contribution_passives_filemaker ( user_reg integer)
         RETURNS varchar
         AS $$
         DECLARE
             acction varchar;
             -- Declaración EXPLÍCITA del cursor
-            cur_contribution CURSOR FOR SELECT * FROM payroll_filemakers;
+            cur_contribution CURSOR FOR SELECT * FROM payroll_filemakers WHERE affiliate_state = 'pasivo';
             registro payroll_filemakers%ROWTYPE;
             BEGIN
                 --***************************************
@@ -263,7 +274,7 @@ return new class extends Migration
             end;
         $$ LANGUAGE 'plpgsql';
         ");
-
+        //4.2
         DB::statement("CREATE OR REPLACE FUNCTION public.create_contribution_filemaker(affiliate bigint, user_reg integer, payroll_filemaker_id integer, year_copy integer, month_copy integer)
         RETURNS varchar
         as $$
@@ -279,7 +290,7 @@ return new class extends Migration
                 IF id_contribution_passive = 0 then
                     type_acction:= 'created';
 
-                -- Creacion de un nuevo registro de la contribucion con estado Pagado = 2
+                -- Creacion de un nuevo registro de la contribucion con affiliate_state Pagado = 2
                     INSERT INTO public.contribution_passives(
                     user_id, 
                     affiliate_id, 
@@ -307,7 +318,7 @@ return new class extends Migration
                     pfs.discount_contribution as total,
                     (select current_timestamp as created_at),
                     (select current_timestamp as updated_at), 
-                    CASE pfs.class_rent
+                    CASE pfs.rent_class
                             when 'VIUDEDAD' then 'VIUDEDAD'
                             else 'VEJEZ'
                             end
@@ -325,7 +336,7 @@ return new class extends Migration
                         user_id = user_reg,
                         total = pfs.discount_contribution,
                         updated_at = current_timestamp,
-                        affiliate_rent_class = CASE pfs.class_rent
+                        affiliate_rent_class = CASE pfs.rent_class
                             when 'VIUDEDAD' then 'VIUDEDAD'
                             else 'VEJEZ'
                             end,
