@@ -46,7 +46,6 @@ class ReportController extends Controller
      */
     public function report_affiliates_spouses(Request $request)
     {
-        ini_set('memory_limit', '2048M');
         $list = DB::table('affiliates')
             ->select(
                 'affiliates.id as nup',
