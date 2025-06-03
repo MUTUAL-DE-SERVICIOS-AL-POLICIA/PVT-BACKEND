@@ -79,10 +79,16 @@ class AffiliatesSpousesExport implements FromGenerator, WithHeadings, WithStyles
      */
     public function styles(Worksheet $sheet)
     {
-        foreach (range('A', 'T') as $column) {
+        $headings = $this->headings();
+        $columnCount = count($headings);
+        $lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($columnCount);
+
+        foreach (range(1, $columnCount) as $colIndex) {
+            $column = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
-        $sheet->getStyle('A1:T1')->getAlignment()->setWrapText(true);
+        $headerRange = "A1:{$lastColumn}1";
+        $sheet->getStyle($headerRange)->getAlignment()->setWrapText(true);
         $sheet->getRowDimension(1)->setRowHeight(-1);
         return [];
     }

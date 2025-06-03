@@ -23,13 +23,6 @@ class ReportController extends Controller
      *      summary="GENERA REPORTE DE AFILIADOS - CÓNYUGES",
      *      operationId="report_affiliates_spouses",
      *      description="Genera reporte de los afiliados y sus cónyuges",
-     * @OA\Parameter(
-     *          name="type",
-     *          in="query",
-     *          required=false,
-     *          description="Extensión de archivo",
-     *          @OA\Schema(type="string", example=".xlsx")
-     *      ),
      *     @OA\Response(
      *         response=200,
      *         description="Success",
@@ -304,7 +297,8 @@ class ReportController extends Controller
      *          @OA\JsonContent(
      *              type="object",
      *              @OA\Property(property="start_date", type="date",description="Fecha inicio del reporte", example="2023-02-05"),
-     *              @OA\Property(property="end_date", type="date",description="Fecha final del reporte", example="2023-02-14")
+     *              @OA\Property(property="end_date", type="date",description="Fecha final del reporte", example="2023-02-14"),
+     *              @OA\Property(property="type", type="string",description="Tipo de reporte", example="Cuota Mortuoria")
      *         ),
      *     ),
      *     security={
