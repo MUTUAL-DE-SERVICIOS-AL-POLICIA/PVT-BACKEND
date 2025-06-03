@@ -17,20 +17,19 @@ use App\Exports\QualificationReportExport;
 class ReportController extends Controller
 {
     /**
-     * @OA\Post(
+     * @OA\Get(
      *      path="/api/report/report_affiliates_spouses",
      *      tags={"REPORTES"},
      *      summary="GENERA REPORTE DE AFILIADOS - CÓNYUGES",
      *      operationId="report_affiliates_spouses",
      *      description="Genera reporte de los afiliados y sus cónyuges",
-     *      @OA\RequestBody(
-     *          description= "Reporte de los afiliados y sus cónyuges",
+     * @OA\Parameter(
+     *          name="type",
+     *          in="query",
      *          required=false,
-     *          @OA\JsonContent(
-     *              type="object",
-     *              @OA\Property(property="type", type="string",description="Extrensión de archivo", example=".xls"),
-     *         ),
-     *     ),
+     *          description="Extensión de archivo",
+     *          @OA\Schema(type="string", example=".xlsx")
+     *      ),
      *     @OA\Response(
      *         response=200,
      *         description="Success",
