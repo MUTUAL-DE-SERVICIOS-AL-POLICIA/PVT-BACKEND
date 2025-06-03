@@ -29,7 +29,6 @@ return new class extends Migration
             $table->decimal('monto')->default(0)->comment('Descuento mensual');
             $table->string('observacion')->nullable()->comment('Observación');
             $table->unsignedBigInteger('affiliate_id_frcam')->nullable()->comment('Id del afiliado titular segun FRCAM');
-            $table->enum('affiliate_state', ['activo','pasivo'])->nullable()->comment('Estado afiliado'); 
             $table->string('tipo_aportante')->nullable()->comment('Tipo de aportante');  
             $table->string('error_message')->nullable()->comment('Mensaje del error');
             $table->unsignedBigInteger('affiliate_id')->nullable()->comment('Id del afiliado titular');

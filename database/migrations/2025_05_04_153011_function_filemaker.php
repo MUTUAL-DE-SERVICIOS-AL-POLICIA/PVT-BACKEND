@@ -74,7 +74,7 @@ return new class extends Migration
             $$;"
         );
 
-        DB::statement("CREATE OR REPLACE FUNCTION public.search_affiliate_filemaker(conection_db_aux character varying, affiliate_state character varying)
+        DB::statement("CREATE OR REPLACE FUNCTION public.search_affiliate_filemaker(conection_db_aux character varying)
         RETURNS character varying
         LANGUAGE plpgsql
         AS $$
@@ -92,8 +92,8 @@ return new class extends Migration
                  cant varchar;
                 ---------------------------------
               -- Declaración EXPLICITA del cursor
-              cur_payroll CURSOR for (select * from dblink( conection_db_aux,'SELECT id, a_o, mes, carnet, matricula, pat, mat, nom, nom2, ap_casada, grado, cor_afi, fecha_pago, recibo, monto, observacion, affiliate_id_frcam, affiliate_state, tipo_aportante, affiliate_id, state, criteria FROM  payroll_copy_filemaker where state = ''unrealized''')
-              as  payroll_copy_filemaker( id integer,  a_o integer, mes integer, carnet character varying(250), matricula character varying(250), pat character varying(250), mat character varying(250), nom character varying(250), nom2 character varying(250), ap_casada character varying(250), grado character varying(250), cor_afi integer, fecha_pago date, recibo character varying(250), monto decimal(13,2), observacion character varying(250), affiliate_id_frcam integer, affiliate_state character varying(250), tipo_aportante character varying(250), affiliate_id integer, state character varying(250), criteria character varying(250)));
+              cur_payroll CURSOR for (select * from dblink( conection_db_aux,'SELECT id, a_o, mes, carnet, matricula, pat, mat, nom, nom2, ap_casada, grado, cor_afi, fecha_pago, recibo, monto, observacion, affiliate_id_frcam, tipo_aportante, affiliate_id, state, criteria FROM  payroll_copy_filemaker where state = ''unrealized''')
+              as  payroll_copy_filemaker( id integer,  a_o integer, mes integer, carnet character varying(250), matricula character varying(250), pat character varying(250), mat character varying(250), nom character varying(250), nom2 character varying(250), ap_casada character varying(250), grado character varying(250), cor_afi integer, fecha_pago date, recibo character varying(250), monto decimal(13,2), observacion character varying(250), affiliate_id_frcam integer, tipo_aportante character varying(250), affiliate_id integer, state character varying(250), criteria character varying(250)));
               begin
                    --************************************************************
                    --*Funcion filemaker busqueda de afiliados y affiliate_id de spouses  
@@ -139,7 +139,7 @@ return new class extends Migration
               $$;"
         );
 
-        DB::statement("CREATE OR REPLACE FUNCTION public.registration_payroll_filemakers(conection_db_aux character varying, affiliate_state character varying)
+        DB::statement("CREATE OR REPLACE FUNCTION public.registration_payroll_filemakers(conection_db_aux character varying)
         RETURNS numeric
         LANGUAGE plpgsql
         AS $$
@@ -152,10 +152,9 @@ return new class extends Migration
             FOR record_row IN  
                 SELECT * 
                 FROM dblink(conection_db_aux,
-                'SELECT a_o, mes, carnet, matricula, pat, mat, nom, nom2, ap_casada, grado, fecha_pago, recibo, monto, observacion, affiliate_state, tipo_aportante, affiliate_id, criteria 
+                'SELECT a_o, mes, carnet, matricula, pat, mat, nom, nom2, ap_casada, grado, fecha_pago, recibo, monto, observacion, tipo_aportante, affiliate_id, criteria 
                 FROM payroll_copy_filemaker 
-                WHERE affiliate_state = affiliate_state
-                AND error_message is null 
+                WHERE error_message is null 
                 AND deleted_at is null 
                 AND state =''accomplished'' 
                 AND affiliate_id is not null') 
@@ -174,7 +173,6 @@ return new class extends Migration
                     recibo varchar(250), 
                     monto decimal(13,2), 
                     observacion varchar(250),
-                    affiliate_state varchar(250),
                     tipo_aportante varchar(250), 
                     affiliate_id integer, 
                     criteria varchar(250)
@@ -187,7 +185,6 @@ return new class extends Migration
                     record_row.affiliate_id, 
                     record_row.a_o, 
                     record_row.mes,
-                    record_row.affiliate_state,
                     record_row.tipo_aportante, 
                     record_row.carnet, 
                     record_row.matricula, 
@@ -220,13 +217,13 @@ return new class extends Migration
             END $$;
         ");
         //4.1
-        DB::statement("CREATE OR REPLACE FUNCTION public.import_contribution_passives_filemaker ( user_reg integer)
+        DB::statement("CREATE OR REPLACE FUNCTION public.import_contribution_filemaker ( user_reg integer)
         RETURNS varchar
         AS $$
         DECLARE
             acction varchar;
             -- Declaración EXPLÍCITA del cursor
-            cur_contribution CURSOR FOR SELECT * FROM payroll_filemakers WHERE affiliate_state = 'pasivo';
+            cur_contribution CURSOR FOR SELECT * FROM payroll_filemakers;
             registro payroll_filemakers%ROWTYPE;
             BEGIN
                 --***************************************
@@ -290,7 +287,7 @@ return new class extends Migration
                 IF id_contribution_passive = 0 then
                     type_acction:= 'created';
 
-                -- Creacion de un nuevo registro de la contribucion con affiliate_state Pagado = 2
+                -- Creacion de un nuevo registro de la contribucion con Pagado = 2
                     INSERT INTO public.contribution_passives(
                     user_id, 
                     affiliate_id, 
@@ -330,10 +327,9 @@ return new class extends Migration
                         WHERE pfs.id=payroll_filemaker_id;
                 ELSE
                     type_acction:= 'updated';
-                    -- Actualizar el registro existente donde el aporte es el mismo monto
+                    -- Actualizar el registro existente donde el aporte 1. Es el mismo monto o 2. El monto en contribution_passives es cero
                     UPDATE contribution_passives
                     SET 
-                        user_id = user_reg,
                         total = pfs.discount_contribution,
                         updated_at = current_timestamp,
                         affiliate_rent_class = CASE pfs.rent_class
@@ -345,9 +341,9 @@ return new class extends Migration
                         contributionable_id = payroll_filemaker_id
                     FROM payroll_filemakers pfs
                     WHERE contribution_passives.id = id_contribution_passive
-                    AND contribution_passives.contribution_type_mortuary_id is  NULL
                     AND contribution_passives.contributionable_type is NULL
-                    AND contribution_passives.total = pfs.discount_contribution;
+                    AND (contribution_passives.total = pfs.discount_contribution
+                    OR contribution_passives.total = 0);
                 END IF;
                 RETURN type_acction ;
             end;

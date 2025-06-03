@@ -17,7 +17,7 @@ use App\Exports\QualificationReportExport;
 class ReportController extends Controller
 {
     /**
-     * @OA\Post(
+     * @OA\Get(
      *      path="/api/report/report_affiliates_spouses",
      *      tags={"REPORTES"},
      *      summary="GENERA REPORTE DE AFILIADOS - CÓNYUGES",

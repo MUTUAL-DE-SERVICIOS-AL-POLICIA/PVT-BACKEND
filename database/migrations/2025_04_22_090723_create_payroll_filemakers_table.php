@@ -17,7 +17,6 @@ return new class extends Migration
             $table->foreign('affiliate_id')->references('id')->on('affiliates');
             $table->integer('year_p')->comment('Año del periodo de aporte');
             $table->integer('month_p')->comment('Mes del periodo de aporte');
-            $table->string('affiliate_state')->nullable()->comment('Estado del afiliado');
             $table->string('rent_class')->nullable()->comment('Clase de renta');
             $table->string('identity_card')->nullable()->comment('Carnet aportante');
             $table->string('registration')->nullable()->comment('Matricula aportante');

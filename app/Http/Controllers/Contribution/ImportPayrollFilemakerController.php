@@ -28,7 +28,6 @@ class ImportPayrollFilemakerController extends Controller
      *          required=true,
      *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
      *             @OA\Property(property="file", type="file", description="file required", example="file"),
-     *              @OA\Property(property="affiliate_state", type="string", description="affiliate_state afiliado 'activo', 'pasivo' required", example= "pasivo")
      *            )
      *          ),
      *     ),
@@ -52,13 +51,8 @@ class ImportPayrollFilemakerController extends Controller
 
     public function upload_copy_payroll_filemaker(request $request)
     {
-        $request->validate([
-            'file' => 'required',
-            'affiliate_state' => 'required',
-        ]);
         $extencion = strtolower($request->file->getClientOriginalExtension());
         $file_name_entry = $request->file->getClientOriginalName();
-        $affiliate_state = $request->affiliate_state;
 
         $route = '';
         $route_file_name = '';
@@ -70,9 +64,9 @@ class ImportPayrollFilemakerController extends Controller
             $successfully = false;
             if($extencion == "csv"){
 
-                $rollback_period = "delete from payroll_copy_filemaker where affiliate_state = '$affiliate_state'";
+                $rollback_period = "delete from payroll_copy_filemaker";
                 $rollback_period  = DB::connection('db_aux')->select($rollback_period);
-                $file_name = "filemaker_".$affiliate_state.'.'.$extencion;
+                $file_name = "filemaker".'.'.$extencion;
                     if($file_name_entry == $file_name){
 
                         $base_path = 'planillas/planilla_filemaker/'.Carbon::now()->toDateString();
@@ -128,15 +122,15 @@ class ImportPayrollFilemakerController extends Controller
 
                         //****************************************/
                         
-                        $insert = "INSERT INTO payroll_copy_filemaker(a_o, mes, carnet, matricula, pat ,mat, nom, nom2, ap_casada, grado, cor_afi, fecha_pago, recibo, monto, observacion, affiliate_id_frcam, affiliate_state, created_at, updated_at)
-                        SELECT a_o::INTEGER, mes::INTEGER, carnet, matricula, pat, mat, nom, nom2, ap_casada, grado, cor_afi::INTEGER, fecha_pago::DATE, recibo, monto, observacion, affiliate_id_frcam::INTEGER, '$affiliate_state' as affiliate_state, current_timestamp, current_timestamp 
+                        $insert = "INSERT INTO payroll_copy_filemaker(a_o, mes, carnet, matricula, pat ,mat, nom, nom2, ap_casada, grado, cor_afi, fecha_pago, recibo, monto, observacion, affiliate_id_frcam, created_at, updated_at)
+                        SELECT a_o::INTEGER, mes::INTEGER, carnet, matricula, pat, mat, nom, nom2, ap_casada, grado, cor_afi::INTEGER, fecha_pago::DATE, recibo, monto, observacion, affiliate_id_frcam::INTEGER, current_timestamp, current_timestamp 
                         FROM payroll_copy_filemaker_tmp";
                         $insert = DB::connection('db_aux')->select($insert);
                         
                         $drop = "drop table if exists payroll_copy_filemaker_tmp";
                         $drop = DB::connection('db_aux')->select($drop);
 
-                        $data_count = $this->data_count_payroll_filemaker($affiliate_state);                       
+                        $data_count = $this->data_count_payroll_filemaker();                       
 
                         //*******Limpieza de duplicados en carnet, mes, a_o, monto************//
                         $data_cleaning = "WITH duplicados AS (
@@ -146,7 +140,6 @@ class ImportPayrollFilemakerController extends Controller
                                         ORDER BY id
                                     ) AS rn
                                 FROM payroll_copy_filemaker
-                                WHERE affiliate_state = '$affiliate_state'
                             )
                             UPDATE payroll_copy_filemaker
                             SET deleted_at = NOW()
@@ -156,17 +149,17 @@ class ImportPayrollFilemakerController extends Controller
                         $data_cleaning = DB::connection('db_aux')->select($data_cleaning);
 
                         //******validación de datos****************/
-                        $verify_data = "update payroll_copy_filemaker pcf set error_message = concat(error_message,' - ','Los valores de los apellidos son NULOS ') from (select id from payroll_copy_filemaker where a_o is null and mes is null and pat is null and mat is null and affiliate_state = '$affiliate_state' and deleted_at is null) as subquery where pcf.id = subquery.id;";
+                        $verify_data = "update payroll_copy_filemaker pcf set error_message = concat(error_message,' - ','Los valores de los apellidos son NULOS ') from (select id from payroll_copy_filemaker where a_o is null and mes is null and pat is null and mat is null  and deleted_at is null) as subquery where pcf.id = subquery.id;";
                         $verify_data = DB::connection('db_aux')->select($verify_data);
 
-                        $verify_data = "update payroll_copy_filemaker pcf set error_message = concat(error_message,' - ','El valor del primer nombre es NULO ') from (select id from payroll_copy_filemaker where  nom is null and affiliate_state = '$affiliate_state' and deleted_at is null) as subquery where pcf.id = subquery.id;";
+                        $verify_data = "update payroll_copy_filemaker pcf set error_message = concat(error_message,' - ','El valor del primer nombre es NULO ') from (select id from payroll_copy_filemaker where  nom is null and deleted_at is null) as subquery where pcf.id = subquery.id;";
                         $verify_data = DB::connection('db_aux')->select($verify_data);
 
-                        $verify_data = "update payroll_copy_filemaker pcf set error_message = concat(error_message,' - ','El numero de carnet es duplicado ') from (select carnet, a_o, mes, affiliate_state from payroll_copy_filemaker group by carnet, a_o, mes, affiliate_state having count(*) > 1) as subquery where pcf.carnet = subquery.carnet and pcf.a_o = subquery.a_o and pcf.mes = subquery.mes and pcf.affiliate_state = subquery.affiliate_state and deleted_at is null;";
+                        $verify_data = "update payroll_copy_filemaker pcf set error_message = concat(error_message,' - ','El numero de carnet es duplicado en el mismo periodo') from (select carnet, a_o, mes from payroll_copy_filemaker where deleted_at is null group by carnet, a_o, mes having count(*) > 1) as subquery where pcf.carnet = subquery.carnet and pcf.a_o = subquery.a_o and pcf.mes = subquery.mes and deleted_at is null;";
                         $verify_data = DB::connection('db_aux')->select($verify_data);
 
                         //****************************************/
-                        $verify_data = "select count(id) from payroll_copy_filemaker pcf where affiliate_state = '$affiliate_state' and error_message is not null and deleted_at is null;";
+                        $verify_data = "select count(id) from payroll_copy_filemaker pcf where error_message is not null and deleted_at is null;";
                         $verify_data = DB::connection('db_aux')->select($verify_data);
 
                         if($verify_data[0]->count > 0) {
@@ -235,7 +228,7 @@ class ImportPayrollFilemakerController extends Controller
         }
     }
 
-    public function data_count_payroll_filemaker($affiliate_state){
+    public function data_count_payroll_filemaker(){
         $data_count['num_total_data_copy'] = 0;
         $data_count['num_data_not_considered'] = 0;
         $data_count['num_data_unrelated'] = 0;
@@ -244,22 +237,22 @@ class ImportPayrollFilemakerController extends Controller
         $data_count['num_data_not_validated'] = 0;
 
         //---TOTAL DE DATOS DEL ARCHIVO
-        $query_total_data = "SELECT count(id) FROM payroll_copy_filemaker where affiliate_state = '$affiliate_state';";
+        $query_total_data = "SELECT count(id) FROM payroll_copy_filemaker;";
         $query_total_data = DB::connection('db_aux')->select($query_total_data);
         $data_count['num_total_data_copy'] = $query_total_data[0]->count;
 
         //---NUMERO DE DATOS NO CONSIDERADOS duplicados de afilaidos y aportes
-        $query_data_not_considered = "SELECT count(id) FROM payroll_copy_filemaker where affiliate_state = '$affiliate_state' and error_message is not null or deleted_at is not null;";
+        $query_data_not_considered = "SELECT count(id) FROM payroll_copy_filemaker where error_message is not null or deleted_at is not null;";
         $query_data_not_considered = DB::connection('db_aux')->select($query_data_not_considered);
         $data_count['num_data_not_considered'] = $query_data_not_considered[0]->count;
 
         //---NUMERO DE DATOS NO RELACIONADOS 
-        $query_data_unrelated= "SELECT count(id) FROM payroll_copy_filemaker where affiliate_state = '$affiliate_state' and error_message is null and deleted_at is null and criteria = '7-no-identificado';";
+        $query_data_unrelated= "SELECT count(id) FROM payroll_copy_filemaker where error_message is null and deleted_at is null and criteria = '7-no-identificado';";
         $query_data_unrelated= DB::connection('db_aux')->select($query_data_unrelated);
         $data_count['num_data_unrelated'] = $query_data_unrelated[0]->count;
 
         //---NUMERO DE DATOS CONSIDERADOS 
-        $query_data_considered = "SELECT count(id) FROM payroll_copy_filemaker where affiliate_state = '$affiliate_state' and error_message is null and deleted_at is null;";
+        $query_data_considered = "SELECT count(id) FROM payroll_copy_filemaker where error_message is null and deleted_at is null;";
         $query_data_considered = DB::connection('db_aux')->select($query_data_considered);
         $data_count['num_data_considered'] = $query_data_considered[0]->count;
 
@@ -282,7 +275,7 @@ class ImportPayrollFilemakerController extends Controller
       *          description= "Provide auth credentials",
       *          required=true,
       *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
-*                   @OA\Property(property="affiliate_state", type="string", description="affiliate_state afiliado required", example= "activo")
+*                   @OA\Property()
       *            )
       *          ),
       *     ),
@@ -304,22 +297,17 @@ class ImportPayrollFilemakerController extends Controller
       * @return void
     */
     public function download_error_data_filemaker(Request $request){
-        $request->validate([
-            'affiliate_state' => 'required'
-        ]);
-
-        $affiliate_state = $request->affiliate_state;
 
         $data_header=array(array("AÑO","MES","CARNET","APELLIDO PATERNO","APELLIDO MATERNO","PRIMER NOMBRE","SEGUNDO NOMBRE","APORTE","OBSERVACIÓN"));
 
-        $data_payroll_copy_filemaker = "select a_o,mes,carnet,pat,mat,nom,nom2,monto,error_message from payroll_copy_filemaker pcf where affiliate_state = '$affiliate_state' and error_message is not null or error_message ='' order by carnet";
+        $data_payroll_copy_filemaker = "select a_o,mes,carnet,pat,mat,nom,nom2,monto,error_message from payroll_copy_filemaker pcf where error_message is not null or error_message ='' order by carnet";
         $data_payroll_copy_filemaker = DB::connection('db_aux')->select($data_payroll_copy_filemaker);
             foreach ($data_payroll_copy_filemaker as $row){
                 array_push($data_header, array($row->a_o,$row->mes,$row->carnet,$row->pat,
                 $row->mat,$row->nom,$row->nom2,$row->monto,$row->error_message));
             }
             $export = new ArchivoPrimarioExport($data_header);
-            $file_name = "observacion-planilla-filemaker-".$affiliate_state;
+            $file_name = "observacion-planilla-filemaker";
             $extension = '.xls';
             return Excel::download($export, $file_name."_".$extension);
     }
@@ -335,7 +323,7 @@ class ImportPayrollFilemakerController extends Controller
      *          description= "Provide auth credentials",
      *          required=false,
      *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
-     *             @OA\Property(property="affiliate_state", type="string",description="affiliate_state afiliado required",example= "activo")
+     *             @OA\Property()
      *            )
      *          ),
      *     ),
@@ -358,11 +346,6 @@ class ImportPayrollFilemakerController extends Controller
     */
 
     public function validation_affiliate_filemaker(Request $request){
-        $request->validate([
-            'affiliate_state' => 'required'
-        ]);
-        
-        $affiliate_state = $request->affiliate_state;
 
         try{
             DB::beginTransaction();
@@ -378,26 +361,21 @@ class ImportPayrollFilemakerController extends Controller
             $route_file_name = '';
 
             $connection_db_aux = Util::connection_db_aux();
-            $query = "select search_affiliate_filemaker('$connection_db_aux', '$affiliate_state');";
+            $query = "select search_affiliate_filemaker('$connection_db_aux');";
             $data_validated = DB::select($query);
-            $num_total_data_copy = $this->data_count_payroll_filemaker($affiliate_state);
-            $count_data_automatic_link = "select count(id) from payroll_copy_filemaker pcf where criteria in ('1-CI-sPN-sPA-sSA', '2-partCI-sPN-sPA', '3-sCI-MAT-PN-PA', '4-MAT-APCAS', '5-cCI-sPN-sPA','6-partcCI-sPN-sPA') and affiliate_state = '$affiliate_state'";
+            $num_total_data_copy = $this->data_count_payroll_filemaker();
+            $count_data_automatic_link = "select count(id) from payroll_copy_filemaker pcf where criteria in ('1-CI-sPN-sPA-sSA', '2-partCI-sPN-sPA', '3-sCI-MAT-PN-PA', '4-MAT-APCAS', '5-cCI-sPN-sPA','6-partcCI-sPN-sPA')";
             $count_data_automatic_link = DB::connection('db_aux')->select($count_data_automatic_link);
-            $count_data_unidentified = "select count(id) from payroll_copy_filemaker pcf where criteria in ('7-no-identificado') and affiliate_state = '$affiliate_state'";
+            $count_data_unidentified = "select count(id) from payroll_copy_filemaker pcf where criteria in ('7-no-identificado')";
             $count_data_unidentified = DB::connection('db_aux')->select($count_data_unidentified);
-            $count_data_error = "select count(id) from payroll_copy_filemaker pcf where error_message is not null or deleted_at is not null and affiliate_state = '$affiliate_state'";
+            $count_data_error = "select count(id) from payroll_copy_filemaker pcf where error_message is not null or deleted_at is not null";
             $count_data_error = DB::connection('db_aux')->select($count_data_error);
             $data_count['num_total_data_copy'] = $num_total_data_copy['num_total_data_copy'];
             $data_count['count_data_automatic_link'] = $count_data_automatic_link[0]->count;
             $data_count['count_data_unidentified'] = $count_data_unidentified[0]->count;
             $data_count['count_data_error'] = $count_data_error[0]->count;
 
-            if($affiliate_state == 'activo'){
-                return 'activo';
-                $validated_contribution = $this->validation_contribution_filemaker();
-            } else {
-                $validated_contribution = $this->validation_contribution_passives_filemaker();
-            }
+            $validated_contribution = $this->validation_contribution_filemaker();
              return $validated_contribution;
 
             if($num_total_data_copy['num_total_data_copy'] <= 0){
@@ -461,7 +439,7 @@ class ImportPayrollFilemakerController extends Controller
      *          description= "Provide auth credentials",
      *          required=false,
      *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
-     *             @OA\Property(property="affiliate_state", type="string",description="affiliate_state afiliado required",example= "pasivo")
+     *             @OA\Property()
      *            )
      *          ),
      *     ),
@@ -485,15 +463,12 @@ class ImportPayrollFilemakerController extends Controller
 
     //metodo para copiar los affiliate_id_frcam a affiliate_id
     public function copy_affiliate_id_frcam_to_affiliate_id(request $request){
-        $request->validate([
-            'affiliate_state' => 'required'
-        ]);
-        $affiliate_state = $request->affiliate_state;
+
         $query = "UPDATE payroll_copy_filemaker pcf
                   SET affiliate_id = pcf.affiliate_id_frcam, criteria = '8-affiliate_id_frcam'
                   WHERE pcf.affiliate_id IS NULL AND pcf.affiliate_id_frcam IS NOT NULL;";
         DB::connection('db_aux')->select($query);
-        $data_count = $this->data_count_payroll_filemaker($affiliate_state); 
+        $data_count = $this->data_count_payroll_filemaker(); 
         return response()->json([
             'payload' => [
                 'data_count' => $data_count
@@ -501,55 +476,10 @@ class ImportPayrollFilemakerController extends Controller
         ]);
     }
 
+
+
     //método para verificar si existe montos con diferentes contribuciones
     public function validation_contribution_filemaker(){
-        $different_contribution = false;
-        $connection_db_aux = Util::connection_db_aux();
-
-        $payroll_filermaker =  DB::select("SELECT pcf.id, c.affiliate_id, pcf.monto, c.total, c.contribution_type_mortuary_id
-        FROM contributions c
-        JOIN dblink('$connection_db_aux', 'SELECT id, affiliate_id, a_o, mes, monto FROM payroll_copy_filemaker')
-        AS pcf(id INT, affiliate_id INT, a_o INT, mes INT, monto NUMERIC(13,2)) ON c.affiliate_id = pcf.affiliate_id
-        where EXTRACT(YEAR FROM c.month_year) = pcf.a_o 
-        AND EXTRACT(MONTH FROM c.month_year) = pcf.mes 
-        AND c.total <> pcf.monto
-        AND c.total > 0");
-
-
-        foreach($payroll_filermaker as $update_payroll) {
-            $messages = [];
-
-            if ($update_payroll->total != $update_payroll->monto) {
-                $messages[] = "La contribución anterior es: $update_payroll->total difiere de la planilla $update_payroll->monto";
-            }
-
-            // if (!is_null($update_payroll->contribution_type_mortuary_id)) {
-            //     $messages[] = "tramite clasificado como $update_payroll->contribution_type_mortuary_id";
-            // }
-
-            if (!empty($messages)) {
-                $error_message = implode(' - ', $messages);
-                $update_query = "
-                    UPDATE payroll_copy_filemaker pf 
-                    SET error_message = CONCAT(COALESCE(error_message, ''), ' - ', '$error_message') 
-                    WHERE pf.id = $update_payroll->id;
-                ";
-                $update_query = DB::connection('db_aux')->select($update_query);
-                // DB::connection('db_aux')->statement($update_query);
-                $different_contribution = true;
-            }
-        }
-
-
-        if($different_contribution == true){
-            return false;
-        }else{
-            return true;
-        }
-    }
-
-    //método para verificar si existe montos con diferentes contribuciones
-    public function validation_contribution_passives_filemaker(){
         $different_contribution = false;
 
         $connection_db_aux = Util::connection_db_aux();
@@ -603,7 +533,7 @@ class ImportPayrollFilemakerController extends Controller
      *          description= "Provide auth credentials",
      *          required=true,
      *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
-     *             @OA\Property(property="affiliate_state", type="string",description="affiliate_state afiliado required",example= "pasivo")
+     *             @OA\Property()
      *            )
      *          ),
      *     ),
@@ -626,11 +556,6 @@ class ImportPayrollFilemakerController extends Controller
     */
 
     public function import_payroll_filemaker(Request $request){
-        $request->validate([
-            'affiliate_state' => 'required'
-        ]);
-
-        $affiliate_state = $request->affiliate_state;
 
         try{
                 DB::beginTransaction();
@@ -639,28 +564,28 @@ class ImportPayrollFilemakerController extends Controller
                 $connection_db_aux = Util::connection_db_aux();
     
                 //conteo de  affiliate_id is null distito del criterio 7-no-identificado
-                $count_data = "SELECT count(id) FROM payroll_copy_filemaker where affiliate_state = '$affiliate_state' and error_message is null and deleted_at is null and affiliate_id is null and criteria!='7-no-identificado';";
+                $count_data = "SELECT count(id) FROM payroll_copy_filemaker where error_message is null and deleted_at is null and affiliate_id is null and criteria!='7-no-identificado';";
                 $count_data = DB::connection('db_aux')->select($count_data);
                 if($count_data[0]->count == 0){
-                    $count_data_validated = "SELECT count(id) FROM payroll_copy_filemaker where affiliate_state = '$affiliate_state' and state ='validated';";
+                    $count_data_validated = "SELECT count(id) FROM payroll_copy_filemaker where state ='validated';";
                     $count_data_validated = DB::connection('db_aux')->select($count_data_validated);
 
                     if($count_data_validated[0]->count == 0){
     
-                        $query = "select registration_payroll_filemakers('$connection_db_aux', '$affiliate_state');";
+                        $query = "select registration_payroll_filemakers('$connection_db_aux');";
                         $data_validated = DB::select($query);
     
                             if($data_validated){
                                 $message = "Realizado con exito";
                                 $successfully = true;
-                                $data_payroll_copy_filemaker = "select  * from  payroll_copy_filemaker  where affiliate_state = '$affiliate_state' and state ='validated';";
+                                $data_payroll_copy_filemaker = "select  * from  payroll_copy_filemaker  where state ='validated';";
                                 $data_payroll_copy_filemaker = DB::connection('db_aux')->select($data_payroll_copy_filemaker);
                                 if(count($data_payroll_copy_filemaker)> 0){
                                     $message = "Excel";                            
                                 }
                             }
                         DB::commit();
-                        $data_count = $this->data_count_payroll_filemaker($affiliate_state);
+                        $data_count = $this->data_count_payroll_filemaker();
                         return response()->json([
                             'message' => $message,
                             'payload' => [
@@ -713,10 +638,10 @@ class ImportPayrollFilemakerController extends Controller
 
     /**
      * @OA\Post(
-     *      path="/api/contribution/import_contribution_passives_filemaker",
+     *      path="/api/contribution/import_contribution_filemaker",
      *      tags={"IMPORTACION-PLANILLA-FILEMAKER"},
      *      summary="PASO 4 IMPORTACIÓN DE CONTRIBUCIONES FILEMAKER",
-     *      operationId="import_contribution_passives_filemaker",
+     *      operationId="import_contribution_filemaker",
      *      description="Importación de aportes de filemaker a la tabla contribution_passsives",
      *      @OA\RequestBody(
      *          description= "Provide auth credentials",
