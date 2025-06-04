@@ -23,14 +23,6 @@ class ReportController extends Controller
      *      summary="GENERA REPORTE DE AFILIADOS - CÓNYUGES",
      *      operationId="report_affiliates_spouses",
      *      description="Genera reporte de los afiliados y sus cónyuges",
-     *      @OA\RequestBody(
-     *          description= "Reporte de los afiliados y sus cónyuges",
-     *          required=false,
-     *          @OA\JsonContent(
-     *              type="object",
-     *              @OA\Property(property="type", type="string",description="Extrensión de archivo", example=".xls"),
-     *         ),
-     *     ),
      *     @OA\Response(
      *         response=200,
      *         description="Success",
@@ -46,31 +38,9 @@ class ReportController extends Controller
      */
     public function report_affiliates_spouses(Request $request)
     {
-        $date = date('Y-m-d');
         $list = DB::table('affiliates')
             ->select(
                 'affiliates.id as nup',
-                'affiliates.identity_card as identity_card',
-                'affiliates.first_name as first_name',
-                'affiliates.second_name as second_name',
-                'affiliates.last_name as last_name',
-                'affiliates.mothers_last_name as mothers_last_name',
-                'affiliates.surname_husband as surname_husband',
-                'affiliates.date_entry as date_entry',
-                'affiliates.birth_date as birth_date',
-                'spouses.identity_card as spouse_identity_card',
-                'spouses.first_name as spouse_first_name',
-                'spouses.second_name as spouse_second_name',
-                'spouses.last_name as spouse_last_name',
-                'spouses.mothers_last_name as spouse_mothers_last_name',
-                'spouses.surname_husband as spouse_surname_husband',
-                DB::raw('DATE(MAX(spouses.created_at)) as spouse_registration_date'),
-                'spouses.birth_date as spouse_birth_date',
-                'affiliates.registration as registration'
-            )
-            ->join('spouses', 'spouses.affiliate_id', '=', 'affiliates.id')
-            ->groupBy(
-                'affiliates.id',
                 'affiliates.identity_card',
                 'affiliates.first_name',
                 'affiliates.second_name',
@@ -78,20 +48,22 @@ class ReportController extends Controller
                 'affiliates.mothers_last_name',
                 'affiliates.surname_husband',
                 'affiliates.date_entry',
-                'affiliates.birth_date', 
-                'spouses.identity_card', 
-                'spouses.first_name',
-                'spouses.second_name', 
-                'spouses.last_name', 
-                'spouses.mothers_last_name',
-                'spouses.surname_husband', 
-                'spouses.birth_date', 
-                'affiliates.registration'
+                'affiliates.birth_date',
+                'spouses.identity_card as spouse_identity_card',
+                'spouses.first_name as spouse_first_name',
+                'spouses.second_name as spouse_second_name',
+                'spouses.last_name as spouse_last_name',
+                'spouses.mothers_last_name as spouse_mothers_last_name',
+                'spouses.surname_husband as spouse_surname_husband',
+                'spouses.created_at as spouse_create_date',
+                'spouses.birth_date as spouse_birth_date',
+                'affiliates.registration as registration',
+                'spouses.registration as registration_spouse'
             )
-            ->orderBy('affiliates.id', 'asc')
-            ->get();
+            ->leftJoin('spouses', 'spouses.affiliate_id', '=', 'affiliates.id')
+            ->orderBy('affiliates.id', 'asc');
 
-        return Excel::download(new AffiliatesSpousesExport($list), 'affiliates_spouses_report.xls');
+        return Excel::download(new AffiliatesSpousesExport($list), 'affiliates_spouses_report.xlsx');
     }
 
     /**
@@ -325,7 +297,8 @@ class ReportController extends Controller
      *          @OA\JsonContent(
      *              type="object",
      *              @OA\Property(property="start_date", type="date",description="Fecha inicio del reporte", example="2023-02-05"),
-     *              @OA\Property(property="end_date", type="date",description="Fecha final del reporte", example="2023-02-14")
+     *              @OA\Property(property="end_date", type="date",description="Fecha final del reporte", example="2023-02-14"),
+     *              @OA\Property(property="type", type="string",description="Tipo de reporte", example="Cuota Mortuoria")
      *         ),
      *     ),
      *     security={
