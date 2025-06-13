@@ -382,7 +382,7 @@ class AffiliateUserController extends Controller
                     if (Hash::check($request->password, $password) || $AffiliateUser->username === env('USER_TEST')) {
 
                         $AffiliateToken = AffiliateToken::find($AffiliateUser->affiliate_token_id);
-                        $AffiliateToken->api_token = Hash::make($request->device_id);
+                        $AffiliateToken->api_token = Hash::make($AffiliateToken->affiliate_id);
                         $token = $AffiliateToken;
                         $AffiliateToken->firebase_token = $request->firebase_token;
                         $AffiliateToken->save();
