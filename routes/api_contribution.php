@@ -63,6 +63,13 @@ Route::group([
             Route::post('/import_payroll_transcript_progress_bar', [App\Http\Controllers\Contribution\ImportPayrollTranscriptController::class, 'import_payroll_transcript_progress_bar']);
             Route::post('/import_payroll_transcript', [App\Http\Controllers\Contribution\ImportPayrollTranscriptController::class, 'import_payroll_transcript']);
             Route::post('/import_contribution_transcript', [App\Http\Controllers\Contribution\ImportPayrollTranscriptController::class, 'import_contribution_transcript']);
+
+            Route::post('/upload_copy_payroll_filemaker', [App\Http\Controllers\Contribution\ImportPayrollFilemakerController::class, 'upload_copy_payroll_filemaker']);
+            Route::post('/download_error_data_filemaker', [App\Http\Controllers\Contribution\ImportPayrollFilemakerController::class, 'download_error_data_filemaker']);
+            Route::post('/validation_affiliate_filemaker', [App\Http\Controllers\Contribution\ImportPayrollFilemakerController::class, 'validation_affiliate_filemaker']);
+            Route::post('/import_payroll_filemaker', [App\Http\Controllers\Contribution\ImportPayrollFilemakerController::class, 'import_payroll_filemaker']);
+            Route::post('import_contribution_filemaker', [App\Http\Controllers\Contribution\ImportPayrollFilemakerController::class, 'import_contribution_filemaker']);
+            Route::post('/copy_affiliate_id_filemaker', [App\Http\Controllers\Contribution\ImportPayrollFilemakerController::class, 'copy_affiliate_id_frcam_to_affiliate_id']);
         });
         Route::group([
             'middleware' => 'permission:download-report-payroll-senasir|download-report-payroll-command|download-report-payroll-transcript'
