@@ -300,7 +300,7 @@ class ImportPayrollFilemakerController extends Controller
 
         $data_header=array(array("AÑO","MES","CARNET","APELLIDO PATERNO","APELLIDO MATERNO","PRIMER NOMBRE","SEGUNDO NOMBRE","APORTE","OBSERVACIÓN"));
 
-        $data_payroll_copy_filemaker = "select a_o,mes,carnet,pat,mat,nom,nom2,monto,error_message from payroll_copy_filemaker pcf where error_message is not null or error_message ='' order by carnet";
+        $data_payroll_copy_filemaker = "select a_o,mes,carnet,pat,mat,nom,nom2,monto,error_message from payroll_copy_filemaker pcf where error_message is not null or deleted_at is not null order by carnet";
         $data_payroll_copy_filemaker = DB::connection('db_aux')->select($data_payroll_copy_filemaker);
             foreach ($data_payroll_copy_filemaker as $row){
                 array_push($data_header, array($row->a_o,$row->mes,$row->carnet,$row->pat,
@@ -465,8 +465,11 @@ class ImportPayrollFilemakerController extends Controller
     public function copy_affiliate_id_frcam_to_affiliate_id(request $request){
 
         $query = "UPDATE payroll_copy_filemaker pcf
-                  SET affiliate_id = pcf.affiliate_id_frcam, criteria = '8-affiliate_id_frcam'
-                  WHERE pcf.affiliate_id IS NULL AND pcf.affiliate_id_frcam IS NOT NULL;";
+                  SET affiliate_id = pcf.affiliate_id_frcam,
+                   criteria = '8-affiliate_id_frcam',
+                   observacion = split_part(observacion,'|',1),
+                   tipo_aportante = split_part(observacion,'|',2)
+                  WHERE pcf.affiliate_id IS NULL AND pcf.affiliate_id_frcam IS NOT NULL;";//criterio '7-no-identificado'
         DB::connection('db_aux')->select($query);
         $data_count = $this->data_count_payroll_filemaker(); 
         return response()->json([
@@ -475,8 +478,6 @@ class ImportPayrollFilemakerController extends Controller
             ],
         ]);
     }
-
-
 
     //método para verificar si existe montos con diferentes contribuciones
     public function validation_contribution_filemaker(){
