@@ -18,6 +18,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Notification\NotificationSend;
+use App\Models\Workflow\WfState;
+use App\Models\Workflow\WfSequence;
 
 class Loan extends Model
 {
@@ -60,7 +62,10 @@ class Loan extends Model
         'regional_delivery_contract_date',
         'regional_return_contract_date',
         'payment_plan_compliance',
-        'affiliate_id'
+        'affiliate_id',
+        'loan_procedure_id',
+        'authorize_refinancing',
+        'wf_states_id'
     ];
 
     public function affiliate()
@@ -187,7 +192,9 @@ class Loan extends Model
     }
     public function getEstimatedQuotaAttribute()
     {
-        $monthly_interest = $this->interest->monthly_current_interest;
+        $parameter = $this->loan_procedure->loan_global_parameter->numerator/$this->loan_procedure->loan_global_parameter->denominator;
+        $loan_month_term = LoanModalityParameter::where('procedure_modality_id',$this->procedure_modality_id)->first()->loan_month_term;
+        $monthly_interest = $this->interest->monthly_current_interest($parameter, $loan_month_term);
         unset($this->interest);
         return Util::round2($monthly_interest * $this->amount_approved / (1 - 1 / pow((1 + $monthly_interest), $this->loan_term)));
     }
@@ -210,4 +217,41 @@ class Loan extends Model
         return $this->morphMany(NotificationSend::class, 'sendable');
     }
 
+    public function loan_procedure()
+    {
+        return $this->hasOne(LoanProcedure::class, 'id', 'loan_procedure_id');
+    }
+
+    public function loanGuaranteeRetirementFund()
+    {
+        return $this->hasOne(LoanGuaranteeRetirementFund::class,'loan_id');
+    }
+
+    public function getRetirementAttribute()
+    {   
+        $retirement = [];
+        $average = $this->loanGuaranteeRetirementFund->retirementFundAverage->retirement_fund_average ?? null;
+        $percentage = $this->modality->loan_modality_parameter->coverage_percentage ?? null;
+        if ($average !== null && $percentage !== null) {
+            $retirement = [
+                'average' => $average,
+                'coverage' => $average * $percentage,
+                'percentage' => $percentage
+            ];
+        }
+        return $retirement;
+    }
+
+    public function current_state()
+    {
+        return $this->belongsTo(WfState::class, 'wf_states_id');
+    }
+
+    public function getPreviousStateAttribute()
+    {
+        $previous = WfSequence::where('wf_state_next_id', $this->wf_states_id)->first();
+        if($previous)
+            return $previous->current_state;
+        return null;
+    }
 }

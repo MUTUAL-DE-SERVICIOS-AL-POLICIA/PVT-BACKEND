@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\AffiliatesSpousesExport;
 use App\Exports\ArchivoPrimarioExport;
 use App\Exports\EcoComMovementsExport;
 use App\Models\Affiliate\Affiliate;
@@ -16,20 +17,12 @@ use App\Exports\QualificationReportExport;
 class ReportController extends Controller
 {
     /**
-     * @OA\Post(
+     * @OA\Get(
      *      path="/api/report/report_affiliates_spouses",
      *      tags={"REPORTES"},
      *      summary="GENERA REPORTE DE AFILIADOS - CÓNYUGES",
      *      operationId="report_affiliates_spouses",
      *      description="Genera reporte de los afiliados y sus cónyuges",
-     *      @OA\RequestBody(
-     *          description= "Reporte de los afiliados y sus cónyuges",
-     *          required=false,
-     *          @OA\JsonContent(
-     *              type="object",
-     *              @OA\Property(property="type", type="string",description="Extrensión de archivo", example=".xls"),
-     *         ),
-     *     ),
      *     @OA\Response(
      *         response=200,
      *         description="Success",
@@ -45,30 +38,9 @@ class ReportController extends Controller
      */
     public function report_affiliates_spouses(Request $request)
     {
-        $date = date('Y-m-d');
-        $list = Affiliate::leftjoin('spouses', 'spouses.affiliate_id', '=', 'affiliates.id')
+        $list = DB::table('affiliates')
             ->select(
                 'affiliates.id as nup',
-                'affiliates.identity_card as identity_card',
-                'affiliates.first_name as first_name',
-                'affiliates.second_name as second_name',
-                'affiliates.last_name as last_name',
-                'affiliates.mothers_last_name as mothers_last_name',
-                'affiliates.surname_husband as surname_husband',
-                'affiliates.date_entry as date_entry',
-                'affiliates.birth_date as birth_date',
-                'spouses.identity_card as spouse_identity_card',
-                'spouses.first_name as spouse_first_name',
-                'spouses.second_name as spouse_second_name',
-                'spouses.last_name as spouse_last_name',
-                'spouses.mothers_last_name as spouse_mothers_last_name',
-                'spouses.surname_husband as spouse_surname_husband',
-                DB::raw('DATE(MAX(spouses.created_at)) as spouse_registration_date'),
-                'spouses.birth_date as spouse_birth_date',
-                'affiliates.registration as registration'
-            )
-            ->groupBy(
-                'affiliates.id',
                 'affiliates.identity_card',
                 'affiliates.first_name',
                 'affiliates.second_name',
@@ -77,54 +49,21 @@ class ReportController extends Controller
                 'affiliates.surname_husband',
                 'affiliates.date_entry',
                 'affiliates.birth_date',
-                'spouses.identity_card',
-                'spouses.first_name',
-                'spouses.second_name',
-                'spouses.last_name',
-                'spouses.mothers_last_name',
-                'spouses.surname_husband',
-                'spouses.birth_date',
-                'affiliates.registration'
+                'spouses.identity_card as spouse_identity_card',
+                'spouses.first_name as spouse_first_name',
+                'spouses.second_name as spouse_second_name',
+                'spouses.last_name as spouse_last_name',
+                'spouses.mothers_last_name as spouse_mothers_last_name',
+                'spouses.surname_husband as spouse_surname_husband',
+                'spouses.created_at as spouse_create_date',
+                'spouses.birth_date as spouse_birth_date',
+                'affiliates.registration as registration',
+                'spouses.registration as registration_spouse'
             )
-            ->orderBy('affiliates.id', 'asc')
-            ->get();
+            ->leftJoin('spouses', 'spouses.affiliate_id', '=', 'affiliates.id')
+            ->orderBy('affiliates.id', 'asc');
 
-        $data_header = array(array(
-            "NRO", "NUP", "CI TITULAR", "PRIMER NOMBRE", "SEGUNDO NOMBRE", "AP. PATERNO", "AP. MATERNO",
-            "AP. CASADA", "FECHA DE INGRESO", "FECHA DE NACIMIENTO", "CI VIUDA(O)", "PRIMER NOMBRE",
-            "SEGUNDO NOMBRE", "AP. PATERNO", "AP. MATERNO", "AP. CASADA", "FECHA REGISTRO VIUDA",
-            "FECHA DE NACIMIENTO", "MATRÍCULA TITULAR"
-        ));
-        $i = 1;
-        foreach ($list as $row) {
-            array_push($data_header, array(
-                $row->number = $i,
-                $row->nup,
-                $row->identity_card,
-                $row->first_name,
-                $row->second_name,
-                $row->last_name,
-                $row->mothers_last_name,
-                $row->surname_husband,
-                $row->date_entry,
-                $row->birth_date,
-                $row->spouse_identity_card,
-                $row->spouse_first_name,
-                $row->spouse_second_name,
-                $row->spouse_last_name,
-                $row->spouse_mothers_last_name,
-                $row->spouse_surname_husband,
-                $row->spouse_registration_date,
-                $row->spouse_birth_date,
-                $row->registration
-            ));
-            $i++;
-        }
-        $export = new ArchivoPrimarioExport($data_header);
-        $file_name = "reporte_afiliados_conyuges_" . $date;
-        $type = $request->type;
-        $extension = $type ?? '.xlsx';
-        return Excel::download($export, $file_name . $extension);
+        return Excel::download(new AffiliatesSpousesExport($list), 'affiliates_spouses_report.xlsx');
     }
 
     /**
@@ -268,7 +207,8 @@ class ReportController extends Controller
      *          @OA\JsonContent(
      *              type="object",
      *              @OA\Property(property="start_date", type="date",description="Fecha inicio del reporte", example="2023-02-05"),
-     *              @OA\Property(property="end_date", type="date",description="Fecha final del reporte", example="2023-02-14")
+     *              @OA\Property(property="end_date", type="date",description="Fecha final del reporte", example="2023-02-14"),
+     *              @OA\Property(property="type", type="string",description="Tipo de reporte", example="Cuota Mortuoria")
      *         ),
      *     ),
      *     security={
@@ -503,9 +443,9 @@ class ReportController extends Controller
                     CONCAT(ase2.first_name,
                         CASE WHEN TRIM(ase2.second_name) <> '' THEN CONCAT(' ', ase2.second_name) ELSE '' END,
                         ' ',
-                        ase2.second_last_name,
+                        ase2.last_name,
                         ' ',
-                        ase2.last_name) as full_name, asq.description as question, asa2.description as answer, TO_CHAR(ase.created_at, 'YYYY-MM-DD HH24:MI:SS') as formatted_created_at
+                        ase2.second_last_name) as full_name, asq.description as question, asa2.description as answer, TO_CHAR(ase.created_at, 'YYYY-MM-DD HH24:MI:SS') as formatted_created_at
                 FROM api_survey_answer asa
                 JOIN api_survey_question asq ON asa.question_id = asq.id
                 JOIN api_survey_answeroption asa2 ON asa.answer_option_id = asa2.id

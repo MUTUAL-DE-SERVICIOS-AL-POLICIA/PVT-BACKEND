@@ -1142,7 +1142,7 @@ class ImportAffiliatesController extends Controller
             if($request->type == 'mora')
                 $observation_type = ObservationType::where('name', 'Suspendido - Préstamo en mora.')->first();
             elseif($request->type == 'estacional')
-                $observation_type = ObservationType::where('name', 'Prestamo estacional para cobro')->first();
+                $observation_type = ObservationType::where('name', 'Descuento - Préstamo Estacional')->first();
             else
                 return response()->json(['error'=> true, 'message'=> 'tipo de observacion inexistente'],403);
             $module = Module::where('name', 'prestamos')->first();
@@ -1152,7 +1152,7 @@ class ImportAffiliatesController extends Controller
             {
                 if($affiliate->nup <> null){
                     $count++;
-                    if(Observation::where('observation_type_id', $observation_type->id)->where('observable_id', $affiliate->nup)->where('observable_type', 'affiliates')->where('enabled', true)->count() == 0)
+                    if(Observation::where('observation_type_id', $observation_type->id)->where('observable_id', $affiliate->nup)->where('observable_type', 'affiliates')->where('enabled', false)->count() == 0)
                     {
                         Observation::create([
                             'user_id' => Auth::user()->id,
@@ -1163,22 +1163,6 @@ class ImportAffiliatesController extends Controller
                             'date' => Carbon::now(),
                             'enabled' => false
                         ]);
-                    }
-                    if(EconomicComplement::where('affiliate_id', $affiliate->nup)->where('eco_com_procedure_id', $eco_com->id)->count() > 0)
-                    {
-                        $economic_complement = EconomicComplement::where('affiliate_id', $affiliate->nup)->where('eco_com_procedure_id', $eco_com->id)->first();
-                        if(Observation::where('observation_type_id', $observation_type->id)->where('observable_id', $economic_complement->id)->where('observable_type', 'economic_complements')->count() == 0)
-                        {
-                            Observation::create([
-                                'user_id' => Auth::user()->id,
-                                'observation_type_id' => $observation_type->id,
-                                'observable_id' => $economic_complement->id,
-                                'observable_type' => 'economic_complements',
-                                'message' => $affiliate->observacion,
-                                'date' => Carbon::now(),
-                                'enabled' => false
-                             ]);
-                        }
                     }
                 }
                 Schema::dropIfExists('temporary_table');
