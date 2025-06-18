@@ -41,7 +41,9 @@ return new class extends Migration
             \"11_Periodo_pagado_con_anterioridad\" TEXT,
             \"12_Disponibilidad_Con_Aporte\" TEXT,
             \"13_Disponibilidad_Sin_Aporte\" TEXT,
-            \"14_Inexistencia_de_Planilla_de_Haberes\" TEXT
+            \"14_Inexistencia_de_Planilla_de_Haberes\" TEXT,
+            fec_validacion DATE,
+	        fec_derivacion DATE
         )
             LANGUAGE plpgsql
         AS $$
@@ -84,7 +86,9 @@ return new class extends Migration
                 rfc.code AS num_cert,
                 rfc.date AS date_cert,
                 u.name AS name_unit,
-                u.code AS code_unit
+                u.code AS code_unit,
+                wfr.fec_validacion,
+		        wfr.fec_derivacion
             FROM retirement_funds rf
             JOIN affiliates a ON rf.affiliate_id = a.id
             LEFT JOIN ret_fun_correlatives rfc ON
@@ -99,9 +103,32 @@ return new class extends Migration
                 FROM contributions
                 ORDER BY affiliate_id, month_year
             ) AS c ON c.affiliate_id = a.id
+            LEFT JOIN (
+                SELECT 
+                    recordable_id,
+                    MAX(CASE WHEN message ILIKE '%valid%' THEN TO_CHAR(date, 'YYYY-MM-DD') END) AS fec_validacion,
+                    MAX(CASE WHEN message ILIKE '%deriv%' THEN TO_CHAR(date, 'YYYY-MM-DD') END) AS fec_derivacion
+                FROM wf_records wr
+                WHERE
+                recordable_type ILIKE 'retirement_funds'
+                AND record_type_id IN (3, 1)
+                AND wf_state_id = 22
+                GROUP BY recordable_id
+            ) AS wfr ON wfr.recordable_id = rf.id
             LEFT JOIN units u ON u.id = c.unit_id
             WHERE rf.created_at::date BETWEEN fecha_inicio AND fecha_fin
-            AND rf.wf_state_current_id IN (22, 23, 24, 26, 47)
+            AND rf.wf_state_current_id IN (
+                SELECT wfs.id
+                FROM wf_states wfs
+                WHERE wfs.module_id = 3
+                AND wfs.sequence_number >= (
+                    SELECT wfs2.sequence_number
+                    FROM wf_states AS wfs2
+                    WHERE wfs2.module_id = 3
+                    AND wfs2.first_shortened = 'Cuentas Individuales'
+                )
+                AND wfs.deleted_at IS NULL
+            )
             AND rf.code NOT ILIKE '%A'
         ),
         ----Unir datos de afiliados con los periodos agrupados
@@ -144,7 +171,9 @@ return new class extends Migration
             STRING_AGG(CASE WHEN dm.contribution_type_id = 11 THEN TO_CHAR(dm.min_month_year, 'YYYY-MM-DD') || ' a ' || TO_CHAR(dm.max_month_year, 'YYYY-MM-DD') END, E',\n') AS \"Periodo pagado con anterioridad\",
             STRING_AGG(CASE WHEN dm.contribution_type_id = 12 THEN TO_CHAR(dm.min_month_year, 'YYYY-MM-DD') || ' a ' || TO_CHAR(dm.max_month_year, 'YYYY-MM-DD') END, E',\n') AS \"Disponibilidad Con Aporte\",
             STRING_AGG(CASE WHEN dm.contribution_type_id = 13 THEN TO_CHAR(dm.min_month_year, 'YYYY-MM-DD') || ' a ' || TO_CHAR(dm.max_month_year, 'YYYY-MM-DD') END, E',\n') AS \"Disponibilidad Sin Aporte\",
-            STRING_AGG(CASE WHEN dm.contribution_type_id = 14 THEN TO_CHAR(dm.min_month_year, 'YYYY-MM-DD') || ' a ' || TO_CHAR(dm.max_month_year, 'YYYY-MM-DD') END, E',\n') AS \"Inexistencia de Planilla de Haberes\"
+            STRING_AGG(CASE WHEN dm.contribution_type_id = 14 THEN TO_CHAR(dm.min_month_year, 'YYYY-MM-DD') || ' a ' || TO_CHAR(dm.max_month_year, 'YYYY-MM-DD') END, E',\n') AS \"Inexistencia de Planilla de Haberes\",
+            dm.fec_validacion::DATE,
+	        dm.fec_derivacion::DATE
         FROM data_main dm
         GROUP BY
             dm.id,
@@ -161,7 +190,9 @@ return new class extends Migration
             dm.num_cert,
             dm.date_cert,
             dm.name_unit,
-            dm.code_unit
+            dm.code_unit,
+            dm.fec_validacion,
+	        dm.fec_derivacion
         ORDER BY dm.id;
 
         END;

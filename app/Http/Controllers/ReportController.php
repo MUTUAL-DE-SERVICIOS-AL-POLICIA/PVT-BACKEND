@@ -144,7 +144,9 @@ class ReportController extends Controller
             "12 DISP. CON APORTE",
             "13 DISP. SIN APORTE",
             "14 INEXISTENCIA DE PLAN. DE HAB.",
-            //"15 DEVOLUCION"
+            //"15 DEVOLUCION",
+            "FECHA DERIVACIÓN A CI",
+            "FECHA VALIDACIÓN"
         ]);
         
         $i = 1;
@@ -181,6 +183,8 @@ class ReportController extends Controller
                 $row->{'13_Disponibilidad_Sin_Aporte'},
                 $row->{'14_Inexistencia_de_Planilla_de_Haberes'},
                 //$row->{'15_Devolucion'},
+                $row->fec_derivacion,
+                $row->fec_validacion,
             ];
             $i++;
         }
