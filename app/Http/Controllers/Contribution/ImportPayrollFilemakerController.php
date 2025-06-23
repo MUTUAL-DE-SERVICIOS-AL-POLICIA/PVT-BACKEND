@@ -22,7 +22,7 @@ class ImportPayrollFilemakerController extends Controller
      *      tags={"IMPORTACION-PLANILLA-FILEMAKER"},
      *      summary="PASO 1 COPIADO DE DATOS PLANILLA FILEMAKER",
      *      operationId="upload_copy_payroll_filemaker",
-     *      description="Copiado de datos del archivo de planillas filemaker a la tabla payroll_copy_filemaker",
+     *      description="Copiado de datos del archivo de planillas filemaker a la tabla payroll_copy_filemakers",
      *      @OA\RequestBody(
      *          description= "Provide auth credentials",
      *          required=true,
@@ -64,7 +64,7 @@ class ImportPayrollFilemakerController extends Controller
             $successfully = false;
             if($extencion == "csv"){
 
-                $rollback_period = "delete from payroll_copy_filemaker";
+                $rollback_period = "delete from payroll_copy_filemakers";
                 $rollback_period  = DB::connection('db_aux')->select($rollback_period);
                 $file_name = "filemaker".'.'.$extencion;
                     if($file_name_entry == $file_name){
@@ -122,7 +122,7 @@ class ImportPayrollFilemakerController extends Controller
 
                         //****************************************/
                         
-                        $insert = "INSERT INTO payroll_copy_filemaker(a_o, mes, carnet, matricula, pat ,mat, nom, nom2, ap_casada, grado, cor_afi, fecha_pago, recibo, monto, observacion, affiliate_id_frcam, created_at, updated_at)
+                        $insert = "INSERT INTO payroll_copy_filemakers(a_o, mes, carnet, matricula, pat ,mat, nom, nom2, ap_casada, grado, cor_afi, fecha_pago, recibo, monto, observacion, affiliate_id_frcam, created_at, updated_at)
                         SELECT a_o::INTEGER, mes::INTEGER, carnet, matricula, pat, mat, nom, nom2, ap_casada, grado, cor_afi::INTEGER, fecha_pago::DATE, recibo, monto, observacion, affiliate_id_frcam::INTEGER, current_timestamp, current_timestamp 
                         FROM payroll_copy_filemaker_tmp";
                         $insert = DB::connection('db_aux')->select($insert);
@@ -139,9 +139,9 @@ class ImportPayrollFilemakerController extends Controller
                                         PARTITION BY carnet, a_o, mes, monto
                                         ORDER BY id
                                     ) AS rn
-                                FROM payroll_copy_filemaker
+                                FROM payroll_copy_filemakers
                             )
-                            UPDATE payroll_copy_filemaker
+                            UPDATE payroll_copy_filemakers
                             SET deleted_at = NOW()
                             WHERE id IN (
                                 SELECT id FROM duplicados WHERE rn > 1
@@ -149,17 +149,17 @@ class ImportPayrollFilemakerController extends Controller
                         $data_cleaning = DB::connection('db_aux')->select($data_cleaning);
 
                         //******validación de datos****************/
-                        $verify_data = "update payroll_copy_filemaker pcf set error_message = concat(error_message,' - ','Los valores de los apellidos son NULOS ') from (select id from payroll_copy_filemaker where a_o is null and mes is null and pat is null and mat is null  and deleted_at is null) as subquery where pcf.id = subquery.id;";
+                        $verify_data = "update payroll_copy_filemakers pcf set error_message = concat(error_message,' - ','Los valores de los apellidos son NULOS ') from (select id from payroll_copy_filemakers where a_o is null and mes is null and pat is null and mat is null  and deleted_at is null) as subquery where pcf.id = subquery.id;";
                         $verify_data = DB::connection('db_aux')->select($verify_data);
 
-                        $verify_data = "update payroll_copy_filemaker pcf set error_message = concat(error_message,' - ','El valor del primer nombre es NULO ') from (select id from payroll_copy_filemaker where  nom is null and deleted_at is null) as subquery where pcf.id = subquery.id;";
+                        $verify_data = "update payroll_copy_filemakers pcf set error_message = concat(error_message,' - ','El valor del primer nombre es NULO ') from (select id from payroll_copy_filemakers where  nom is null and deleted_at is null) as subquery where pcf.id = subquery.id;";
                         $verify_data = DB::connection('db_aux')->select($verify_data);
 
-                        $verify_data = "update payroll_copy_filemaker pcf set error_message = concat(error_message,' - ','El numero de carnet es duplicado en el mismo periodo') from (select carnet, a_o, mes from payroll_copy_filemaker where deleted_at is null group by carnet, a_o, mes having count(*) > 1) as subquery where pcf.carnet = subquery.carnet and pcf.a_o = subquery.a_o and pcf.mes = subquery.mes and deleted_at is null;";
+                        $verify_data = "update payroll_copy_filemakers pcf set error_message = concat(error_message,' - ','El numero de carnet es duplicado en el mismo periodo') from (select carnet, a_o, mes from payroll_copy_filemakers where deleted_at is null group by carnet, a_o, mes having count(*) > 1) as subquery where pcf.carnet = subquery.carnet and pcf.a_o = subquery.a_o and pcf.mes = subquery.mes and deleted_at is null;";
                         $verify_data = DB::connection('db_aux')->select($verify_data);
 
                         //****************************************/
-                        $verify_data = "select count(id) from payroll_copy_filemaker pcf where error_message is not null and deleted_at is null;";
+                        $verify_data = "select count(id) from payroll_copy_filemakers pcf where error_message is not null and deleted_at is null;";
                         $verify_data = DB::connection('db_aux')->select($verify_data);
 
                         if($verify_data[0]->count > 0) {
@@ -237,22 +237,22 @@ class ImportPayrollFilemakerController extends Controller
         $data_count['num_data_not_validated'] = 0;
 
         //---TOTAL DE DATOS DEL ARCHIVO
-        $query_total_data = "SELECT count(id) FROM payroll_copy_filemaker;";
+        $query_total_data = "SELECT count(id) FROM payroll_copy_filemakers;";
         $query_total_data = DB::connection('db_aux')->select($query_total_data);
         $data_count['num_total_data_copy'] = $query_total_data[0]->count;
 
         //---NUMERO DE DATOS NO CONSIDERADOS duplicados de afilaidos y aportes
-        $query_data_not_considered = "SELECT count(id) FROM payroll_copy_filemaker where error_message is not null or deleted_at is not null;";
+        $query_data_not_considered = "SELECT count(id) FROM payroll_copy_filemakers where error_message is not null or deleted_at is not null;";
         $query_data_not_considered = DB::connection('db_aux')->select($query_data_not_considered);
         $data_count['num_data_not_considered'] = $query_data_not_considered[0]->count;
 
         //---NUMERO DE DATOS NO RELACIONADOS 
-        $query_data_unrelated= "SELECT count(id) FROM payroll_copy_filemaker where error_message is null and deleted_at is null and criteria = '7-no-identificado';";
+        $query_data_unrelated= "SELECT count(id) FROM payroll_copy_filemakers where error_message is null and deleted_at is null and criteria = '7-no-identificado';";
         $query_data_unrelated= DB::connection('db_aux')->select($query_data_unrelated);
         $data_count['num_data_unrelated'] = $query_data_unrelated[0]->count;
 
         //---NUMERO DE DATOS CONSIDERADOS 
-        $query_data_considered = "SELECT count(id) FROM payroll_copy_filemaker where error_message is null and deleted_at is null;";
+        $query_data_considered = "SELECT count(id) FROM payroll_copy_filemakers where error_message is null and deleted_at is null;";
         $query_data_considered = DB::connection('db_aux')->select($query_data_considered);
         $data_count['num_data_considered'] = $query_data_considered[0]->count;
 
@@ -300,7 +300,7 @@ class ImportPayrollFilemakerController extends Controller
 
         $data_header=array(array("AÑO","MES","CARNET","APELLIDO PATERNO","APELLIDO MATERNO","PRIMER NOMBRE","SEGUNDO NOMBRE","APORTE","OBSERVACIÓN"));
 
-        $data_payroll_copy_filemaker = "select a_o,mes,carnet,pat,mat,nom,nom2,monto,error_message from payroll_copy_filemaker pcf where error_message is not null or deleted_at is not null order by carnet";
+        $data_payroll_copy_filemaker = "select a_o,mes,carnet,pat,mat,nom,nom2,monto,error_message from payroll_copy_filemakers pcf where error_message is not null or deleted_at is not null order by carnet";
         $data_payroll_copy_filemaker = DB::connection('db_aux')->select($data_payroll_copy_filemaker);
             foreach ($data_payroll_copy_filemaker as $row){
                 array_push($data_header, array($row->a_o,$row->mes,$row->carnet,$row->pat,
@@ -364,11 +364,11 @@ class ImportPayrollFilemakerController extends Controller
             $query = "select search_affiliate_filemaker('$connection_db_aux');";
             $data_validated = DB::select($query);
             $num_total_data_copy = $this->data_count_payroll_filemaker();
-            $count_data_automatic_link = "select count(id) from payroll_copy_filemaker pcf where criteria in ('1-CI-sPN-sPA-sSA', '2-partCI-sPN-sPA', '3-sCI-MAT-PN-PA', '4-MAT-APCAS', '5-cCI-sPN-sPA','6-partcCI-sPN-sPA')";
+            $count_data_automatic_link = "select count(id) from payroll_copy_filemakers pcf where criteria in ('1-CI-sPN-sPA-sSA', '2-partCI-sPN-sPA', '3-sCI-MAT-PN-PA', '4-MAT-APCAS', '5-cCI-sPN-sPA','6-partcCI-sPN-sPA')";
             $count_data_automatic_link = DB::connection('db_aux')->select($count_data_automatic_link);
-            $count_data_unidentified = "select count(id) from payroll_copy_filemaker pcf where criteria in ('7-no-identificado')";
+            $count_data_unidentified = "select count(id) from payroll_copy_filemakers pcf where criteria in ('7-no-identificado')";
             $count_data_unidentified = DB::connection('db_aux')->select($count_data_unidentified);
-            $count_data_error = "select count(id) from payroll_copy_filemaker pcf where error_message is not null or deleted_at is not null";
+            $count_data_error = "select count(id) from payroll_copy_filemakers pcf where error_message is not null or deleted_at is not null";
             $count_data_error = DB::connection('db_aux')->select($count_data_error);
             $data_count['num_total_data_copy'] = $num_total_data_copy['num_total_data_copy'];
             $data_count['count_data_automatic_link'] = $count_data_automatic_link[0]->count;
@@ -387,7 +387,7 @@ class ImportPayrollFilemakerController extends Controller
                 $route = '/contribution/download_data_revision';
                 $route_file_name = 'observados_para_revision.xls';
             }elseif($count_data_unidentified[0]->count == 0 && $count_data_error[0]->count > 0){
-                $valid_contribution =  "select count(id) from payroll_copy_filemaker pcf  where state like 'accomplished' and error_message is not null";
+                $valid_contribution =  "select count(id) from payroll_copy_filemakers pcf  where state like 'accomplished' and error_message is not null";
                 $valid_contribution = DB::connection('db_aux')->select($valid_contribution);
                 if($valid_contribution[0]->count == 0){
                     $successfully =true;
@@ -464,7 +464,7 @@ class ImportPayrollFilemakerController extends Controller
     //metodo para copiar los affiliate_id_frcam a affiliate_id
     public function copy_affiliate_id_frcam_to_affiliate_id(request $request){
 
-        $query = "UPDATE payroll_copy_filemaker pcf
+        $query = "UPDATE payroll_copy_filemakers pcf
                   SET affiliate_id = pcf.affiliate_id_frcam,
                    criteria = '8-affiliate_id_frcam',
                    observacion = split_part(observacion,'|',1),
@@ -488,7 +488,7 @@ class ImportPayrollFilemakerController extends Controller
         //2. Reemplaza los valores que contengan cero en aporte aunque esten clasificados
         $payroll_filermaker =  DB::select("SELECT pcf.id, cp.affiliate_id, pcf.monto, cp.total, cp.contribution_type_mortuary_id
         FROM contribution_passives cp
-        JOIN dblink('$connection_db_aux', 'SELECT id, affiliate_id, a_o, mes, monto FROM payroll_copy_filemaker')
+        JOIN dblink('$connection_db_aux', 'SELECT id, affiliate_id, a_o, mes, monto FROM payroll_copy_filemakers')
         AS pcf(id INT, affiliate_id INT, a_o INT, mes INT, monto NUMERIC(13,2)) ON cp.affiliate_id = pcf.affiliate_id
         where EXTRACT(YEAR FROM cp.month_year) = pcf.a_o 
         AND EXTRACT(MONTH FROM cp.month_year) = pcf.mes 
@@ -506,7 +506,7 @@ class ImportPayrollFilemakerController extends Controller
              if (!empty($messages)) {
                 $error_message = implode(' - ', $messages);
                 $update_query = "
-                    UPDATE payroll_copy_filemaker pf 
+                    UPDATE payroll_copy_filemakers pf 
                     SET error_message = CONCAT(COALESCE(error_message, ''), ' - ', '$error_message') 
                     WHERE pf.id = $update_payroll->id;
                 ";
@@ -565,10 +565,10 @@ class ImportPayrollFilemakerController extends Controller
                 $connection_db_aux = Util::connection_db_aux();
     
                 //conteo de  affiliate_id is null distito del criterio 7-no-identificado
-                $count_data = "SELECT count(id) FROM payroll_copy_filemaker where error_message is null and deleted_at is null and affiliate_id is null and criteria!='7-no-identificado';";
+                $count_data = "SELECT count(id) FROM payroll_copy_filemakers where error_message is null and deleted_at is null and affiliate_id is null and criteria!='7-no-identificado';";
                 $count_data = DB::connection('db_aux')->select($count_data);
                 if($count_data[0]->count == 0){
-                    $count_data_validated = "SELECT count(id) FROM payroll_copy_filemaker where state ='validated';";
+                    $count_data_validated = "SELECT count(id) FROM payroll_copy_filemakers where state ='validated';";
                     $count_data_validated = DB::connection('db_aux')->select($count_data_validated);
 
                     if($count_data_validated[0]->count == 0){
@@ -579,7 +579,7 @@ class ImportPayrollFilemakerController extends Controller
                             if($data_validated){
                                 $message = "Realizado con exito";
                                 $successfully = true;
-                                $data_payroll_copy_filemaker = "select  * from  payroll_copy_filemaker  where state ='validated';";
+                                $data_payroll_copy_filemaker = "select  * from  payroll_copy_filemakers  where state ='validated';";
                                 $data_payroll_copy_filemaker = DB::connection('db_aux')->select($data_payroll_copy_filemaker);
                                 if(count($data_payroll_copy_filemaker)> 0){
                                     $message = "Excel";                            
@@ -629,7 +629,7 @@ class ImportPayrollFilemakerController extends Controller
     // -------------metodo para verificar si existe datos en el paso 1 -----//
     public function exists_data_payroll_copy_filemaker(){
         $exists_data = true;
-        $query = "SELECT * FROM payroll_copy_filemaker WHERE NOT EXISTS ( SELECT 1 FROM payroll_copy_filemaker WHERE state != 'accomplished');";
+        $query = "SELECT * FROM payroll_copy_filemakers WHERE NOT EXISTS ( SELECT 1 FROM payroll_copy_filemakers WHERE state != 'accomplished');";
         $verify_data = DB::connection('db_aux')->select($query);
 
         if($verify_data == []) $exists_data = false;

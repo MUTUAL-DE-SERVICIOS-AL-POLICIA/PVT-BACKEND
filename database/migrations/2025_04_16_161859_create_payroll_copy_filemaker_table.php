@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection('db_aux')->create('payroll_copy_filemaker', function (Blueprint $table) {
+        Schema::connection('db_aux')->create('payroll_copy_filemakers', function (Blueprint $table) {
             $table->id();
             $table->integer('a_o')->comment('Año');
             $table->integer('mes')->comment('Mes');
@@ -44,6 +44,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::connection('db_aux')->dropIfExists('payroll_copy_filemaker');
+        Schema::connection('db_aux')->dropIfExists('payroll_copy_filemakers');
     }
 };
