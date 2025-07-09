@@ -219,13 +219,13 @@ return new class extends Migration
             END $$;
         ");
         //4.1
-        DB::statement("CREATE OR REPLACE FUNCTION public.import_contribution_filemaker ( user_reg integer)
+        DB::statement("CREATE OR REPLACE FUNCTION public.import_contribution_filemaker ( user_reg integer, import_date date)
         RETURNS varchar
         AS $$
         DECLARE
             acction varchar;
             -- Declaración EXPLÍCITA del cursor
-            cur_contribution CURSOR FOR SELECT * FROM payroll_filemakers;
+            cur_contribution CURSOR FOR SELECT * FROM payroll_filemakers WHERE created_at >= import_date;
             registro payroll_filemakers%ROWTYPE;
             BEGIN
                 --***************************************

@@ -529,7 +529,7 @@ class ImportPayrollFilemakerController extends Controller
      *      tags={"IMPORTACION-PLANILLA-FILEMAKER"},
      *      summary="PASO 3 VALIDACION DE DATOS APORTES",
      *      operationId="validation_contribution_filemaker",
-     *      description="validacion de datos de aportes de payrollcopi_filemaker a la tabla payroll_filemakers",
+     *      description="validacion de datos de aportes de payroll_copy_filemaker a la tabla payroll_filemakers",
      *      @OA\RequestBody(
      *          description= "Provide auth credentials",
      *          required=true,
@@ -565,13 +565,13 @@ class ImportPayrollFilemakerController extends Controller
                 $connection_db_aux = Util::connection_db_aux();
     
                 //conteo de  affiliate_id is null distito del criterio 7-no-identificado
-                $count_data = "SELECT count(id) FROM payroll_copy_filemakers where error_message is null and deleted_at is null and affiliate_id is null and criteria!='7-no-identificado';";
+                $count_data = "SELECT count(id) FROM payroll_copy_filemakers where error_message is null and deleted_at is null and state = 'accomplished' and affiliate_id is not null and criteria!='7-no-identificado';";
                 $count_data = DB::connection('db_aux')->select($count_data);
-                if($count_data[0]->count == 0){
+                if($count_data[0]->count > 0){
                     $count_data_validated = "SELECT count(id) FROM payroll_copy_filemakers where state ='validated';";
                     $count_data_validated = DB::connection('db_aux')->select($count_data_validated);
 
-                    if($count_data_validated[0]->count == 0){
+                    if($count_data_validated[0]->count == 0 || $count_data[0]->count > 0){
     
                         $query = "select registration_payroll_filemakers('$connection_db_aux');";
                         $data_validated = DB::select($query);
@@ -647,9 +647,10 @@ class ImportPayrollFilemakerController extends Controller
      *      @OA\RequestBody(
      *          description= "Provide auth credentials",
      *          required=true,
-     *          @OA\JsonContent(
-     *              type="object"
+     *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
+     *             @OA\Property(property="date_import", type="string",description="fecha importacion required",example= "2025-07-08")
      *            )
+     *          ),
      *     ),
      *     security={
      *         {"bearerAuth": {}}
@@ -669,16 +670,21 @@ class ImportPayrollFilemakerController extends Controller
      * @return void
     */
     public function import_contribution_filemaker(Request $request){
+        $request->validate([
+            'date_import' => 'required|date',
+        ]);
+
         try {
             DB::beginTransaction();
-    
             $userId = Auth::id();
+            $importDate = Carbon::parse($request->date_import)->format('Y-m-d');
             $message = 'No existen datos de la planilla.';
             $success = false;
     
             // Verifica si ya se realizó una importación
             $existingContributions = DB::table('contribution_passives')
                 ->where('contributionable_type', 'payroll_filemakers')
+                ->whereDate('created_at', '=', $importDate)
                 ->count();
     
             if ($existingContributions > 0) {
@@ -692,10 +698,10 @@ class ImportPayrollFilemakerController extends Controller
             }
     
             // Verifica si hay datos en payroll_filemakers
-            $payrollCount = DB::table('payroll_filemakers')->count();
+            $payrollCount = DB::table('payroll_filemakers')->whereDate('created_at', '=', $importDate)->count();
     
             if ($payrollCount > 0) {
-                DB::select("SELECT import_contribution_filemaker(?)", [$userId]);
+                DB::select("SELECT import_contribution_filemaker(?,?)", [$userId, $importDate]);
     
                 DB::commit(); // Confirma transacción
     
@@ -704,6 +710,7 @@ class ImportPayrollFilemakerController extends Controller
     
                 $totalContributions = DB::table('contribution_passives')
                     ->where('contributionable_type', 'payroll_filemakers')
+                    ->whereDate('created_at', '=', $importDate )
                     ->count();
             } else {
                 $totalContributions = 0;
