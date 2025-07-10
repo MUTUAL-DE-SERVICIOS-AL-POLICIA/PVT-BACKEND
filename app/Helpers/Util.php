@@ -366,7 +366,7 @@ class Util
         ->where('id', 1)
         ->update(['next_time' => 'UNIX_TIMESTAMP()',
                   'fixed_next_time' => 'if(recharge_con_type=2, UNIX_TIMESTAMP(), fixed_next_time)']);
-        sleep(60); 
+        sleep(60);
         $result = DB::connection('mysql')->table('USSD')->select('USSD_RETURN')->orderBy('INSERTTIME', 'desc')->first();
         return $result->USSD_RETURN;
     }
@@ -375,7 +375,7 @@ class Util
     {
         $dom_pdf = $pdf->getDomPDF();
         $canvas = $dom_pdf->get_canvas();
-        
+
         $width = $canvas->get_width();
         $height = $canvas->get_height();
         $pageNumberWidth = $width / 2;
@@ -387,5 +387,13 @@ class Util
             'type' => 'pdf',
             'file_name' => $file_name
         ];
+    }
+
+    public static function removeSpaces($text)
+    {
+        $re = '/\s+/';
+        $subst = ' ';
+        $result = preg_replace($re, $subst, $text);
+        return $result ? trim($result) : null;
     }
 }
