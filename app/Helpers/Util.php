@@ -275,16 +275,16 @@ class Util
                 $shipping['sms_num'] = Util::remove_special_char($shipping['sms_num']);
                 $code_num = '591' . $shipping['sms_num'];
                 $message = $shipping['message'];
-                $response = Http::get($sms_server_url . "dosend.php?USERNAME=$root&PASSWORD=$password&smsprovider=$sms_provider&smsnum=$code_num&method=2&Memo=$message");
+                $response = Http::timeout(300)->get($sms_server_url . "dosend.php?USERNAME=$root&PASSWORD=$password&smsprovider=$sms_provider&smsnum=$code_num&method=2&Memo=$message");
                 if($response->successful()) {
                     $delivered = false;
                     $clipped_chain = substr($response, strrpos($response, "id=") + 3);
                     $end_of_chain = substr($clipped_chain,  strrpos($clipped_chain, "&U"));
                     $id = substr($clipped_chain, 0, -strlen($end_of_chain));
-                    $result = Http::timeout(60)->get($sms_server_url . "resend.php?messageid=$id&USERNAME=$root&PASSWORD=$password");
+                    $result = Http::timeout(300)->get($sms_server_url . "resend.php?messageid=$id&USERNAME=$root&PASSWORD=$password");
                     if($result->successful()) {
-                        // logger("se envío sms ". $i);
-                        $var = $result->getBody(); // obteniendo el cuerpo de la página html
+                         // logger("se envío sms ". $i);
+                         $var = $result->getBody(); // obteniendo el cuerpo de la página html
                         $obj = $morph_type ? new Affiliate() : new Loan();
                         $alias = $obj->getMorphClass();
                         $notification_send = new NotificationSend();
