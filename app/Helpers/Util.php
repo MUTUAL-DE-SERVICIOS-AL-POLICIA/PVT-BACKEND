@@ -396,4 +396,30 @@ class Util
         $result = preg_replace($re, $subst, $text);
         return $result ? trim($result) : null;
     }
+
+    public static function verifyMonthYearDate(string $value)
+    {
+        return preg_match('/^\d{1,2}\/\d{4}$/', $value) === 1;
+    }
+
+    public static function getDateFormat(?string $date, string $size = 'short')
+    {
+        if (empty($date)) {
+            return 'sin fecha';
+        }
+
+        try {
+            if (self::verifyMonthYearDate($date)) {
+                $date = Carbon::createFromFormat('d/m/Y', '01/' . $date)->toDateString();
+            }
+
+            $carbonDate = Carbon::parse($date)->locale('es');
+            return match ($size) {
+                'large' => $carbonDate->isoFormat('D MMMM YYYY'),  // Ejemplo: 5 mayo 1983
+                default => $carbonDate->isoFormat('D MMM YYYY'),   // Ejemplo: 5 may 1983
+            };
+        } catch (\Exception) {
+            return 'sin fecha';
+        }
+    }
 }

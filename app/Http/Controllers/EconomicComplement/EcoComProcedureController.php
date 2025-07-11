@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\EconomicComplement;
 
+use App\Helpers\Util;
 use App\Http\Controllers\Controller;
 use App\Models\EconomicComplement\EcoComBeneficiary;
 use App\Models\EconomicComplement\EcoComProcedure;
@@ -68,7 +69,7 @@ public function listProcedures(Request $request)
             "beneficiario" => $eco_com->eco_com_beneficiary->full_name,
             "ci" => $eco_com->eco_com_beneficiary->ciWithExt(),
             "semestre" => $eco_com->eco_com_procedure->fullName(),
-            "fecha_de_recepcion" => $eco_com->reception_date ? Carbon::parse($eco_com->reception_date) : null,
+            "fecha_de_recepcion" => Util::getDateFormat($eco_com->reception_date),
             "nro_tramite" => $eco_com->code,
             "tipo_de_prestacion" => $eco_com->eco_com_modality->shortened ?? '',
             "tipo_de_tramite" => $eco_com->eco_com_reception_type->name ?? '',
