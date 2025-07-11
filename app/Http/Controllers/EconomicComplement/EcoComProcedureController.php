@@ -60,7 +60,7 @@ public function listProcedures(Request $request)
     }
     $data = $eco_com_beneficiaries->map(function ($beneficiary) {
         $eco_com = $beneficiary->economic_complement;
-        $observations = $eco_com->observations->where('enabled', false)->pluck('shortened')->unique();
+        $observations = $eco_com->observations()->where('enabled', false)->pluck('shortened')->unique();
 
         return [
             "id" => $eco_com->id,
