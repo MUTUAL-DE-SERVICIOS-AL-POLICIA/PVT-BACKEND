@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers\EconomicComplement;
 
+use App\Helpers\Util;
 use App\Http\Controllers\Controller;
+use App\Models\EconomicComplement\EcoComBeneficiary;
 use App\Models\EconomicComplement\EcoComProcedure;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class EcoComProcedureController extends Controller
@@ -31,6 +34,56 @@ class EcoComProcedureController extends Controller
             ]
         ]);
     }
+public function listProcedures(Request $request)
+{
+    $identity_card = mb_strtoupper($request->identity_card);
+    $birth_date = Carbon::parse($request->birth_date)->format('Y-m-d');
+
+    $eco_com_beneficiaries = EcoComBeneficiary::with([
+        'economic_complement.eco_com_procedure',
+        'economic_complement.eco_com_modality',
+        'economic_complement.eco_com_reception_type',
+        'economic_complement.eco_com_state',
+        'economic_complement.observations',
+        'economic_complement.eco_com_beneficiary'
+    ])
+    ->where('identity_card', $identity_card)
+    ->where('birth_date', $birth_date)
+    ->orderByDesc('created_at')
+    ->get();
+
+    if ($eco_com_beneficiaries->isEmpty()) {
+        return response()->json([
+            'error' => true,
+            'message' => 'Persona no registrada, favor revisar la información.',
+            'data' => (object)[]
+        ]);
+    }
+    $data = $eco_com_beneficiaries->map(function ($beneficiary) {
+        $eco_com = $beneficiary->economic_complement;
+        $observations = $eco_com->observations()->where('enabled', false)->pluck('shortened')->unique();
+
+        return [
+            "id" => $eco_com->id,
+            "title" => mb_strtoupper($eco_com->eco_com_procedure->semester) . ' SEMESTRE ' . Carbon::parse($eco_com->eco_com_procedure->year)->year,
+            "beneficiario" => $eco_com->eco_com_beneficiary->full_name,
+            "ci" => $eco_com->eco_com_beneficiary->ciWithExt(),
+            "semestre" => $eco_com->eco_com_procedure->fullName(),
+            "fecha_de_recepcion" => Util::getDateFormat($eco_com->reception_date),
+            "nro_tramite" => $eco_com->code,
+            "tipo_de_prestacion" => $eco_com->eco_com_modality->shortened ?? '',
+            "tipo_de_tramite" => $eco_com->eco_com_reception_type->name ?? '',
+            "estado" => $eco_com->eco_com_state->name ?? '',
+            "observaciones_del_tramite" => $observations->isNotEmpty() ? $observations->values() : 'Ninguna',
+        ];
+    });
+
+    return response()->json([
+        'error' => false,
+        'message' => 'Trámites',
+        'data' => $data,
+    ]);
+}
 
     /**
      * Show the form for creating a new resource.
