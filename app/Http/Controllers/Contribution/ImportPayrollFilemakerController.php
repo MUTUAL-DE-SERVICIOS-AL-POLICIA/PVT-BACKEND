@@ -488,12 +488,13 @@ class ImportPayrollFilemakerController extends Controller
         //2. Reemplaza los valores que contengan cero en aporte aunque esten clasificados
         $payroll_filermaker =  DB::select("SELECT pcf.id, cp.affiliate_id, pcf.monto, cp.total, cp.contribution_type_mortuary_id
         FROM contribution_passives cp
-        JOIN dblink('$connection_db_aux', 'SELECT id, affiliate_id, a_o, mes, monto FROM payroll_copy_filemakers')
-        AS pcf(id INT, affiliate_id INT, a_o INT, mes INT, monto NUMERIC(13,2)) ON cp.affiliate_id = pcf.affiliate_id
+        JOIN dblink('$connection_db_aux', 'SELECT id, affiliate_id, a_o, mes, monto, state FROM payroll_copy_filemakers WHERE state <> ''validated''')
+        AS pcf(id INT, affiliate_id INT, a_o INT, mes INT, monto NUMERIC(13,2), state VARCHAR(255)) ON cp.affiliate_id = pcf.affiliate_id
         where EXTRACT(YEAR FROM cp.month_year) = pcf.a_o 
         AND EXTRACT(MONTH FROM cp.month_year) = pcf.mes 
         AND cp.total <> pcf.monto
-        AND cp.total > 0");
+        AND cp.total > 0
+        AND pcf.state = 'validated'");
 
           foreach($payroll_filermaker as $update_payroll) {
             $messages = [];

@@ -47,11 +47,11 @@ return new class extends Migration
                              AND COALESCE(registration, '') ILIKE COALESCE(registration_entry, '')
                              AND word_similarity(last_name, surname_husband_entry) >= 0.5;
 
-                        WHEN (order_entry = 5 ) THEN --Busqueda de conyuge por CI sin complemento,nombre, paterno similares
+                        WHEN (order_entry = 5 ) THEN --Busqueda de conyuge por CI sin complemento,nombre, paterno , materno similares
                             select s.affiliate_id into affiliate_id from spouses s where
                             split_part(identity_card,'-',1) ILIKE identity_card_entry
                             AND (word_similarity(first_name , first_name_entry) >= 0.5 or word_similarity(second_name , second_name_entry) >= 0.5)
-                            AND word_similarity(last_name, last_name_entry) >= 0.5;
+                            AND (word_similarity(last_name, last_name_entry) >= 0.5 or word_similarity(mothers_last_name, mothers_last_name_entry) >= 0.5);
 
                         WHEN (order_entry = 6 ) then --Busqueda de conyuge por CI similar matricula, nombre, paterno igual--
                             select s.affiliate_id into affiliate_id from spouses s where
