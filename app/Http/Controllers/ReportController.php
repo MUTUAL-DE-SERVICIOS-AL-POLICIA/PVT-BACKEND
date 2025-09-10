@@ -49,6 +49,9 @@ class ReportController extends Controller
                 'affiliates.surname_husband',
                 'affiliates.date_entry',
                 'affiliates.birth_date',
+                'pension_entities.name as pension_entity_name',
+                'degrees.code as degree_code',
+                'hierarchies.code as hierarchy_code', 
                 'spouses.identity_card as spouse_identity_card',
                 'spouses.first_name as spouse_first_name',
                 'spouses.second_name as spouse_second_name',
@@ -61,6 +64,9 @@ class ReportController extends Controller
                 'spouses.registration as registration_spouse'
             )
             ->leftJoin('spouses', 'spouses.affiliate_id', '=', 'affiliates.id')
+            ->leftJoin('pension_entities', 'pension_entities.id', '=', 'affiliates.pension_entity_id')
+            ->leftJoin('degrees', 'degrees.id', '=', 'affiliates.degree_id')
+            ->leftJoin('hierarchies', 'hierarchies.id', '=', 'degrees.hierarchy_id') 
             ->orderBy('affiliates.id', 'asc');
 
         return Excel::download(new AffiliatesSpousesExport($list), 'affiliates_spouses_report.xlsx');
