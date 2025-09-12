@@ -5,10 +5,12 @@ namespace App\Models\Contribution;
 use App\Models\Affiliate\Affiliate;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User;
 class ContributionPassive extends Model
 {
     use HasFactory;
+    use SoftDeletes;
 
     public $timestamps = true;
     public $guarded = ['id'];
@@ -70,6 +72,7 @@ class ContributionPassive extends Model
     }
 
     public function can_deleted(){
-        return $this->total < 1 || is_null($this->contributionable_type) || ($this->contribution_state_id == 1 && $this->contributionable_type == 'discount_type_economic_complement')? true:false;
+        //return $this->total < 1 || is_null($this->contributionable_type) || ($this->contribution_state_id == 1 && $this->contributionable_type == 'discount_type_economic_complement')? true:false;
+        return is_null($this->contribution_type_mortuary_id) ? true: false;
     }
 }
