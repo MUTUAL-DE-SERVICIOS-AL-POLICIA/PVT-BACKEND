@@ -264,7 +264,7 @@ return new class extends Migration
             --************************************************************************************
             --Funcion par buscar id de la contribucion de un afiliado de un periodo determinado
             --************************************************************************************ 
-                SELECT cp.id INTO id_contribution_passive  FROM contribution_passives cp WHERE cp.affiliate_id = affiliate AND EXTRACT(YEAR FROM cp.month_year) = year_copy AND  EXTRACT(MONTH FROM cp.month_year) = month_copy;
+                SELECT cp.id INTO id_contribution_passive  FROM contribution_passives cp WHERE cp.deleted_at is null and cp.affiliate_id = affiliate AND EXTRACT(YEAR FROM cp.month_year) = year_copy AND  EXTRACT(MONTH FROM cp.month_year) = month_copy;
                     IF id_contribution_passive is NULL THEN
                         return 0;
                     ELSE
