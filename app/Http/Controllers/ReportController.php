@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\AffiliatesSimilarExport;
 use App\Exports\AffiliatesSpousesExport;
 use App\Exports\ArchivoPrimarioExport;
 use App\Exports\EcoComMovementsExport;
@@ -49,6 +50,9 @@ class ReportController extends Controller
                 'affiliates.surname_husband',
                 'affiliates.date_entry',
                 'affiliates.birth_date',
+                'pension_entities.name as pension_entity_name',
+                'degrees.code as degree_code',
+                'hierarchies.code as hierarchy_code', 
                 'spouses.identity_card as spouse_identity_card',
                 'spouses.first_name as spouse_first_name',
                 'spouses.second_name as spouse_second_name',
@@ -61,6 +65,9 @@ class ReportController extends Controller
                 'spouses.registration as registration_spouse'
             )
             ->leftJoin('spouses', 'spouses.affiliate_id', '=', 'affiliates.id')
+            ->leftJoin('pension_entities', 'pension_entities.id', '=', 'affiliates.pension_entity_id')
+            ->leftJoin('degrees', 'degrees.id', '=', 'affiliates.degree_id')
+            ->leftJoin('hierarchies', 'hierarchies.id', '=', 'degrees.hierarchy_id') 
             ->orderBy('affiliates.id', 'asc');
 
         return Excel::download(new AffiliatesSpousesExport($list), 'affiliates_spouses_report.xlsx');
@@ -105,184 +112,98 @@ class ReportController extends Controller
             $start_date = $date;
             $end_date = $date;
         } else {
-            $start_date = $request->start_date;
-            $end_date = $request->end_date;
+            $start_date = Carbon::parse($request->start_date)->toDateString(); // Devuelve 'YYYY-MM-DD'
+            $end_date = Carbon::parse($request->end_date)->toDateString();
         }
-        // 1. Obtener los tramites de FR con sus relaciones
-        $list =  RetirementFund::select(
-            'a.id as nup',
-            'a.identity_card as identity_card',
-            'a.first_name as first_name',
-            'a.second_name as second_name',
-            'a.last_name as last_name',
-            'a.mothers_last_name as mothers_last_name',
-            'a.surname_husband as surname_husband',
-            'a.birth_date as birth_date',
-            'a.date_death as date_death',
-            'rf.code as code',
-            'rf.reception_date as reception_date',
-            'rfc.code as num_cert',
-            'rfc.date as date_cert',
-            'u.name as name_unit',
-            'u.code as code_unit'
-        )
-        ->from('retirement_funds as rf')
-        ->leftJoin('affiliates as a', 'rf.affiliate_id', '=', 'a.id')
-        ->leftJoin('ret_fun_correlatives as rfc', function($join){
-            $join->on('rf.id', '=','rfc.retirement_fund_id')
-                ->where('rfc.wf_state_id',22)
-                ->whereNull('rfc.deleted_at');
-        })
-        ->leftJoin(DB::raw('(SELECT DISTINCT ON (affiliate_id) affiliate_id, month_year, unit_id FROM contributions ORDER BY affiliate_id, month_year) as c'), 'c.affiliate_id', '=', 'a.id')
-        ->leftJoin('units as u', 'u.id', '=', 'c.unit_id')
-        ->whereBetween(DB::raw('DATE(rf.created_at)'), [$start_date, $end_date])
-        ->whereIn('rf.wf_state_current_id', [22,23,24,26,47])
-        ->whereNull('rfc.deleted_at')
-        ->where('rf.code', 'not ilike', '%A')
-        ->orderBy('a.id', 'asc')
-        ->distinct('a.id')
-        ->get();
-
-        // 2. Obtener los resultados de los clasificadores
-        $contributions = DB::table('contributions')
-            ->whereIn('affiliate_id', $list->pluck('nup')->toArray()) // Utiliza los nup obtenidos de (1)
-            ->orderBy('affiliate_id', 'asc')
-            ->orderBy('month_year', 'asc')
-            ->orderBy('contribution_type_id', 'asc')
-            ->get();
-        $resultContributions = [];
-        foreach ($contributions as $contribution) {
-            $afiliadoId = $contribution->affiliate_id;
-            $contributionTypeId = $contribution->contribution_type_id;
-            $currentDate = $contribution->month_year;
-            if (!isset($resultContributions[$afiliadoId])) {
-                // Si el afiliado no existe en el resultado de contribuciones
-                $resultContributions[$afiliadoId] = [
-                    'affiliate_id' => $afiliadoId,
-                    'clasificadores' => []
-                ];
-                $currentClassifier = null;
-            }
-            if ($currentClassifier !== $contributionTypeId) {
-                // Si cambió el contribution_type_id, guarda el mínimo y máximo del grupo anterior (si existe)
-                if ($currentClassifier !== null) {
-                    $resultContributions[$afiliadoId]['clasificadores'][] = [
-                        'contribution_type_id' => $currentClassifier,
-                        'min' => min($group),
-                        'max' => max($group),
-                    ];
-                }
-                // Inicia un nuevo grupo de contribution_type_id
-                $currentClassifier = $contributionTypeId;
-                $group = [$currentDate];
-            } else {
-                // Si no cambió el contribution_type_id, agrega la fecha al grupo actual
-                $group[] = $currentDate;
-            }
-        }
-        // Guarda el mínimo y máximo del último grupo para cada afiliado
-        foreach ($resultContributions as &$afiliado) {
-            $afiliado['clasificadores'][] = [
-                'contribution_type_id' => $currentClassifier,
-                'min' => min($group),
-                'max' => max($group),
-            ];
-        }
-        // Unir la información de (1) y (2)
-        $finalResults = [];
-        foreach ($list as $row) {
-            $afiliadoId = $row->nup;
-            if (isset($resultContributions[$afiliadoId])) {
-                $finalResults[] = [
-                    'nup' => $afiliadoId,
-                    'identity_card' => $row->identity_card,
-                    'first_name' => $row->first_name,
-                    'second_name' => $row->second_name,
-                    'last_name' => $row->last_name,
-                    'mothers_last_name' => $row->mothers_last_name,
-                    'surname_husband' => $row->surname_husband,
-                    'birth_date' => $row->birth_date,
-                    'date_death' => $row->date_death,
-                    'code' => $row->code,
-                    'reception_date' => $row->reception_date,
-                    'num_cert' => $row->num_cert,
-                    'date_cert' => $row->date_cert,
-                    'name_unit' => $row->name_unit,
-                    'code_unit' => $row->code_unit,
-                    'clasificadores' => array_values($resultContributions[$afiliadoId]['clasificadores']),
-                ];
-            }
-        }
-
-        //Unificar encabezados
-        $contribution_type_shortened= ContributionType::orderBy('id')->pluck('shortened')->toArray();
-
-        $data_header = array(
-            "NRO", "NUP", "CÉDULA DE IDENTIDAD", "PRIMER NOMBRE", "SEGUNDO NOMBRE", "AP. PATERNO", "AP. MATERNO",
-            "AP. CASADA", "FECHA NACIMIENTO", "FECHA FALLECIMIENTO", "NRO TRÁMITE", "FECHA RECEPCIÓN",
-            "NRO CERTIFICACIÓN", "FECHA CERTIFICACIÓN", "UNIDAD INICIO DE FUNCIONES","CODIGO DE UNIDAD",
+        $fn_reporte_contribuciones = DB::select(
+            "SELECT * FROM fn_report_fr_contributions_resumen(?, ?);",
+            [$start_date, $end_date]
         );
-        $data_header = array(array_merge($data_header, $contribution_type_shortened));
-
-        //Unificar datos relacionados a cada encabezado
+        
+        $data_header = array([
+            "NRO",
+            "NUP",
+            "CÉDULA DE IDENTIDAD",
+            "PRIMER NOMBRE",
+            "SEGUNDO NOMBRE",
+            "AP. PATERNO",
+            "AP. MATERNO",
+            "AP. CASADA",
+            "FECHA NACIMIENTO",
+            "FECHA FALLECIMIENTO",
+            "NRO TRÁMITE",
+            "FECHA RECEPCIÓN",
+            "NRO CERTIFICACIÓN",
+            "FECHA CERTIFICACIÓN",
+            "UNIDAD INICIO DE FUNCIONES",
+            "CODIGO DE UNIDAD",
+            "1 SERV ACTIVO",
+            "2 PER. ITEM 0 CON APORTE",
+            "3 PER. ITEM 0 SIN APORTE",
+            "4 PER. BSF CON APORTE",
+            "5 PER. BSF SIN APORTE",
+            "6 PER. ANTERIORES A MAYO DE 1976 SIN APORTE",
+            "7 PER. CERT. CON APORTE",
+            "8 PER. CERT. SIN APORTE",
+            "9 PER. NO TRABAJADO",
+            "10 DISPONIBILIDAD",
+            "11 PERIODO PAGADO CON ANTERIORIDAD",
+            "12 DISP. CON APORTE",
+            "13 DISP. SIN APORTE",
+            "14 INEXISTENCIA DE PLAN. DE HAB.",
+            //"15 DEVOLUCION",
+            "FECHA DERIVACIÓN A CI",
+            "FECHA VALIDACIÓN"
+        ]);
+        
         $i = 1;
-        foreach ($finalResults as &$row) {
-            $classifiersByType = [];
-
-            // Iterar sobre los diferentes tipos de contribution_type_id
-            for ($tipo = 1; $tipo <= 14; $tipo++) {
-                $classifiersByType[$tipo] = implode(PHP_EOL, array_map(function ($classifier) {
-                    $classifier['min']= Carbon::createFromFormat('Y-m-d', $classifier['min'])->format('m/Y');
-                    $classifier['max']= Carbon::createFromFormat('Y-m-d', $classifier['max'])->format('m/Y');
-                    return "{$classifier['min']} - {$classifier['max']}";
-                }, array_filter($row['clasificadores'], function ($classifier) use ($tipo) {
-                    return $classifier['contribution_type_id'] == $tipo;
-                })));
-            }
-
-            array_push($data_header, array(
+        foreach ($fn_reporte_contribuciones as $row) {
+            $data_header[] = [
                 $i,
-                $row['nup'],
-                $row['identity_card'],
-                $row['first_name'],
-                $row['second_name'],
-                $row['last_name'],
-                $row['mothers_last_name'],
-                $row['surname_husband'],
-                $row['birth_date'],
-                $row['date_death'],
-                $row['code'],
-                $row['reception_date'],
-                $row['num_cert'],
-                $row['date_cert'],
-                $row['name_unit'],
-                $row['code_unit'],
-                $classifiersByType[1],
-                $classifiersByType[2],
-                $classifiersByType[3],
-                $classifiersByType[4],
-                $classifiersByType[5],
-                $classifiersByType[6],
-                $classifiersByType[7],
-                $classifiersByType[8],
-                $classifiersByType[9],
-                $classifiersByType[10],
-                $classifiersByType[11],
-                $classifiersByType[12],
-                $classifiersByType[13],
-                $classifiersByType[14]
-            ));
-
+                $row->id,
+                $row->identity_card,
+                $row->first_name,
+                $row->second_name,
+                $row->last_name,
+                $row->mothers_last_name,
+                $row->surname_husband,
+                $row->birth_date,
+                $row->date_death,
+                $row->code,
+                $row->reception_date,
+                $row->num_cert,
+                $row->date_cert,
+                $row->name_unit,
+                $row->code_unit,
+                $row->{'1_Servicio_Activo'},
+                $row->{'2_Periodo_en_item_0_Con_Aporte'},
+                $row->{'3_Periodo_en_item_0_Sin_Aporte'},
+                $row->{'4_Periodo_de_Batallon_de_Seguridad_Fisica_Con_Aporte'},
+                $row->{'5_Periodo_de_Batallon_de_Seguridad_Fisica_Sin_Aporte'},
+                $row->{'6_Periodos_anteriores_a_Mayo_de_1976_Sin_Aporte'},
+                $row->{'7_Periodo_Certificacion_Con_Aporte'},
+                $row->{'8_Periodo_Certificacion_Sin_Aporte'},
+                $row->{'9_Periodo_no_Trabajado'},
+                $row->{'10_Disponibilidad'},
+                $row->{'11_Periodo_pagado_con_anterioridad'},
+                $row->{'12_Disponibilidad_Con_Aporte'},
+                $row->{'13_Disponibilidad_Sin_Aporte'},
+                $row->{'14_Inexistencia_de_Planilla_de_Haberes'},
+                //$row->{'15_Devolucion'},
+                $row->fec_derivacion,
+                $row->fec_validacion,
+            ];
             $i++;
         }
-
+        
         $export = new ArchivoPrimarioExport($data_header);
         $file_name = "reporte_fondo_de_retiro_" . $date;
         $type = $request->type;
         $extension = $type ?? '.xls';
+        
         return Excel::download($export, $file_name . $extension);
-
-    }
+        
+    } 
 
     /**
      * @OA\Post(
@@ -522,6 +443,7 @@ class ReportController extends Controller
         $extension = $type_file ?? '.xls';
         return Excel::download($export, $file_name . $extension);
     }
+    
 
     public function download_qualification_report(request $request)
     {
@@ -587,5 +509,79 @@ class ReportController extends Controller
             ->orderBy('sub.iterativo')
             ->get();
         return Excel::download(new EcoComMovementsExport($data), 'eco_com_movements_report.xls');
+    }
+
+    public function report_affiliates_similar(Request $request)
+    {        
+        $sql = "
+            SELECT 
+                a1.id AS nup1,
+                a1.identity_card AS ci1,
+                a1.last_name AS last_name1,
+                a1.mothers_last_name AS mothers_last_name1,
+                a1.surname_husband AS surname_husband1,
+                a1.first_name AS first_name1,
+                a1.second_name AS second_name1,
+                EXTRACT(MONTH FROM c1.month_year) AS month1,
+                EXTRACT(YEAR FROM c1.month_year) AS year1,
+                u1.code AS unit_code1,
+                h1.code AS hierarchy_code1,
+                d1.code AS degree_code1,
+                c1.base_wage as base_wage1,
+                c1.seniority_bonus as seniority_bonus1, 
+                c1.study_bonus as study_bonus1,
+                c1.position_bonus as position_bonus1, 
+                c1.border_bonus as border_bonus1,
+                c1.east_bonus as east_bonus1,
+                c1.gain as gain1, 
+                c1.total as total1,
+                c1.type as type1,
+                c1.contributionable_type as contributionable_type1,
+                a2.id AS nup2,
+                a2.identity_card AS ci2,
+                a2.last_name AS last_name2,
+                a2.mothers_last_name AS mothers_last_name2,
+                a2.surname_husband AS surname_husband2,
+                a2.first_name AS first_name2,
+                a2.second_name AS second_name2,
+                EXTRACT(MONTH FROM c2.month_year) AS month2,
+                EXTRACT(YEAR FROM c2.month_year) AS year2,
+                u2.code AS unit_code2,
+                h2.code AS hierarchy_code2,
+                d2.code AS degree_code2,
+                c2.base_wage as base_wage2,
+                c2.seniority_bonus as seniority_bonus2, 
+                c2.study_bonus as study_bonus2,
+                c2.position_bonus as position_bonus2, 
+                c2.border_bonus as border_bonus2,
+                c2.east_bonus as east_bonus2,
+                c2.gain as gain2, 
+                c2.total as total2,
+                c2.type as type2,
+                c2.contributionable_type as contributionable_type2
+            FROM affiliates a1
+            JOIN contributions c1 ON c1.affiliate_id = a1.id
+            LEFT JOIN contribution_passives cp1 ON cp1.affiliate_id = a1.id
+            LEFT JOIN units u1 ON u1.id = a1.unit_id
+            LEFT JOIN degrees d1 ON d1.id = a1.degree_id
+            LEFT JOIN hierarchies h1 ON h1.id = d1.hierarchy_id
+            JOIN affiliates a2 ON a1.id < a2.id
+            JOIN contributions c2 ON c2.affiliate_id = a2.id
+                AND c1.month_year = c2.month_year
+            LEFT JOIN contribution_passives cp2 ON cp2.affiliate_id = a2.id
+            LEFT JOIN units u2 ON u2.id = a2.unit_id
+            LEFT JOIN degrees d2 ON d2.id = a2.degree_id
+            LEFT JOIN hierarchies h2 ON h2.id = d2.hierarchy_id
+            WHERE 
+                (
+                    similarity(a1.identity_card, a2.identity_card) > 0.5
+                    AND similarity(a1.first_name, a2.first_name) > 0.5
+                    AND similarity(a1.last_name, a2.last_name) > 0.5
+                    AND similarity(a1.mothers_last_name, a2.mothers_last_name) > 0.5
+                )
+            ORDER BY ci1 desc";
+
+        $list = DB::select($sql);
+        return Excel::download(new AffiliatesSimilarExport($list), 'affiliates_similar.xls');
     }
 }
