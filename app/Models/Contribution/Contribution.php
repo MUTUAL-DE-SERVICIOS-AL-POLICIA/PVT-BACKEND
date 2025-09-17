@@ -17,6 +17,8 @@ class Contribution extends Model
 {
     use HasFactory;
     use SoftDeletes;
+    
+    protected $dates = ['deleted_at'];
     public $timestamps = true;
     public $guarded = ['id'];
     protected $fillable = [
