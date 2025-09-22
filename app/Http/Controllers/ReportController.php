@@ -535,7 +535,6 @@ class ReportController extends Controller
                 c1.east_bonus as east_bonus1,
                 c1.gain as gain1, 
                 c1.total as total1,
-                c1.type as type1,
                 c1.contributionable_type as contributionable_type1,
                 a2.id AS nup2,
                 a2.identity_card AS ci2,
@@ -557,7 +556,6 @@ class ReportController extends Controller
                 c2.east_bonus as east_bonus2,
                 c2.gain as gain2, 
                 c2.total as total2,
-                c2.type as type2,
                 c2.contributionable_type as contributionable_type2
             FROM affiliates a1
             JOIN contributions c1 ON c1.affiliate_id = a1.id
