@@ -41,7 +41,6 @@ class AffiliatesSimilarExport implements FromGenerator, WithHeadings, WithStyles
                 $row->east_bonus1,
                 $row->gain1,
                 $row->total1,
-                $row->type1,
                 $row->contributionable_type1,
                 $row->nup2,
                 $row->ci2,
@@ -63,7 +62,6 @@ class AffiliatesSimilarExport implements FromGenerator, WithHeadings, WithStyles
                 $row->east_bonus2,
                 $row->gain2,
                 $row->total2,
-                $row->type2,
                 $row->contributionable_type2
             ];
         }
