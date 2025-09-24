@@ -570,9 +570,9 @@ class ReportController extends Controller
             LEFT JOIN hierarchies h2 ON h2.id = d2.hierarchy_id
             WHERE 
                 (
-                    similarity(a1.identity_card, a2.identity_card) > 0.7
-                    AND similarity(a1.first_name, a2.first_name) > 0.7
-                    AND similarity(a1.last_name, a2.last_name) > 0.7
+                    similarity(a1.identity_card, a2.identity_card) > 0.5
+                    AND similarity(a1.first_name, a2.first_name) > 0.5
+                    AND similarity(a1.last_name, a2.last_name) > 0.5
                     AND similarity(a1.mothers_last_name, a2.mothers_last_name) > 0.5
                     AND (
                         similarity(a1.second_name, a2.second_name) > 0.7
