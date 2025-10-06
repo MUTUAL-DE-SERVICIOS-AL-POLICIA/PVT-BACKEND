@@ -22,7 +22,17 @@ Route::group([
         Route::group([
             'middleware' => 'permission:delete-contribution-passive'
         ], function () {
+            Route::delete('/contributions_passive/massive', [App\Http\Controllers\Contribution\ContributionPassiveController::class, 'destroyMassive']);
+        });
+        Route::group([
+            'middleware' => 'permission:delete-contribution-passive'
+        ], function () {
             Route::delete('/contributions_passive/{contributionPassive}', [App\Http\Controllers\Contribution\ContributionPassiveController::class, 'destroy']);
+        });
+        Route::group([
+            'middleware' => 'permission:delete-contribution'
+        ], function () {
+            Route::delete('/contribution/massive', [App\Http\Controllers\Contribution\ContributionController::class, 'destroyMassive']);
         });
         Route::group([
             'middleware' => 'permission:delete-contribution'
