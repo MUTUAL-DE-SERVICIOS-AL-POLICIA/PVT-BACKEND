@@ -559,14 +559,12 @@ class ReportController extends Controller
                 c2.contributionable_type as contributionable_type2
             FROM affiliates a1
             JOIN contributions c1 ON c1.affiliate_id = a1.id
-            LEFT JOIN contribution_passives cp1 ON cp1.affiliate_id = a1.id
             LEFT JOIN units u1 ON u1.id = a1.unit_id
             LEFT JOIN degrees d1 ON d1.id = a1.degree_id
             LEFT JOIN hierarchies h1 ON h1.id = d1.hierarchy_id
             JOIN affiliates a2 ON a1.id < a2.id
             JOIN contributions c2 ON c2.affiliate_id = a2.id
                 AND c1.month_year = c2.month_year
-            LEFT JOIN contribution_passives cp2 ON cp2.affiliate_id = a2.id
             LEFT JOIN units u2 ON u2.id = a2.unit_id
             LEFT JOIN degrees d2 ON d2.id = a2.degree_id
             LEFT JOIN hierarchies h2 ON h2.id = d2.hierarchy_id
@@ -576,6 +574,10 @@ class ReportController extends Controller
                     AND similarity(a1.first_name, a2.first_name) > 0.5
                     AND similarity(a1.last_name, a2.last_name) > 0.5
                     AND similarity(a1.mothers_last_name, a2.mothers_last_name) > 0.5
+                    AND (
+                        similarity(a1.second_name, a2.second_name) > 0.7
+                        OR LEFT(a1.second_name, 1) = LEFT(a2.second_name, 1)
+                    )
                 )
             ORDER BY ci1 desc";
 
