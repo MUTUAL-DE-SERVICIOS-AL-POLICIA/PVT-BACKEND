@@ -518,7 +518,7 @@ class ContributionPassiveController extends Controller
             }
             $eliminados = [];
             foreach ($contributions as $contribution) {       
-                Util::save_record_affiliate($contribution->affiliate, '  eliminado el aporte como pasivo del periodo '. $contribution->month_year .'.');
+                Util::save_record_affiliate($contribution->affiliate, 'eliminado el aporte como pasivo del periodo '. $contribution->month_year .'.');
                 $contribution->delete();
                 $eliminados[] = $contribution->id;
             }

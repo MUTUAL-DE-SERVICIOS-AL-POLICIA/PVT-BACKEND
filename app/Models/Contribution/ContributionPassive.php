@@ -73,7 +73,7 @@ class ContributionPassive extends Model
     }
 
     public function can_deleted(){
-        //return $this->total < 1 || is_null($this->contributionable_type) || ($this->contribution_state_id == 1 && $this->contributionable_type == 'discount_type_economic_complement')? true:false;
-        return is_null($this->contribution_type_mortuary_id) ? true: false;
+        return $this->total < 1 || is_null($this->contributionable_type) || ($this->contribution_state_id == 1 && $this->contributionable_type == 'discount_type_economic_complement')? true:false;
+        return is_null($this->contribution_type_mortuary_id) || $this->contributionable_type == 'discount_type_economic_complement' ? true: false;
     }
 }
