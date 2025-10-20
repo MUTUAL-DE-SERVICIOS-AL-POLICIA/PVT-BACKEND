@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\AffiliatesSimilarExport;
 use App\Exports\AffiliatesSpousesExport;
 use App\Exports\ArchivoPrimarioExport;
 use App\Exports\EcoComMovementsExport;
@@ -49,6 +50,9 @@ class ReportController extends Controller
                 'affiliates.surname_husband',
                 'affiliates.date_entry',
                 'affiliates.birth_date',
+                'pension_entities.name as pension_entity_name',
+                'degrees.code as degree_code',
+                'hierarchies.code as hierarchy_code', 
                 'spouses.identity_card as spouse_identity_card',
                 'spouses.first_name as spouse_first_name',
                 'spouses.second_name as spouse_second_name',
@@ -61,6 +65,9 @@ class ReportController extends Controller
                 'spouses.registration as registration_spouse'
             )
             ->leftJoin('spouses', 'spouses.affiliate_id', '=', 'affiliates.id')
+            ->leftJoin('pension_entities', 'pension_entities.id', '=', 'affiliates.pension_entity_id')
+            ->leftJoin('degrees', 'degrees.id', '=', 'affiliates.degree_id')
+            ->leftJoin('hierarchies', 'hierarchies.id', '=', 'degrees.hierarchy_id') 
             ->orderBy('affiliates.id', 'asc');
 
         return Excel::download(new AffiliatesSpousesExport($list), 'affiliates_spouses_report.xlsx');
@@ -502,5 +509,79 @@ class ReportController extends Controller
             ->orderBy('sub.iterativo')
             ->get();
         return Excel::download(new EcoComMovementsExport($data), 'eco_com_movements_report.xls');
+    }
+
+    public function report_affiliates_similar(Request $request)
+    {        
+        $sql = "
+            SELECT 
+                a1.id AS nup1,
+                a1.identity_card AS ci1,
+                a1.last_name AS last_name1,
+                a1.mothers_last_name AS mothers_last_name1,
+                a1.surname_husband AS surname_husband1,
+                a1.first_name AS first_name1,
+                a1.second_name AS second_name1,
+                EXTRACT(MONTH FROM c1.month_year) AS month1,
+                EXTRACT(YEAR FROM c1.month_year) AS year1,
+                u1.code AS unit_code1,
+                h1.code AS hierarchy_code1,
+                d1.code AS degree_code1,
+                c1.base_wage as base_wage1,
+                c1.seniority_bonus as seniority_bonus1, 
+                c1.study_bonus as study_bonus1,
+                c1.position_bonus as position_bonus1, 
+                c1.border_bonus as border_bonus1,
+                c1.east_bonus as east_bonus1,
+                c1.gain as gain1, 
+                c1.total as total1,
+                c1.contributionable_type as contributionable_type1,
+                a2.id AS nup2,
+                a2.identity_card AS ci2,
+                a2.last_name AS last_name2,
+                a2.mothers_last_name AS mothers_last_name2,
+                a2.surname_husband AS surname_husband2,
+                a2.first_name AS first_name2,
+                a2.second_name AS second_name2,
+                EXTRACT(MONTH FROM c2.month_year) AS month2,
+                EXTRACT(YEAR FROM c2.month_year) AS year2,
+                u2.code AS unit_code2,
+                h2.code AS hierarchy_code2,
+                d2.code AS degree_code2,
+                c2.base_wage as base_wage2,
+                c2.seniority_bonus as seniority_bonus2, 
+                c2.study_bonus as study_bonus2,
+                c2.position_bonus as position_bonus2, 
+                c2.border_bonus as border_bonus2,
+                c2.east_bonus as east_bonus2,
+                c2.gain as gain2, 
+                c2.total as total2,
+                c2.contributionable_type as contributionable_type2
+            FROM affiliates a1
+            JOIN contributions c1 ON c1.affiliate_id = a1.id
+            LEFT JOIN units u1 ON u1.id = a1.unit_id
+            LEFT JOIN degrees d1 ON d1.id = a1.degree_id
+            LEFT JOIN hierarchies h1 ON h1.id = d1.hierarchy_id
+            JOIN affiliates a2 ON a1.id < a2.id
+            JOIN contributions c2 ON c2.affiliate_id = a2.id
+                AND c1.month_year = c2.month_year
+            LEFT JOIN units u2 ON u2.id = a2.unit_id
+            LEFT JOIN degrees d2 ON d2.id = a2.degree_id
+            LEFT JOIN hierarchies h2 ON h2.id = d2.hierarchy_id
+            WHERE 
+                (
+                    similarity(a1.identity_card, a2.identity_card) > 0.5
+                    AND similarity(a1.first_name, a2.first_name) > 0.5
+                    AND similarity(a1.last_name, a2.last_name) > 0.5
+                    AND similarity(a1.mothers_last_name, a2.mothers_last_name) > 0.5
+                    AND (
+                        similarity(a1.second_name, a2.second_name) > 0.7
+                        OR LEFT(a1.second_name, 1) = LEFT(a2.second_name, 1)
+                    )
+                )
+            ORDER BY ci1 desc";
+
+        $list = DB::select($sql);
+        return Excel::download(new AffiliatesSimilarExport($list), 'affiliates_similar.xls');
     }
 }
