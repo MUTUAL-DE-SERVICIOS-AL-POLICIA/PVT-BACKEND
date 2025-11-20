@@ -2,6 +2,7 @@
 
 namespace App\Models\Contribution;
 
+use App\Models\Affiliate\Affiliate;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -20,5 +21,10 @@ class PayrollRegional extends Model
         $data['count_data'] = $payroll;
         
         return  $data;
+    }
+    
+    public function affiliate()
+    {
+        return $this->belongsTo(Affiliate::class);
     }
 }
