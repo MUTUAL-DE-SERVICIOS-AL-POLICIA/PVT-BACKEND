@@ -1,8 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -11,248 +10,275 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement("CREATE EXTENSION IF NOT EXISTS pg_trgm;"); //Para crear la extensión pg_trgm para usar la función similarity()
+        DB::statement("CREATE EXTENSION IF NOT EXISTS pg_trgm;"); // Para usar word_similarity()
 
-        // Crea la función, según los criterios de similitud 
+        // Función para identificar afiliados según criterios de similitud
         DB::statement(
-            "CREATE OR REPLACE FUNCTION public.identified_affiliate_regional(order_entry integer, identity_card_entry character varying, first_name_entry character varying, second_name_entry character varying, last_name_entry character varying, mothers_last_name_entry character varying, surname_husband_entry character varying)
-        RETURNS integer
-        LANGUAGE plpgsql
-        AS $$
-           DECLARE
+            "CREATE OR REPLACE FUNCTION public.identified_affiliate_regional(
+                order_entry integer, 
+                identity_card_entry varchar, 
+                first_name_entry varchar, 
+                second_name_entry varchar, 
+                last_name_entry varchar, 
+                mothers_last_name_entry varchar, 
+                surname_husband_entry varchar, 
+                tipo_aportante_entry varchar
+            ) RETURNS integer
+            LANGUAGE plpgsql
+            AS $$
+            DECLARE
                 affiliate_id integer;
-                begin
-                     CASE
-                        WHEN (order_entry = 1 ) THEN --Búsqueda de afiliado por CI igual, nombre, nombre2do, paterno, materno y apellido de casada similares
-                            select id into affiliate_id from affiliates where
-                            identity_card ILIKE identity_card_entry
-                            AND word_similarity(first_name , first_name_entry) >= 0.5
-                            AND word_similarity(second_name , second_name_entry) >= 0.5
-                            AND word_similarity(last_name, last_name_entry) >= 0.5
-                            AND word_similarity(mothers_last_name, mothers_last_name_entry) >= 0.5
-                            AND word_similarity(surname_husband, surname_husband_entry) >= 0.5;
+            BEGIN
+                CASE
+                    WHEN (order_entry = 1 AND tipo_aportante_entry = 'T') THEN
+                        SELECT id INTO affiliate_id FROM affiliates
+                        WHERE identity_card ILIKE identity_card_entry
+                          AND word_similarity(first_name , first_name_entry) >= 0.5
+                          AND word_similarity(second_name , second_name_entry) >= 0.5
+                          AND word_similarity(last_name, last_name_entry) >= 0.5
+                          AND word_similarity(mothers_last_name, mothers_last_name_entry) >= 0.5
+                          AND word_similarity(surname_husband, surname_husband_entry) >= 0.5;
 
-                        WHEN (order_entry = 2 ) THEN --Búsqueda de afiliado por CI igual, nombre, paterno y materno similares
-                            select id into affiliate_id from affiliates where
-                            identity_card ILIKE identity_card_entry
-                            AND word_similarity(first_name , first_name_entry) >= 0.5
-                            AND word_similarity(last_name, last_name_entry) >= 0.5
-                            AND word_similarity(mothers_last_name, mothers_last_name_entry) >= 0.5;
+                    WHEN (order_entry = 2 AND tipo_aportante_entry = 'T') THEN
+                        SELECT id INTO affiliate_id FROM affiliates
+                        WHERE identity_card ILIKE identity_card_entry
+                          AND word_similarity(first_name , first_name_entry) >= 0.5
+                          AND word_similarity(last_name, last_name_entry) >= 0.5
+                          AND word_similarity(mothers_last_name, mothers_last_name_entry) >= 0.5;
 
-                        WHEN (order_entry = 3 ) THEN --Búsqueda de afiliado por CI sin complemento, nombre y paterno similares
-                            select id into affiliate_id from affiliates where
-                            split_part(identity_card,'-',1) ILIKE identity_card_entry
-                            AND (word_similarity(first_name, first_name_entry) >= 0.5 or word_similarity(first_name, second_name_entry) >= 0.5)
-                            AND word_similarity(last_name, last_name_entry) >= 0.5;
+                    WHEN (order_entry = 3 AND tipo_aportante_entry = 'T') THEN
+                        SELECT id INTO affiliate_id FROM affiliates
+                        WHERE split_part(identity_card,'-',1) ILIKE identity_card_entry
+                          AND (word_similarity(first_name, first_name_entry) >= 0.5 OR word_similarity(first_name, second_name_entry) >= 0.5)
+                          AND word_similarity(last_name, last_name_entry) >= 0.5;
 
-                        WHEN (order_entry = 4 ) then --Búsqueda de afiliado por CI similar, nombre, paterno y materno igual
-                            select id into affiliate_id from affiliates where
-                            word_similarity(identity_card, identity_card_entry) >= 0.4
-                            AND (COALESCE(first_name, '') ILIKE COALESCE(first_name_entry, ''))
-                            AND (COALESCE(last_name, '') ILIKE COALESCE(last_name_entry, ''))
-                            AND (COALESCE(mothers_last_name, '') ILIKE COALESCE(mothers_last_name_entry, ''));
+                    WHEN (order_entry = 4 AND tipo_aportante_entry = 'T') THEN
+                        SELECT id INTO affiliate_id FROM affiliates
+                        WHERE word_similarity(identity_card, identity_card_entry) >= 0.4
+                          AND (COALESCE(first_name, '') ILIKE COALESCE(first_name_entry, ''))
+                          AND (COALESCE(last_name, '') ILIKE COALESCE(last_name_entry, ''))
+                          AND (COALESCE(mothers_last_name, '') ILIKE COALESCE(mothers_last_name_entry, ''));
 
-                        WHEN (order_entry = 5 ) THEN --Búsqueda de cónyuge por CI igual, nombre, nombre2do, paterno, materno y apellido de casada similares
-                            select s.affiliate_id into affiliate_id from spouses s where
-                            identity_card ILIKE identity_card_entry
-                            AND word_similarity(first_name , first_name_entry) >= 0.5
-                            AND word_similarity(second_name , second_name_entry) >= 0.5
-                            AND word_similarity(last_name, last_name_entry) >= 0.5
-                            AND word_similarity(mothers_last_name, mothers_last_name_entry) >= 0.5
-                            AND word_similarity(surname_husband, surname_husband_entry) >= 0.5;
-                        
-                        WHEN (order_entry = 6 ) THEN --Búsqueda de cónyuge por CI igual, nombre, paterno y materno similares
-                            select s.affiliate_id into affiliate_id from spouses s where
-                            identity_card ILIKE identity_card_entry
-                            AND word_similarity(first_name , first_name_entry) >= 0.5
-                            AND word_similarity(last_name, last_name_entry) >= 0.5
-                            AND word_similarity(mothers_last_name, mothers_last_name_entry) >= 0.5;
+                    WHEN (order_entry = 5 AND tipo_aportante_entry = 'V') THEN
+                        SELECT s.affiliate_id INTO affiliate_id FROM spouses s
+                        WHERE identity_card ILIKE identity_card_entry
+                          AND word_similarity(first_name , first_name_entry) >= 0.5
+                          AND word_similarity(second_name , second_name_entry) >= 0.5
+                          AND word_similarity(last_name, last_name_entry) >= 0.5
+                          AND word_similarity(mothers_last_name, mothers_last_name_entry) >= 0.5
+                          AND word_similarity(surname_husband, surname_husband_entry) >= 0.5;
 
-                        WHEN (order_entry = 7 ) THEN --Búsqueda de cónyuge por CI sin complemento, nombre y paterno similares
-                            select s.affiliate_id into affiliate_id from spouses s where
-                            split_part(identity_card,'-',1) ILIKE identity_card_entry
-                            AND (word_similarity(first_name, first_name_entry) >= 0.5 or word_similarity(first_name, second_name_entry) >= 0.5)
-                            AND word_similarity(last_name, last_name_entry) >= 0.5;
+                    WHEN (order_entry = 6 AND tipo_aportante_entry = 'V') THEN
+                        SELECT s.affiliate_id INTO affiliate_id FROM spouses s
+                        WHERE identity_card ILIKE identity_card_entry
+                          AND word_similarity(first_name , first_name_entry) >= 0.5
+                          AND word_similarity(last_name, last_name_entry) >= 0.5
+                          AND word_similarity(mothers_last_name, mothers_last_name_entry) >= 0.5;
 
-                        WHEN (order_entry = 8 ) then --Búsqueda de conyuge por CI similar, nombre, paterno igual
-                            select s.affiliate_id into affiliate_id from spouses s where
-                            word_similarity(identity_card, identity_card_entry) >= 0.4
-                            AND (COALESCE(first_name, '') ILIKE COALESCE(first_name_entry, ''))
-                            AND (COALESCE(last_name, '') ILIKE COALESCE(last_name_entry, ''))
-                            AND (COALESCE(mothers_last_name, '') ILIKE COALESCE(mothers_last_name_entry, ''));
-                        ELSE
-                         affiliate_id := 0;
-                        END CASE;
+                    WHEN (order_entry = 7 AND tipo_aportante_entry = 'V') THEN
+                        SELECT s.affiliate_id INTO affiliate_id FROM spouses s
+                        WHERE split_part(identity_card,'-',1) ILIKE identity_card_entry
+                          AND (word_similarity(first_name, first_name_entry) >= 0.5 OR word_similarity(first_name, second_name_entry) >= 0.5)
+                          AND word_similarity(last_name, last_name_entry) >= 0.5;
 
-               IF affiliate_id  is not NULL THEN
-                  affiliate_id := affiliate_id;
-               ELSE
-                  affiliate_id := 0;
-               END IF;
-            return affiliate_id;
+                    WHEN (order_entry = 8 AND tipo_aportante_entry = 'V') THEN
+                        SELECT s.affiliate_id INTO affiliate_id FROM spouses s
+                        WHERE word_similarity(identity_card, identity_card_entry) >= 0.4
+                          AND (COALESCE(first_name, '') ILIKE COALESCE(first_name_entry, ''))
+                          AND (COALESCE(last_name, '') ILIKE COALESCE(last_name_entry, ''))
+                          AND (COALESCE(mothers_last_name, '') ILIKE COALESCE(mothers_last_name_entry, ''));
+                    ELSE
+                        affiliate_id := 0;
+                END CASE;
+
+                IF affiliate_id IS NULL THEN
+                    affiliate_id := 0;
+                END IF;
+                RETURN affiliate_id;
             END;
             $$;"
         );
 
-        // Crea la función, donde procesa los registros desde una tabla auxiliar y vincula con datos de los afiliados
-        DB::statement(
-            "CREATE OR REPLACE FUNCTION public.search_affiliate_regional(conection_db_aux character varying)
-        RETURNS character varying
-        LANGUAGE plpgsql
-        AS $$
-                declare
+        // Función para vincular registros de tabla temporal con afiliados
+        DB::statement("
+            CREATE OR REPLACE FUNCTION public.search_affiliate_regional(conection_db_aux varchar, date_import date)
+            RETURNS varchar
+            LANGUAGE plpgsql
+            AS $$
+            DECLARE
                 type_state varchar;
                 affiliate_id_result integer;
-                criterion_one integer:= 1;
-                criterion_two integer:= 2;
-                criterion_three integer:= 3;
-                criterion_four integer:= 4;
-                criterion_five integer:= 5; --spouses
-                criterion_six integer:= 6; --spouses
-                criterion_seven integer:= 7; --spouses
-                criterion_eight integer:= 8; --spouses
-                 ------------------------------
-                cant varchar;
-                ---------------------------------
-            -- Declaración explícita del cursor
-            cur_payroll CURSOR for (select * from dblink( conection_db_aux,'SELECT id, carnet, tipo_aportante, nom, nom2, pat, mat, ap_casada, recibo, fecha_deposito, total_depositado, mes, a_o, total_pension, renta_dignidad, cotizable, aporte, porcentaje_aporte, affiliate_id_frcam, affiliate_id, state, criteria FROM payroll_copy_regionals where state = ''unrealized''')
-            as  payroll_copy_regionals( id integer, carnet character varying(255), tipo_aportante character varying(255), nom character varying(255), nom2 character varying(255), pat character varying(255), mat character varying(255), ap_casada character varying(255), recibo character varying(255), fecha_deposito date, total_depositado decimal(13,2), mes integer, a_o integer, total_pension decimal(13,2), renta_dignidad decimal(13,2), cotizable decimal(13,2), aporte decimal(13,2), porcentaje_aporte decimal(13,2),affiliate_id_frcam integer, affiliate_id integer, state character varying(255), criteria character varying(255)));
-            begin
-            
-            -- Función para búsqueda de afiliados y affiliate_id de spouses  
-            FOR record_row IN cur_payroll loop
-                  if identified_affiliate_regional(criterion_one, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada ) > 0 then
-                      affiliate_id_result := identified_affiliate_regional(criterion_one, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada);
-                      type_state:='1-CI-PN-SN-PA-SA-AC';
-                      cant:= (select dblink_exec(conection_db_aux, 'UPDATE payroll_copy_regionals SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||' WHERE payroll_copy_regionals.id= '||record_row.id||''));
+                criterion_one integer := 1;
+                criterion_two integer := 2;
+                criterion_three integer := 3;
+                criterion_four integer := 4;
+                criterion_five integer := 5;
+                criterion_six integer := 6;
+                criterion_seven integer := 7;
+                criterion_eight integer := 8;
+                record_row RECORD;
+                cur_payroll CURSOR FOR
+                    SELECT * FROM dblink(
+                        conection_db_aux,
+                        'SELECT id, carnet, tipo_aportante, nom, nom2, pat, mat, ap_casada, recibo, fecha_deposito, total_depositado, mes, a_o, total_pension, renta_dignidad, cotizable, aporte, porcentaje_aporte, affiliate_id, state, criteria
+                         FROM payroll_copy_regionals
+                         WHERE state = ''unrealized''
+                           AND created_at::date = ' || quote_literal(date_import)
+                    ) AS payroll_copy_regionals(
+                        id integer,
+                        carnet varchar(255),
+                        tipo_aportante varchar(255),
+                        nom varchar(255),
+                        nom2 varchar(255),
+                        pat varchar(255),
+                        mat varchar(255),
+                        ap_casada varchar(255),
+                        recibo varchar(255),
+                        fecha_deposito date,
+                        total_depositado decimal(13,2),
+                        mes integer,
+                        a_o integer,
+                        total_pension decimal(13,2),
+                        renta_dignidad decimal(13,2),
+                        cotizable decimal(13,2),
+                        aporte decimal(13,2),
+                        porcentaje_aporte decimal(13,2),
+                        affiliate_id integer,
+                        state varchar(255),
+                        criteria varchar(255)
+                    );
+            BEGIN
+                FOR record_row IN cur_payroll LOOP
+                    IF record_row.tipo_aportante = 'T' THEN
+                        IF identified_affiliate_regional(criterion_one, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
+                            affiliate_id_result := identified_affiliate_regional(criterion_one, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
+                            type_state := '1-CI-PN-SN-PA-SA-AC';
+                        ELSIF identified_affiliate_regional(criterion_two, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
+                            affiliate_id_result := identified_affiliate_regional(criterion_two, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
+                            type_state := '2-CI-sPN-sPA-sSA';
+                        ELSIF identified_affiliate_regional(criterion_three, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
+                            affiliate_id_result := identified_affiliate_regional(criterion_three, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
+                            type_state := '3-partCI-sPN-sPA';
+                        ELSIF identified_affiliate_regional(criterion_four, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
+                            affiliate_id_result := identified_affiliate_regional(criterion_four, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
+                            type_state := '4-sCI-PN-PA-SA';
+                        ELSE
+                            type_state := '9-no-identificado';
+                        END IF;
+                        PERFORM dblink_exec(conection_db_aux, 
+                            'UPDATE payroll_copy_regionals SET state=''accomplished'', criteria=''' || type_state || ''', affiliate_id=' || COALESCE(affiliate_id_result,0) || ' 
+                            WHERE id=' || record_row.id
+                        );
+                    END IF;
+                    IF record_row.tipo_aportante = 'V' THEN
+                        affiliate_id_result := identified_affiliate_regional(criterion_five, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
+                        IF affiliate_id_result > 0 THEN
+                            type_state := '5-CI-PN-SN-PA-SA-AC';
+                        ELSIF identified_affiliate_regional(criterion_six, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
+                            affiliate_id_result := identified_affiliate_regional(criterion_six, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
+                            type_state := '6-CI-sPN-sPA-sSA';
+                        ELSIF identified_affiliate_regional(criterion_seven, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
+                            affiliate_id_result := identified_affiliate_regional(criterion_seven, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
+                            type_state := '7-partCI-sPN-sPA';
+                        ELSIF identified_affiliate_regional(criterion_eight, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
+                            affiliate_id_result := identified_affiliate_regional(criterion_eight, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
+                            type_state := '8-sCI-PN-PA-SA';
+                        ELSE
+                            affiliate_id_result := 0;
+                            type_state := '9-no-identificado';
+                        END IF;
 
-                  elsif identified_affiliate_regional(criterion_two,record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada) > 0 THEN
-                      affiliate_id_result := identified_affiliate_regional(criterion_two, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada);
-                      type_state:='2-CI-sPN-sPA-sSA';
-                      cant:= (select dblink_exec(conection_db_aux, 'UPDATE payroll_copy_regionals SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||' WHERE payroll_copy_regionals.id= '||record_row.id||''));
-
-                  elsif identified_affiliate_regional(criterion_three,record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada) > 0 THEN
-                      affiliate_id_result := identified_affiliate_regional(criterion_three,record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada);
-                      type_state:='3-partCI-sPN-sPA';
-                      cant:= (select dblink_exec(conection_db_aux, 'UPDATE payroll_copy_regionals SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||' WHERE payroll_copy_regionals.id= '||record_row.id||''));
-
-                  elsif identified_affiliate_regional(criterion_four,record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada) > 0 THEN
-                      affiliate_id_result := identified_affiliate_regional(criterion_four,record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada);
-                      type_state:='4-sCI-PN-PA-SA';
-                      cant:= (select dblink_exec(conection_db_aux, 'UPDATE payroll_copy_regionals SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||' WHERE payroll_copy_regionals.id= '||record_row.id||''));
-
-                  elsif identified_affiliate_regional(criterion_five,record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada) > 0 THEN
-                      affiliate_id_result := identified_affiliate_regional(criterion_five,record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada);
-                      type_state:='5-CI-PN-SN-PA-SA-AC';
-                      cant:= (select dblink_exec(conection_db_aux, 'UPDATE payroll_copy_regionals SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||' WHERE payroll_copy_regionals.id= '||record_row.id||''));
-
-                   elsif identified_affiliate_regional(criterion_six,record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada) > 0 THEN
-                      affiliate_id_result := identified_affiliate_regional(criterion_five,record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada);
-                      type_state:='6-CI-sPN-sPA-sSA';
-                      cant:= (select dblink_exec(conection_db_aux, 'UPDATE payroll_copy_regionals SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||' WHERE payroll_copy_regionals.id= '||record_row.id||''));
-
-                   elsif identified_affiliate_regional(criterion_seven,record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada) > 0 THEN
-                      affiliate_id_result := identified_affiliate_regional(criterion_five,record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada);
-                      type_state:='7-partCI-sPN-sPA';
-                      cant:= (select dblink_exec(conection_db_aux, 'UPDATE payroll_copy_regionals SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||' WHERE payroll_copy_regionals.id= '||record_row.id||''));
-
-                  elsif identified_affiliate_regional(criterion_eight,record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada) > 0 THEN
-                      affiliate_id_result := identified_affiliate_regional(criterion_six,record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada);
-                      type_state:='8-sCI-PN-PA-SA';
-                      cant:= (select dblink_exec(conection_db_aux, 'UPDATE payroll_copy_regionals SET state=''accomplished'',criteria='''||type_state||''',affiliate_id='||affiliate_id_result||' WHERE payroll_copy_regionals.id= '||record_row.id||''));
-                  else
-                      type_state:='9-no-identificado';
-                      cant:= (select dblink_exec(conection_db_aux, 'UPDATE payroll_copy_regionals SET state=''accomplished'',criteria='''||type_state||''' WHERE payroll_copy_regionals.id= '||record_row.id||''));
-                  END IF;
-              END LOOP;
-              return true;
-              end;
-              $$;"
+                        PERFORM dblink_exec(
+                            conection_db_aux,
+                            'UPDATE payroll_copy_regionals
+                            SET state = ''accomplished'',
+                                criteria = ' || quote_literal(type_state) || ',
+                                affiliate_id = ' || affiliate_id_result || '
+                            WHERE id = ' || record_row.id || '
+                            AND created_at::date = ' || quote_literal(date_import)
+                        );
+                    END IF;
+                END LOOP;
+                RETURN true;
+            END;
+            $$;"
         );
 
-        // Crea la función que transfiere registros validados desde la tabla temporal a la tabla payroll_regionals
-        DB::statement("CREATE OR REPLACE FUNCTION public.registration_payroll_regionals(conection_db_aux character varying)
-        RETURNS numeric
-        LANGUAGE plpgsql
-        AS $$
-        declare
-            ----variables----
-            num_validated int := 0;
-            is_validated_update varchar := 'validated';
-            record_row RECORD;
-        BEGIN
-            FOR record_row IN  
-                SELECT * 
-                FROM dblink(conection_db_aux,
-                'SELECT carnet, tipo_aportante, nom, nom2, pat, mat, ap_casada, recibo, fecha_deposito, total_depositado, mes, a_o, total_pension, renta_dignidad, cotizable, aporte, porcentaje_aporte, affiliate_id, criteria
-                FROM payroll_copy_regionals
-                WHERE error_message is null 
-                AND deleted_at is null 
-                AND state =''accomplished'' 
-                AND affiliate_id is not null') 
-                AS payroll_copy_regionals( 
-                    carnet varchar(255), 
-                    tipo_aportante varchar(255),
-                    nom varchar(255), 
-                    nom2 varchar(255),
-                    pat varchar(255), 
-                    mat varchar(255), 
-                    ap_casada varchar(255),
-                    recibo varchar(255), 
-                    fecha_deposito date,
-                    total_depositado decimal(13,2),
-                    mes integer,
-                    a_o integer, 
-                    total_pension decimal(13,2), 
-                    renta_dignidad decimal(13,2),
-                    cotizable decimal(13,2),
-                    aporte decimal(13,2),   
-                    porcentaje_aporte decimal(13,2),   
-                    affiliate_id integer, 
-                    criteria varchar(255)
-                )
-            LOOP
-                -- Insertar en la tabla principal
-                INSERT INTO payroll_regionals  
-                VALUES (
-                    default,
-                    record_row.affiliate_id, 
-                    record_row.carnet,
-                    record_row.tipo_aportante, 
-                    record_row.nom, 
-                    record_row.nom2,
-                    record_row.pat,
-                    record_row.mat,
-                    record_row.ap_casada,
-                    record_row.recibo,
-                    record_row.fecha_deposito,
-                    record_row.total_depositado,
-                    record_row.mes,
-                    record_row.a_o,
-                    record_row.total_pension,
-                    record_row.renta_dignidad,
-                    record_row.cotizable,
-                    record_row.aporte,
-                    record_row.porcentaje_aporte,
-                    current_timestamp, 
-                    current_timestamp
-                );
-        
-                -- Actualizar la tabla auxiliar payroll_copy_regionals
-                PERFORM dblink(conection_db_aux,
-                    'UPDATE payroll_copy_regionals 
-                    SET state = ''' || is_validated_update || ''' 
-                    WHERE error_message is null 
-                    AND deleted_at is null
-                    AND affiliate_id = ' || record_row.affiliate_id || ' 
-                    AND a_o = ' || record_row.a_o || ' 
-                    AND mes = ' || record_row.mes
-                );
-        
-                num_validated := num_validated + 1;
-            END LOOP;
-            RETURN num_validated;
-            END $$;
+        // Función que transfiere registros validados desde la tabla temporal a payroll_regionals
+        DB::statement("CREATE OR REPLACE FUNCTION public.registration_payroll_regionals(conection_db_aux varchar, date_import date)
+            RETURNS numeric
+            LANGUAGE plpgsql
+            AS $$
+            DECLARE
+                num_validated int := 0;
+                is_validated_update varchar := 'validated';
+                record_row RECORD;
+            BEGIN
+                FOR record_row IN
+                    SELECT *
+                    FROM dblink(conection_db_aux,
+                        'SELECT carnet, tipo_aportante, nom, nom2, pat, mat, ap_casada, recibo, fecha_deposito,
+                                total_depositado, mes, a_o, total_pension, renta_dignidad, cotizable, aporte,
+                                porcentaje_aporte, affiliate_id, criteria
+                         FROM payroll_copy_regionals
+                         WHERE error_message IS NULL
+                           AND deleted_at IS NULL
+                           AND state = ''accomplished''
+                           AND affiliate_id IS NOT NULL
+                           AND created_at::date = ' || quote_literal(date_import)
+                    ) AS payroll_copy_regionals(
+                        carnet varchar(255),
+                        tipo_aportante varchar(255),
+                        nom varchar(255),
+                        nom2 varchar(255),
+                        pat varchar(255),
+                        mat varchar(255),
+                        ap_casada varchar(255),
+                        recibo varchar(255),
+                        fecha_deposito date,
+                        total_depositado decimal(13,2),
+                        mes integer,
+                        a_o integer,
+                        total_pension decimal(13,2),
+                        renta_dignidad decimal(13,2),
+                        cotizable decimal(13,2),
+                        aporte decimal(13,2),
+                        porcentaje_aporte decimal(13,2),
+                        affiliate_id integer,
+                        criteria varchar(255)
+                    )
+                LOOP
+                    INSERT INTO payroll_regionals(
+                        affiliate_id, carnet, tipo_aportante, nom, nom2, pat, mat, ap_casada,
+                        recibo, fecha_deposito, total_depositado, mes, a_o, total_pension,
+                        renta_dignidad, cotizable, aporte, porcentaje_aporte, created_at, updated_at
+                    )
+                    VALUES(
+                        record_row.affiliate_id, record_row.carnet, record_row.tipo_aportante,
+                        record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada,
+                        record_row.recibo, record_row.fecha_deposito, record_row.total_depositado,
+                        record_row.mes, record_row.a_o, record_row.total_pension,
+                        record_row.renta_dignidad, record_row.cotizable, record_row.aporte,
+                        record_row.porcentaje_aporte, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                    );
+
+                    PERFORM dblink(conection_db_aux,
+                        'UPDATE payroll_copy_regionals
+                        SET state = ' || quote_literal(is_validated_update) || '
+                        WHERE error_message IS NULL
+                        AND deleted_at IS NULL
+                        AND affiliate_id = ' || record_row.affiliate_id || '
+                        AND a_o = ' || record_row.a_o || '
+                        AND mes = ' || record_row.mes || '
+                        AND created_at::date = ' || quote_literal(date_import)
+                    );
+
+                    num_validated := num_validated + 1;
+                END LOOP;
+
+                RETURN num_validated;
+            END;
+            $$;
         ");
 
         // Crea la función donde recorre la tabla payroll_regionals y genera los aportes correspondientes
