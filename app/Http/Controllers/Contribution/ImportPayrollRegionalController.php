@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
+use Throwable;
 
 class ImportPayrollRegionalController extends Controller
 {
@@ -236,103 +237,47 @@ class ImportPayrollRegionalController extends Controller
         $data_count['num_data_validated'] = 0;
         $data_count['num_data_not_validated'] = 0;
 
-        // ---TOTAL DE DATOS DEL ARCHIVO
+        // Total de datos del archivo
         $query_total_data = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import';";
         $query_total_data = DB::connection('db_aux')->select($query_total_data);
         $data_count['num_total_data_copy'] = $query_total_data[0]->count;
 
-        // ---NUMERO DE DATOS NO CONSIDERADOS duplicados de afiliados y aportes
+        // Número de datos no considerados duplicados de afiliados y aportes
         $query_data_not_considered = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import' AND (error_message IS NOT NULL OR deleted_at IS NOT NULL);";
         $query_data_not_considered = DB::connection('db_aux')->select($query_data_not_considered);
         $data_count['num_data_not_considered'] = $query_data_not_considered[0]->count;
 
-        // ---NUMERO DE DATOS NO RELACIONADOS
-        $query_data_unrelated= "SELECT count(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import' AND error_message IS NULL AND deleted_at IS NULL AND criteria = '9-no-identificado';";
-        $query_data_unrelated= DB::connection('db_aux')->select($query_data_unrelated);
+        // Número de datos no relacionados
+        $query_data_unrelated = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import' AND error_message IS NULL AND deleted_at IS NULL AND criteria = '9-no-identificado';";
+        $query_data_unrelated = DB::connection('db_aux')->select($query_data_unrelated);
         $data_count['num_data_unrelated'] = $query_data_unrelated[0]->count;
 
-        // ---NUMERO DE DATOS CONSIDERADOS
-        $query_data_considered = "SELECT count(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import' AND error_message IS NULL AND deleted_at IS NULL;";
+        // Número de datos considerados
+        $query_data_considered = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import' AND error_message IS NULL AND deleted_at IS NULL;";
         $query_data_considered = DB::connection('db_aux')->select($query_data_considered);
         $data_count['num_data_considered'] = $query_data_considered[0]->count;
 
-        // ---NUMERO DE DATOS VALIDADOS
+        // Número de datos válidos
         $data_count['num_data_validated'] = PayrollRegional::data_period($date_import)['count_data'];
 
-        return  $data_count;
+        return $data_count;
     }
 
-   /**
-     * @OA\Post(
-     *      path="/api/contribution/download_error_data_regional",
-     *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
-     *      summary="DESCARGA EL ARCHIVO, CON EL LISTADO DE AFILIADOS QUE TENGAN OBSERVACIONES",
-     *      operationId="download_error_data_regional",
-     *      description="Descarga el archivo con el listado de afiliados con CI duplicado, primer nombre nulo, apellido paterno y materno en nulo",
-     *      @OA\RequestBody(
-     *          description= "Provide auth credentials",
-     *          required=true,
-     *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
-     *               @OA\Property(property="date_import", type="string",description="fecha importacion required",example= "2025-11-07")
-     *            )
-     *          ),
-     *      ),
-     *      security={
-     *         {"bearerAuth": {}}
-     *      },
-     *      @OA\Response(
-     *          response=200,
-     *          description="Success",
-     *          @OA\JsonContent(
-     *            type="object"
-     *         )
-     *      )
-     * )
-     *
-     * Logs user into the system.
-     *
-     * @param Request $request
-     * @return void
-   */
-   public function download_error_data_regional(Request $request){
-
-
-       $request->validate([
-           'date_import' => 'required|date',
-       ]);
-       $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
-      
-       $data_header=array(array("CARNET","TIPO APORTANTE","PRIMER NOMBRE","SEGUNDO NOMBRE","APELLIDO PATERNO","APELLIDO MATERNO","APELLIDO CASADA","NRO RECIBO","FECHA DEPOSITO","TOTAL DEPOSITADO","MES","AÑO","PENSION","RENTA DIGNIDAD","COTIZABLE","APORTE","%APORTE","OBSERVACIÓN"));
-
-
-       $data_payroll_copy_regional = "select carnet,tipo_aportante,nom,nom2,pat,mat,ap_casada,recibo,fecha_deposito,total_depositado,mes,a_o,total_pension,renta_dignidad,cotizable,aporte,porcentaje_aporte,error_message from payroll_copy_regionals pcr where created_at::date = '".$date_import."' and (error_message is not null or deleted_at is not null) order by carnet";
-       $data_payroll_copy_regional = DB::connection('db_aux')->select($data_payroll_copy_regional);
-           foreach ($data_payroll_copy_regional as $row){
-               array_push($data_header, array($row->carnet,$row->tipo_aportante,$row->nom,$row->nom2,$row->pat,$row->mat,$row->ap_casada,
-               $row->recibo,$row->fecha_deposito,$row->total_depositado,$row->mes,$row->a_o,$row->total_pension,$row->renta_dignidad,
-               $row->cotizable,$row->aporte,$row->porcentaje_aporte,$row->error_message));
-           }
-           $export = new ArchivoPrimarioExport($data_header);
-           $file_name = "observacion-planilla-regional";
-           $extension = '.xls';
-           return Excel::download($export, $file_name."_".$extension);
-   }
-
-   /**
+    /**
     * @OA\Post(
-    *      path="/api/contribution/validation_affiliate_regional",
+    *      path="/api/contribution/download_error_data_regional",
     *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
-    *      summary="PASO 2 VALIDACIÓN AFILIADOS Y APORTES",
-    *      operationId="validation_affiliate_regional",
-    *      description="Validación de afiliados y aportes de la planilla regionales",
+    *      summary="DESCARGA EL ARCHIVO, CON EL LISTADO DE AFILIADOS QUE TENGAN OBSERVACIONES",
+    *      operationId="download_error_data_regional",
+    *      description="Descarga el archivo con el listado de afiliados con CI duplicado, primer nombre nulo, apellido paterno y materno en nulo",
     *      @OA\RequestBody(
     *          description= "Provide auth credentials",
-    *          required=false,
+    *          required=true,
     *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
-    *              @OA\Property(property="date_import", type="string", description="fecha importación required", example= "2025-11-07")
+    *               @OA\Property(property="date_import", type="string", description="fecha importacion required", example= "2025-11-07")
     *            )
     *          ),
-    *     ),
+    *      ),
     *      security={
     *         {"bearerAuth": {}}
     *      },
@@ -349,142 +294,188 @@ class ImportPayrollRegionalController extends Controller
     *
     * @param Request $request
     * @return void
-   */
-   public function validation_affiliate_regional(Request $request){
-       $request->validate([
-           'date_import' => 'required|date',
-       ]);
-       $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
+    */
+    public function download_error_data_regional(Request $request){
+        $request->validate([
+            'date_import' => 'required|date',
+        ]);
+        $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
       
-       try{
-           DB::beginTransaction();
-           $message = "No hay datos por validar";
-           $successfully =false;
-           $data_count['num_total_data_copy'] = 0;
-           $data_count['count_data_automatic_link'] = 0;
-           $data_count['count_data_unidentified'] = 0;
-           $data_count['count_data_error'] = 0;
-           $data_count['num_total_data_payroll'] = 0;
-           $data_count['num_total_data_contribution'] = 0;
-           $route = '';
-           $route_file_name = '';
+        $data_header=array(array("CARNET","TIPO APORTANTE","PRIMER NOMBRE","SEGUNDO NOMBRE","APELLIDO PATERNO","APELLIDO MATERNO","APELLIDO CASADA","NRO RECIBO","FECHA DEPOSITO","TOTAL DEPOSITADO","MES","AÑO","PENSION","RENTA DIGNIDAD","COTIZABLE","APORTE","%APORTE","OBSERVACIÓN"));
 
-           $connection_db_aux = Util::connection_db_aux();
-           $query = "select search_affiliate_regional('$connection_db_aux', '$date_import');";
-           $data_validated = DB::select($query);
-           $num_total_data_copy = $this->data_count_payroll_regional($date_import);
-           $count_data_automatic_link = "select count(id) from payroll_copy_regionals pcr where criteria in ('1-CI-PN-SN-PA-SA-AC', '2-CI-sPN-sPA-sSA', '3-partCI-sPN-sPA', '4-sCI-PN-PA-SA', '5-CI-PN-SN-PA-SA-AC','6-CI-sPN-sPA-sSA','7-partCI-sPN-sPA','8-sCI-PN-PA-SA') and created_at::date = '".$date_import."'";
-           $count_data_automatic_link = DB::connection('db_aux')->select($count_data_automatic_link);
-           $count_data_unidentified = "select count(id) from payroll_copy_regionals pcr where criteria in ('9-no-identificado') and created_at::date = '".$date_import."'";
-           $count_data_unidentified = DB::connection('db_aux')->select($count_data_unidentified);
-           $count_data_error = "select count(id) from payroll_copy_regionals pcr where (error_message is not null or deleted_at is not null) and created_at::date = '".$date_import."'";
-           $count_data_error = DB::connection('db_aux')->select($count_data_error);
-           $data_count['num_total_data_copy'] = $num_total_data_copy['num_total_data_copy'];
-           $data_count['count_data_automatic_link'] = $count_data_automatic_link[0]->count;
-           $data_count['count_data_unidentified'] = $count_data_unidentified[0]->count;
-           $data_count['count_data_error'] = $count_data_error[0]->count;
+        $data_payroll_copy_regional = "SELECT carnet,tipo_aportante,nom,nom2,pat,mat,ap_casada,recibo,fecha_deposito,total_depositado,mes,a_o,total_pension,renta_dignidad,cotizable,aporte,porcentaje_aporte,error_message FROM payroll_copy_regionals pcr WHERE created_at::date = '".$date_import."' AND (error_message IS NOT NULL OR deleted_at IS NOT NULL) order by carnet";
+        $data_payroll_copy_regional = DB::connection('db_aux')->select($data_payroll_copy_regional);
+            foreach ($data_payroll_copy_regional as $row){
+                array_push($data_header, array($row->carnet,$row->tipo_aportante,$row->nom,$row->nom2,$row->pat,$row->mat,$row->ap_casada,
+                $row->recibo,$row->fecha_deposito,$row->total_depositado,$row->mes,$row->a_o,$row->total_pension,$row->renta_dignidad,
+                $row->cotizable,$row->aporte,$row->porcentaje_aporte,$row->error_message));
+            }
+            $export = new ArchivoPrimarioExport($data_header);
+            $file_name = "observacion-planilla-regional";
+            $extension = '.xls';
+            return Excel::download($export, $file_name."_".$extension);
+    }
 
-           $validated_contribution = $this->validation_contribution_regional($date_import);
+   /**
+    * @OA\Post(
+    *      path="/api/contribution/validation_affiliate_regional",
+    *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
+    *      summary="PASO 2 VALIDACIÓN AFILIADOS Y APORTES",
+    *      operationId="validation_affiliate_regional",
+    *      description="Validación de afiliados y aportes de la planilla regionales",
+    *      @OA\RequestBody(
+    *          description= "Provide auth credentials",
+    *          required=false,
+    *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
+    *              @OA\Property(property="date_import", type="string", description="fecha importación required", example= "2025-11-07")
+    *          )
+    *        ),
+    *     ),
+    *     security={
+    *       {"bearerAuth": {}}
+    *     },
+    *     @OA\Response(
+    *       response=200,
+    *       description="Success",
+    *       @OA\JsonContent(
+    *           type="object"
+    *       )
+    *     )
+    * )
+    *
+    * Logs user into the system.
+    *
+    * @param Request $request
+    * @return void
+    */
+    public function validation_affiliate_regional(Request $request){
+        $request->validate([
+            'date_import' => 'required|date',
+        ]);
+        $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
+        try{
+            DB::beginTransaction();
+            $message = "No hay datos por validar.";
+            $successfully =false;
+            $data_count['num_total_data_copy'] = 0;
+            $data_count['count_data_automatic_link'] = 0;
+            $data_count['count_data_unidentified'] = 0;
+            $data_count['count_data_error'] = 0;
+            $data_count['num_total_data_payroll'] = 0;
+            $data_count['num_total_data_contribution'] = 0;
+            $route = '';
+            $route_file_name = '';
 
-           if($num_total_data_copy['num_total_data_copy'] <= 0){
-               $successfully = false;
-               $message = 'no existen datos';
-           }elseif($count_data_unidentified[0]->count > 0){
-               $successfully = false;
-               $message = 'Excel';
-               $route = '/contribution/download_data_revision';
-               $route_file_name = 'observados_para_revision.xls';
-           }elseif($count_data_unidentified[0]->count == 0 && $count_data_error[0]->count > 0){
-               $valid_contribution = "select count(id) from payroll_copy_regionals pcr where state like 'accomplished' and error_message is not null and created_at::date = '".$date_import."';";
-               $valid_contribution = DB::connection('db_aux')->select($valid_contribution);
-               if($valid_contribution[0]->count == 0){
-                   $successfully =true;
-                   $message = 'Excel';
-                   $route = '/contribution/download_data_revision';
-                   $route_file_name = 'afiliados_para_creacion.xls';
-               }else{
-                   $successfully =false;
-                   $message = 'Excel';
-                   $route = '/contribution/download_error_data_archive';
-                   $route_file_name = 'datos_aportes_observados.xls';
-               }
-           }elseif($count_data_unidentified[0]->count == 0 && $count_data_error[0]->count == 0){
-               $successfully =true;
-               $message = 'Realizado con éxito.';
-           }else{
-               $successfully =false;
-               $message = 'Ops ocurrió algo inesperado.';
-           }
-           return response()->json([
-               'message' => $message,
-               'payload' => [
-                   'successfully' => $successfully,
-                   'data_count' => $data_count,
-                   'route' => $route,
-                   'route_file_name' => $route_file_name
-               ],
-           ]);
-       }catch(Exception $e){
-           DB::rollBack();
-           return response()->json([
-           'message' => 'Error en la búsqueda de datos de afiliados.',
-           'payload' => [
-               'successfully' => false,
-               'error' => $e->getMessage(),
-           ],
-           ]);
-       }
-   }
+            $connection_db_aux = Util::connection_db_aux();
+            $query = "SELECT search_affiliate_regional('$connection_db_aux', '$date_import');";
+            // $data_validated = DB::select($query);
+            $num_total_data_copy = $this->data_count_payroll_regional($date_import);
+            $count_data_automatic_link = "SELECT COUNT(id) FROM payroll_copy_regionals pcr WHERE criteria IN ('1-CI-PN-SN-PA-SA-AC', '2-CI-sPN-sPA-sSA', '3-partCI-sPN-sPA', '4-sCI-PN-PA-SA', '5-CI-PN-SN-PA-SA-AC','6-CI-sPN-sPA-sSA','7-partCI-sPN-sPA','8-sCI-PN-PA-SA') AND created_at::date = '".$date_import."'";
+            $count_data_automatic_link = DB::connection('db_aux')->select($count_data_automatic_link);
+            $count_data_unidentified = "SELECT COUNT(id) FROM payroll_copy_regionals pcr WHERE criteria IN ('9-no-identificado') AND created_at::date = '".$date_import."'";
+            $count_data_unidentified = DB::connection('db_aux')->select($count_data_unidentified);
+            $count_data_error = "SELECT COUNT(id) FROM payroll_copy_regionals pcr WHERE (error_message IS NOT NULL OR deleted_at IS NOT NULL) AND created_at::date = '".$date_import."'";
+            $count_data_error = DB::connection('db_aux')->select($count_data_error);
+            $data_count['num_total_data_copy'] = $num_total_data_copy['num_total_data_copy'];
+            $data_count['count_data_automatic_link'] = $count_data_automatic_link[0]->count;
+            $data_count['count_data_unidentified'] = $count_data_unidentified[0]->count;
+            $data_count['count_data_error'] = $count_data_error[0]->count;
+            // return $validated_contribution = $this->validation_contribution_regional($date_import);
 
+            if($num_total_data_copy['num_total_data_copy'] <= 0){
+                $successfully = false;
+                $message = 'no existen datos';
+            }elseif($count_data_unidentified[0]->count > 0){
+                $successfully = false;
+                $message = 'Excel';
+                $route = '/contribution/download_data_revision';
+                $route_file_name = 'observados_para_revision.xls';
+            }elseif($count_data_unidentified[0]->count == 0 && $count_data_error[0]->count > 0){
+                $valid_contribution = "SELECT COUNT(id) FROM payroll_copy_regionals pcr WHERE state LIKE 'accomplished' AND error_message IS NOT NULL AND created_at::date = '".$date_import."';";
+                $valid_contribution = DB::connection('db_aux')->select($valid_contribution);
+                if($valid_contribution[0]->count == 0){
+                    $successfully =true;
+                    $message = 'Excel';
+                    $route = '/contribution/download_data_revision';
+                    $route_file_name = 'afiliados_para_creacion.xls';
+                }else{
+                    $successfully =false;
+                    $message = 'Excel';
+                    $route = '/contribution/download_error_data_archive';
+                    $route_file_name = 'datos_aportes_observados.xls';
+                }
+            }elseif($count_data_unidentified[0]->count == 0 && $count_data_error[0]->count == 0){
+                $successfully =true;
+                $message = 'Realizado con éxito.';
+            }else{
+                $successfully =false;
+                $message = 'Ops ocurrió algo inesperado.';
+            }
+            return response()->json([
+                'message' => $message,
+                'payload' => [
+                    'successfully' => $successfully,
+                    'data_count' => $data_count,
+                    'route' => $route,
+                    'route_file_name' => $route_file_name
+                ],
+            ]);
+        }catch(Exception $e){
+            DB::rollBack();
+            return response()->json([
+            'message' => 'Error en la búsqueda de datos de afiliados.',
+            'payload' => [
+                'successfully' => false,
+                'error' => $e->getMessage(),
+            ],
+            ]);
+        }
+    }
 
-   // Método para verificar si existe montos con diferentes contribuciones
-   public function validation_contribution_regional($date_import){
-       $different_contribution = false;
-
-       $connection_db_aux = Util::connection_db_aux();
-       //1. Reemplaza los casos que tengan aportes iguales registrados desde la planilla de regionales
-       //2. Reemplaza los valores que contengan cero en aporte aunque estén clasificados
-       $sql_dblink = "
-           SELECT id, affiliate_id, a_o, mes, aporte, created_at
-           FROM payroll_copy_regionals
-           WHERE created_at::date = '$date_import'
-       ";
+    // Método para verificar si existe montos con diferentes contribuciones
+    public function validation_contribution_regional($date_import){
+        $different_contribution = false;
+        $connection_db_aux = Util::connection_db_aux();
+        // Reemplaza los casos que tengan aportes iguales registrados desde la planilla de regionales
+        // Reemplaza los valores que contengan cero en aporte aunque estén clasificados
+        $sql_dblink = "
+            SELECT id, affiliate_id, a_o, mes, aporte, created_at
+            FROM payroll_copy_regionals
+            WHERE created_at::date = '$date_import'
+        ";
       
-       $payroll_regional = DB::select("SELECT pcr.id, cp.affiliate_id, pcr.aporte, cp.total, cp.contribution_type_mortuary_id
-       FROM contribution_passives cp
-       JOIN dblink('$connection_db_aux', $$ $sql_dblink $$)
-       AS pcr(id INT, affiliate_id INT, a_o INT, mes INT, aporte NUMERIC(13,2), created_at date) ON cp.affiliate_id = pcr.affiliate_id
-       where EXTRACT(YEAR FROM cp.month_year) = pcr.a_o
-       AND EXTRACT(MONTH FROM cp.month_year) = pcr.mes
-       AND cp.total <> pcr.aporte
-       AND cp.total > 0
-       AND pcr.created_at::date = '$date_import';
-       ");
+        $payroll_regional = DB::select("SELECT pcr.id, cp.affiliate_id, pcr.aporte, cp.total, cp.contribution_type_mortuary_id
+            FROM contribution_passives cp
+            JOIN dblink('$connection_db_aux', $$ $sql_dblink $$)
+            AS pcr(id INT, affiliate_id INT, a_o INT, mes INT, aporte NUMERIC(13,2), created_at date) 
+            ON cp.affiliate_id = pcr.affiliate_id
+            WHERE EXTRACT(YEAR FROM cp.month_year) = pcr.a_o
+            AND EXTRACT(MONTH FROM cp.month_year) = pcr.mes
+            AND cp.total <> pcr.aporte
+            AND cp.total > 0
+            AND pcr.created_at::date = '$date_import';
+        ");
 
-         foreach($payroll_regional as $update_payroll) {
-           $messages = [];
+        foreach($payroll_regional as $update_payroll) {
+            $messages = [];
             if ($update_payroll->total != $update_payroll->aporte) {
-               $messages[] = "La contribución anterior es: $update_payroll->total difiere de la planilla $update_payroll->aporte";
-           }
-           if (!empty($messages)) {
-               $error_message = implode(' - ', $messages);
-               $update_query = "
-                   UPDATE payroll_copy_regionals pcr
-                   SET error_message = CONCAT(COALESCE(error_message, ''), ' - ', '$error_message')
-                   WHERE pcr.id = $update_payroll->id and created_at::date = '$date_import;
-               ";
-               $update_query = DB::connection('db_aux')->select($update_query);
-               $different_contribution = true;
-           }
-       }
-       if($different_contribution == true){
-           return false;
-       }else{
-           return true;
-       }
+                $messages[] = "La contribución anterior es: $update_payroll->total difiere de la planilla $update_payroll->aporte";
+            }
+            if (!empty($messages)) {
+                $error_message = implode(' - ', $messages);
+                $update_query = "
+                    UPDATE payroll_copy_regionals pcr
+                    SET error_message = CONCAT(COALESCE(error_message, ''), ' - ', '$error_message')
+                    WHERE pcr.id = $update_payroll->id AND created_at::date = '$date_import;
+                ";
+                $update_query = DB::connection('db_aux')->select($update_query);
+                $different_contribution = true;
+            }
+        }
+        return !$different_contribution;
    }
   
-   /**
+    /**
     * @OA\Post(
     *      path="/api/contribution/import_payroll_regional",
     *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
@@ -516,80 +507,77 @@ class ImportPayrollRegionalController extends Controller
     * @param Request $request
     * @return void
    */
-   public function import_payroll_regional(Request $request){
-       $request->validate([
-           'date_import' => 'required|date',
-       ]);
-       $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
-      
-       try{
-               DB::beginTransaction();
-               $message = "No hay datos";
-               $successfully =false;
-               $connection_db_aux = Util::connection_db_aux();
+    public function import_payroll_regional(Request $request){
+        $request->validate([
+            'date_import' => 'required|date',
+        ]);
+        $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
+        try{
+            DB::beginTransaction();
+            $message = "No hay datos";
+            $successfully = false;
+            $connection_db_aux = Util::connection_db_aux();
   
-               // Conteo de  affiliate_id is null distinto del criterio 9-no-identificado
-               $count_data = "SELECT count(id) FROM payroll_copy_regionals where error_message is null and deleted_at is null and state = 'accomplished' and affiliate_id is not null and criteria!='9-no-identificado' and created_at::date = '".$date_import."';";
-               $count_data = DB::connection('db_aux')->select($count_data);
-               if($count_data[0]->count == 0){
-                   $count_data_validated = "SELECT count(id) FROM payroll_copy_regionals where state ='validated' and created_at::date = '".$date_import."';";
-                   $count_data_validated = DB::connection('db_aux')->select($count_data_validated);
+            // Conteo de  affiliate_id is null distinto del criterio 9-no-identificado
+            $count_data = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE error_message IS NULL AND deleted_at IS NULL AND state = 'accomplished' AND affiliate_id IS NOT NULL AND criteria!='9-no-identificado' AND created_at::date = '".$date_import."';";
+            $count_data = DB::connection('db_aux')->select($count_data);
+            if ($count_data[0]->count == 0){
+                $count_data_validated = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE state ='validated' AND created_at::date = '".$date_import."';";
+                $count_data_validated = DB::connection('db_aux')->select($count_data_validated);
 
-                   if($count_data_validated[0]->count == 0 || $count_data[0]->count > 0){
-                       $query = "select registration_payroll_regionals('$connection_db_aux', '$date_import');";
-                       $data_validated = DB::select($query);
-                           if($data_validated){
-                               $message = "Realizado con éxito";
-                               $successfully = true;
-                               $data_payroll_copy_regional = "select * from payroll_copy_regionals where state='validated';";
-                               $data_payroll_copy_regional = DB::connection('db_aux')->select($data_payroll_copy_regional);
-                               if(count($data_payroll_copy_regional)> 0){
-                                   $message = "Excel";                           
-                               }
-                           }
-                       DB::commit();
-                       $data_count = $this->data_count_payroll_regional($date_import);
-                       return response()->json([
-                           'message' => $message,
-                           'payload' => [
-                               'successfully' => $successfully,
-                               'data_count' =>  $data_count
-                           ],
-                       ]);
-                   }else{
-                       return response()->json([
-                           'message' => " Error, ya realizó la validación de datos.",
-                           'payload' => [
-                               'successfully' => $successfully,
-                               'error' => 'Error, ya realizó la validación de datos.'
-                           ],
-                       ]);
-                   }
-  
-               }else{
-                   return response()->json([
-                       'message' => "Error no existen datos en la tabla del copiado de datos",
-                       'payload' => [
-                           'successfully' => $successfully,
-                           'error' => 'Error el primer paso no esta concluido o se concluyó el 3er paso.'
-                       ],
-                   ]);
-               }
-  
-           }catch(Exception $e){
-               DB::rollBack();
-               return response()->json([
-               'message' => 'Ocurrió un error.',
-               'payload' => [
-                   'successfully' => false,
-                   'error' => $e->getMessage(),
-               ],
-               ]);
-           }
-       }
+                if ($count_data_validated[0]->count == 0 || $count_data[0]->count > 0){
+                    $query = "SELECT registration_payroll_regionals('$connection_db_aux', '$date_import');";
+                    $data_validated = DB::select($query);
+                    if ($data_validated){
+                        $message = "Realizado con éxito";
+                        $successfully = true;
+                        $data_payroll_copy_regional = "SELECT * FROM payroll_copy_regionals WHERE state = 'validated' AND created_at::date = '".$date_import."';";
+                        $data_payroll_copy_regional = DB::connection('db_aux')->select($data_payroll_copy_regional);
+                        if (count($data_payroll_copy_regional)> 0){
+                            $message = "Excel";                           
+                        }
+                    }
+                    DB::commit();
+                    $data_count = $this->data_count_payroll_regional($date_import);
+                    return response()->json([
+                        'message' => $message,
+                        'payload' => [
+                            'successfully' => $successfully,
+                            'data_count' =>  $data_count
+                        ],
+                    ]);
+                }else{
+                    $errorMessage = 'Error, ya realizó la validación de datos.';
+                    return response()->json([
+                        'message' => $errorMessage,
+                        'payload' => [
+                            'successfully' => $successfully,
+                            'error' => $errorMessage
+                        ],
+                    ]);
+                }
+            }else{
+                return response()->json([
+                    'message' => "Error no existen datos en la tabla del copiado de datos",
+                    'payload' => [
+                        'successfully' => $successfully,
+                        'error' => 'Error el primer paso no esta concluido o se concluyó el paso 3.'
+                    ],
+                ]);
+            }
+        }catch(Exception $e){
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Ocurrió un error.',
+                'payload' => [
+                    'successfully' => false,
+                    'error' => $e->getMessage(),
+                ],
+            ]);
+        }
+    }
 
-
-   /**
+    /**
     * @OA\Post(
     *      path="/api/contribution/import_contribution_regional",
     *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
@@ -597,7 +585,7 @@ class ImportPayrollRegionalController extends Controller
     *      operationId="import_contribution_regional",
     *      description="Importación de aportes de regional a la tabla contribution_passives",
     *      @OA\RequestBody(
-    *          description= "Provide auth credentials",
+    *          description="Provide auth credentials",
     *          required=true,
     *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
     *             @OA\Property(property="date_import", type="string", description="fecha importación required", example= "2025-11-07")
@@ -607,81 +595,78 @@ class ImportPayrollRegionalController extends Controller
     *     security={
     *         {"bearerAuth": {}}
     *     },
-    *      @OA\Response(
+    *     @OA\Response(
     *          response=200,
     *          description="Success",
     *          @OA\JsonContent(
     *            type="object"
     *         )
-    *      )
+    *     )
     * )
     *
     * Logs user into the system.
     *
     * @param Request $request
     * @return void
-   */
-   public function import_contribution_regional(Request $request){
-       $request->validate([
-           'date_import' => 'required|date',
-       ]);
-       try {
-           DB::beginTransaction();
-           $userId = Auth::id();
-           $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
-           $message = 'No existen datos de la planilla.';
-           $success = false;
+    */
+    public function import_contribution_regional(Request $request){
+        $request->validate([
+            'date_import' => 'required|date',
+        ]);
+        try {
+            DB::beginTransaction();
+            $userId = Auth::id();
+            $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
+            $message = 'No existen datos de la planilla.';
+            $success = false;
   
-           // Verifica si ya se realizó una importación
-           $existingContributions = DB::table('contribution_passives')
-               ->where('contributionable_type', 'payroll_regionals')
-               ->whereDate('created_at', '=', $date_import)
-               ->count();
+            // Verifica si ya se realizó una importación
+            $existingContributions = DB::table('contribution_passives')
+                ->where('contributionable_type', 'payroll_regionals')
+                ->whereDate('created_at', '=', $date_import)
+                ->count();
   
-           if ($existingContributions > 0) {
-               return response()->json([
-                   'message' => 'Error: ya se realizó la importación de datos.',
-                   'payload' => [
-                       'successfully' => false,
-                       'num_total_data_contribution' => $existingContributions,
-                   ],
-               ]);
-           }
+            if ($existingContributions > 0) {
+                return response()->json([
+                    'message' => 'Error, ya se realizó la importación de datos.',
+                    'payload' => [
+                        'successfully' => false,
+                        'num_total_data_contribution' => $existingContributions,
+                    ],
+                ]);
+            }
+            // Verifica si hay datos en payroll_regionals
+            $payrollCount = DB::table('payroll_regionals')->whereDate('created_at', '=', $date_import)->count();
   
-           // Verifica si hay datos en payroll_regionals
-           $payrollCount = DB::table('payroll_regionals')->whereDate('created_at', '=', $date_import)->count();
+            if ($payrollCount > 0) {
+                DB::statement("SELECT import_contribution_regional($userId, '$date_import')");
+                DB::commit();
+                $message = 'Importación realizada con éxito.';
+                $success = true;
   
-           if ($payrollCount > 0) {
-               DB::statement("SELECT import_contribution_regional($userId, '$date_import')");
-  
-               DB::commit(); // Confirma transacción
-  
-               $message = 'Importación realizada con éxito';
-               $success = true;
-  
-               $totalContributions = DB::table('contribution_passives')
-                   ->where('contributionable_type', 'payroll_regionals')
-                   ->whereDate('created_at', '=', $date_import)
-                   ->count();
-           } else {
-               $totalContributions = 0;
-           }
+                $totalContributions = DB::table('contribution_passives')
+                    ->where('contributionable_type', 'payroll_regionals')
+                    ->whereDate('created_at', '=', $date_import)
+                    ->count();
+            } else {
+                $totalContributions = 0;
+            }
            return response()->json([
-               'message' => $message,
-               'payload' => [
-                   'successfully' => $success,
-                   'num_total_data_contribution' => $totalContributions,
-               ],
-           ]);
-       } catch (Throwable $e) {
-           DB::rollBack();
-           return response()->json([
-               'message' => 'Error al realizar la importación.',
-               'payload' => [
-                   'successfully' => false,
-                   'error' => $e->getMessage(),
-               ],
-           ]);
-       }
-   }
+                'message' => $message,
+                'payload' => [
+                    'successfully' => $success,
+                    'num_total_data_contribution' => $totalContributions,
+                ],
+            ]);
+        } catch (Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Error al realizar la importación.',
+                'payload' => [
+                    'successfully' => false,
+                    'error' => $e->getMessage(),
+                ],
+            ]);
+        }
+    }
 }
