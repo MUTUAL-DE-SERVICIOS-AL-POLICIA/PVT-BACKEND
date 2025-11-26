@@ -53,23 +53,27 @@ class ImportPayrollRegionalController extends Controller
 
    public function upload_copy_payroll_regional(request $request)
    {
-       $request->validate([
-           'file' => 'required',
-           'date_import' => 'required|date'
-       ]);
+        $request->validate([
+            'file' => 'required',
+            'date_import' => 'required|date'
+        ]);
       
-       $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
-       $extension = strtolower($request->file->getClientOriginalExtension());
-       $file_name_entry = $request->file->getClientOriginalName();
+        $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
+        $extension = strtolower($request->file->getClientOriginalExtension());
+        $file_name_entry = $request->file->getClientOriginalName();
 
-       $route = '';
-       $route_file_name = '';
-       DB::beginTransaction();
-       try{
-           $username = env('FTP_USERNAME');
-           $password = env('FTP_PASSWORD');
-           $successfully = false;
-           if($extension == "csv"){
+        $uploadedFile = $request->file('file');
+        $extension = strtolower($uploadedFile->getClientOriginalExtension());
+        $file_name_entry = $uploadedFile->getClientOriginalName();
+
+        $route = '';
+        $route_file_name = '';
+        DB::beginTransaction();
+        try{
+            $username = env('FTP_USERNAME');
+            $password = env('FTP_PASSWORD');
+            $successfully = false;
+            if($extension == "csv"){
                 $rollback_period = "DELETE FROM payroll_copy_regionals WHERE state = 'unrealized' AND created_at::date ='".$date_import."';";
                 $rollback_period = DB::connection('db_aux')->select($rollback_period);
                 $file_name = "regional".'.'.$extension;
