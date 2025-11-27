@@ -144,10 +144,11 @@ class ImportPayrollRegionalController extends Controller
                         $data_cleaning = "WITH duplicados AS (
                             SELECT id,
                                     ROW_NUMBER() OVER (
-                                        PARTITION BY carnet, a_o, mes, aporte
+                                        PARTITION BY carnet, tipo_aportante, a_o, mes, aporte
                                         ORDER BY id
                                     ) AS rn
-                                FROM payroll_copy_regionals WHERE created_at::date = '".$date_import."'
+                                FROM payroll_copy_regionals 
+                                WHERE created_at::date = '".$date_import."'
                             )
                             UPDATE payroll_copy_regionals
                             SET deleted_at = NOW()
@@ -163,7 +164,7 @@ class ImportPayrollRegionalController extends Controller
                         $verify_data = "UPDATE payroll_copy_regionals pcr SET error_message = concat(error_message,' - ','El valor del primer nombre es NULO') FROM (SELECT id FROM payroll_copy_regionals WHERE nom IS NULL AND deleted_at IS NULL AND created_at::date = '".$date_import."') as subquery where pcr.id = subquery.id;";
                         $verify_data = DB::connection('db_aux')->select($verify_data);
 
-                        $verify_data = "UPDATE payroll_copy_regionals pcr SET error_message = concat(error_message,' - ','El número de carnet es duplicado en el mismo periodo') FROM (SELECT carnet, a_o, mes FROM payroll_copy_regionals WHERE deleted_at IS NULL AND created_at::date = '".$date_import."' GROUP BY carnet, a_o, mes HAVING COUNT(*) > 1) AS subquery WHERE pcr.carnet = subquery.carnet AND pcr.a_o = subquery.a_o AND pcr.mes = subquery.mes AND deleted_at IS NULL;";
+                        $verify_data = "UPDATE payroll_copy_regionals pcr SET error_message = concat(error_message,' - ','El número de carnet es duplicado en el mismo periodo') FROM (SELECT carnet, a_o, mes, tipo_aportante FROM payroll_copy_regionals WHERE deleted_at IS NULL AND created_at::date = '".$date_import."' GROUP BY carnet, a_o, mes, tipo_aportante HAVING COUNT(*) > 1) AS subquery WHERE pcr.carnet = subquery.carnet AND pcr.a_o = subquery.a_o AND pcr.mes = subquery.mes AND pcr.tipo_aportante = subquery.tipo_aportante AND deleted_at IS NULL;";
                         $verify_data = DB::connection('db_aux')->select($verify_data);
 
                         $verify_data = "SELECT COUNT(id) from payroll_copy_regionals pcr WHERE created_at::date = '".$date_import."' AND error_message IS NOT NULL AND deleted_at IS NULL;";
