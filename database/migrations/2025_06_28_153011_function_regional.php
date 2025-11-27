@@ -10,8 +10,6 @@ return new class extends Migration
      */
     public function up(): void
     {
-c        DB::statement("CREATE EXTENSION IF NOT EXISTS pg_trgm;"); // Para usar similarity()
-
         // Función para identificar afiliados según criterios de similitud
         DB::statement("CREATE OR REPLACE FUNCTION public.identified_affiliate_regional(order_entry integer, identity_card_entry varchar, first_name_entry varchar, second_name_entry varchar, last_name_entry varchar, mothers_last_name_entry varchar, surname_husband_entry varchar, tipo_aportante_entry varchar) 
             RETURNS integer
