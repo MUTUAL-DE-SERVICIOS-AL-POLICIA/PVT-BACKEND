@@ -373,7 +373,7 @@ class ImportPayrollRegionalController extends Controller
 
             $connection_db_aux = Util::connection_db_aux();
             $query = "SELECT search_affiliate_regional('$connection_db_aux', '$date_import');";
-            // $data_validated = DB::select($query);
+            $data_validated = DB::select($query);
             $num_total_data_copy = $this->data_count_payroll_regional($date_import);
             $count_data_automatic_link = "SELECT COUNT(id) FROM payroll_copy_regionals pcr WHERE criteria IN ('1-CI-PN-SN-PA-SA-AC', '2-CI-sPN-sPA-sSA', '3-partCI-sPN-sPA', '4-sCI-PN-PA-SA', '5-CI-PN-SN-PA-SA-AC','6-CI-sPN-sPA-sSA','7-partCI-sPN-sPA','8-sCI-PN-PA-SA') AND created_at::date = '".$date_import."'";
             $count_data_automatic_link = DB::connection('db_aux')->select($count_data_automatic_link);
@@ -385,7 +385,7 @@ class ImportPayrollRegionalController extends Controller
             $data_count['count_data_automatic_link'] = $count_data_automatic_link[0]->count;
             $data_count['count_data_unidentified'] = $count_data_unidentified[0]->count;
             $data_count['count_data_error'] = $count_data_error[0]->count;
-            // return $validated_contribution = $this->validation_contribution_regional($date_import);
+            $validated_contribution = $this->validation_contribution_regional($date_import);
 
             if($num_total_data_copy['num_total_data_copy'] <= 0){
                 $successfully = false;
