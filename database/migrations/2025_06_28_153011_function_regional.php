@@ -161,7 +161,8 @@ return new class extends Migration
                             type_state := '9-no-identificado';
                         END IF;
                         PERFORM dblink_exec(conection_db_aux, 
-                            'UPDATE payroll_copy_regionals SET state=''accomplished'', criteria=''' || type_state || ''', affiliate_id=' || COALESCE(affiliate_id_result,0) || ' 
+                            'UPDATE payroll_copy_regionals 
+                            SET state=' || quote_literal('accomplished') || ', criteria=' || quote_literal(type_state) || ', affiliate_id=' || COALESCE(affiliate_id_result,0) || ' 
                             WHERE id=' || record_row.id
                         );
                     END IF;
@@ -299,15 +300,15 @@ return new class extends Migration
                 FOR registro IN cur_contribution LOOP
                     -- Imprimir los campos deseados del registro
                     RAISE NOTICE 'Procesando registro: ID = %, Año = %, Mes = %, Afiliado ID = %',
-                        registro.id, registro.year_p, registro.month_p, registro.affiliate_id;
+                        registro.id, registro.year, registro.month, registro.affiliate_id;
 
                     -- Crear contribución
                     PERFORM create_contribution_regional(
                         registro.affiliate_id,
                         user_reg,
                         registro.id::INTEGER,
-                        registro.year_p::INTEGER,
-                        registro.month_p::INTEGER
+                        registro.year::INTEGER,
+                        registro.month::INTEGER
                     );
                 END LOOP;
 
@@ -342,11 +343,11 @@ return new class extends Migration
             type_action varchar;
             id_contribution_passive int;
             BEGIN
-                --Función par crear un nuevo registro en la tabla contribution_passive
+                -- Buscar si ya existe contribución para ese afiliado y periodo
                 id_contribution_passive:= search_affiliate_period_regional(affiliate,year_copy,month_copy);
                 IF id_contribution_passive = 0 then
                     type_action:= 'created';
-                -- Creación de un nuevo registro de la contribución con Pagado = 2
+                -- Creación de un nuevo registro en contribution_passives con Pagado = 2
                     INSERT INTO public.contribution_passives(
                         user_id, 
                         affiliate_id, 
@@ -366,10 +367,10 @@ return new class extends Migration
                     SELECT 
                         user_reg AS user_id, 
                         affiliate,
-                        TO_DATE(prs.year_p || '-' || prs.month_p || '-' || 1, 'YYYY-MM-DD') as month_year, 
+                        TO_DATE(prs.year || '-' || prs.month || '-' || 1, 'YYYY-MM-DD') as month_year, 
                         0 AS quotable, 
                         0 AS rent_pension,
-                        0 ASdignity_rent, 
+                        0 AS dignity_rent, 
                         0 AS interest, 
                         prs.contribution AS total,
                         current_timestamp AS created_at,
@@ -386,7 +387,9 @@ return new class extends Migration
                         WHERE prs.id = payroll_regional_id;
                 ELSE
                     type_action:= 'updated';
-                    -- Actualizar el registro existente donde el aporte 1. Es el mismo monto o 2. El monto en contribution_passives es cero.
+                    -- Actualizar el registro existente donde el aporte 
+                        -- 1. contributionable_type es NULL
+                        -- 2. total actual = total de planilla o total actual = 0
                     UPDATE contribution_passives cp
                     SET 
                         quotable = prs.quotable,
@@ -406,8 +409,8 @@ return new class extends Migration
                     AND cp.contributionable_type IS NULL
                     AND (cp.total = prs.contribution OR cp.total = 0)
                     AND cp.affiliate_id = prs.affiliate_id
-                    AND EXTRACT(YEAR FROM cp.month_year) = prs.year_p 
-                    AND EXTRACT(MONTH FROM cp.month_year) = prs.month_p;
+                    AND EXTRACT(YEAR FROM cp.month_year) = prs.year 
+                    AND EXTRACT(MONTH FROM cp.month_year) = prs.month;
                 END IF;
                 RETURN type_action;
             END;

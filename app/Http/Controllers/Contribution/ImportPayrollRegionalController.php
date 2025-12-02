@@ -17,47 +17,47 @@ use Throwable;
 
 class ImportPayrollRegionalController extends Controller
 {
-   /**
-    * @OA\Post(
-    *      path="/api/contribution/upload_copy_payroll_regional",
-    *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
-    *      summary="PASO 1 COPIADO DE DATOS PLANILLA REGIONAL",
-    *      operationId="upload_copy_payroll_regional",
-    *      description="Copiado de datos del archivo de planillas regional a la tabla payroll_copy_regionals",
-    *      @OA\RequestBody(
-    *          description= "Provide auth credentials",
-    *          required=true,
-    *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
-    *              @OA\Property(property="file", type="file", description="file required", example="file"),
-    *              @OA\Property(property="date_import", type="string", description="fecha importacion required", example= "2025-11-07")
-    *            )
-    *          ),
-    *     ),
-    *     security={
-    *         {"bearerAuth": {}}
-    *     },
-    *      @OA\Response(
-    *          response=200,
-    *          description="Success",
-    *          @OA\JsonContent(
-    *            type="object"
-    *         )
-    *      )
-    * )
-    *
-    * Logs user into the system.
-    *
-    * @param Request $request
-    * @return void
-   */
+    /**
+     * @OA\Post(
+     *      path="/api/contribution/upload_copy_payroll_regional",
+     *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
+     *      summary="PASO 1 COPIADO DE DATOS PLANILLA REGIONAL",
+     *      operationId="upload_copy_payroll_regional",
+     *      description="Copiado de datos del archivo de planillas regional a la tabla payroll_copy_regionals",
+     *      @OA\RequestBody(
+     *          description= "Provide auth credentials",
+     *          required=true,
+     *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
+     *              @OA\Property(property="file", type="file", description="file required", example="file"),
+     *              @OA\Property(property="date_import", type="string", description="fecha importacion required", example= "2025-11-07")
+     *            )
+     *          ),
+     *     ),
+     *     security={
+     *         {"bearerAuth": {}}
+     *     },
+     *      @OA\Response(
+     *          response=200,
+     *          description="Success",
+     *          @OA\JsonContent(
+     *            type="object"
+     *         )
+     *      )
+     * )
+     *
+     * Logs user into the system.
+     *
+     * @param Request $request
+     * @return void
+     */
 
-   public function upload_copy_payroll_regional(request $request)
-   {
+    public function upload_copy_payroll_regional(request $request)
+    {
         $request->validate([
             'file' => 'required',
             'date_import' => 'required|date'
         ]);
-      
+        
         $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
         $extension = strtolower($request->file->getClientOriginalExtension());
         $file_name_entry = $request->file->getClientOriginalName();
@@ -96,16 +96,16 @@ class ImportPayrollRegionalController extends Controller
                                                 recibo varchar,
                                                 fecha_deposito date,
                                                 total_depositado decimal(13,2),
-                                                mes integer, 
+                                                mes integer,
                                                 a_o integer,
                                                 total_pension decimal(13,2),
                                                 renta_dignidad decimal(13,2),
                                                 cotizable decimal(13,2),
-                                                aporte decimal(13,2),   
+                                                aporte decimal(13,2),  
                                                 porcentaje_aporte decimal(13,2))";
 
                         $temporary_payroll = DB::connection('db_aux')->select($temporary_payroll);
-           
+            
                         $copy = "COPY payroll_copy_regional_tmp(carnet, tipo_aportante, nom, nom2, pat, mat, ap_casada, recibo, fecha_deposito, total_depositado, mes, a_o, total_pension, renta_dignidad, cotizable, aporte, porcentaje_aporte)
                                 FROM PROGRAM 'wget -q -O - $@  --user=$username --password=$password $base_path'
                                 WITH DELIMITER ':' CSV header;";
@@ -122,10 +122,10 @@ class ImportPayrollRegionalController extends Controller
                             return response()->json([
                                 'message' => 'Error en el copiado de datos',
                                 'payload' => [
-                                   'successfully' => false,
-                                   'error' => 'Existen datos incorrectos en las columnas de mes o año.',
-                                   'route' => $route,
-                                   'route_file_name' => $route_file_name
+                                    'successfully' => false,
+                                    'error' => 'Existen datos incorrectos en las columnas de mes o año.',
+                                    'route' => $route,
+                                    'route_file_name' => $route_file_name
                                 ],
                             ]);
                         }
@@ -135,11 +135,11 @@ class ImportPayrollRegionalController extends Controller
                         cotizable::DECIMAL(13,2), aporte::DECIMAL(13,2), porcentaje_aporte::DECIMAL(13,2), current_timestamp , current_timestamp
                         FROM payroll_copy_regional_tmp";
                         $insert = DB::connection('db_aux')->select($insert);
-                      
+                        
                         $drop = "DROP TABLE IF EXISTS payroll_copy_regional_tmp";
                         $drop = DB::connection('db_aux')->select($drop);
 
-                        $data_count = $this->data_count_payroll_regional($date_import);                      
+                        $data_count = $this->data_count_payroll_regional($date_import);                     
 
                         $data_cleaning = "WITH duplicados AS (
                             SELECT id,
@@ -147,12 +147,12 @@ class ImportPayrollRegionalController extends Controller
                                         PARTITION BY carnet, tipo_aportante, a_o, mes, aporte
                                         ORDER BY id
                                     ) AS rn
-                                FROM payroll_copy_regionals 
+                                FROM payroll_copy_regionals
                                 WHERE created_at::date = '".$date_import."'
                             )
                             UPDATE payroll_copy_regionals
                             SET deleted_at = NOW()
-                            WHERE created_at::date = '".$date_import."' AND 
+                            WHERE created_at::date = '".$date_import."' AND
                             id IN (
                                 SELECT id FROM duplicados WHERE rn > 1
                             );";
@@ -269,43 +269,43 @@ class ImportPayrollRegionalController extends Controller
     }
 
     /**
-    * @OA\Post(
-    *      path="/api/contribution/download_error_data_regional",
-    *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
-    *      summary="DESCARGA EL ARCHIVO, CON EL LISTADO DE AFILIADOS QUE TENGAN OBSERVACIONES",
-    *      operationId="download_error_data_regional",
-    *      description="Descarga el archivo con el listado de afiliados con CI duplicado, primer nombre nulo, apellido paterno y materno en nulo",
-    *      @OA\RequestBody(
-    *          description= "Provide auth credentials",
-    *          required=true,
-    *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
-    *               @OA\Property(property="date_import", type="string", description="fecha importacion required", example= "2025-11-07")
-    *            )
-    *          ),
-    *      ),
-    *      security={
-    *         {"bearerAuth": {}}
-    *      },
-    *      @OA\Response(
-    *          response=200,
-    *          description="Success",
-    *          @OA\JsonContent(
-    *            type="object"
-    *         )
-    *      )
-    * )
-    *
-    * Logs user into the system.
-    *
-    * @param Request $request
-    * @return void
-    */
+     * @OA\Post(
+     *      path="/api/contribution/download_error_data_regional",
+     *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
+     *      summary="DESCARGA EL ARCHIVO, CON EL LISTADO DE AFILIADOS QUE TENGAN OBSERVACIONES",
+     *      operationId="download_error_data_regional",
+     *      description="Descarga el archivo con el listado de afiliados con CI duplicado, primer nombre nulo, apellido paterno y materno en nulo",
+     *      @OA\RequestBody(
+     *          description= "Provide auth credentials",
+     *          required=true,
+     *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
+     *               @OA\Property(property="date_import", type="string", description="fecha importacion required", example= "2025-11-07")
+     *            )
+     *          ),
+     *      ),
+     *      security={
+     *         {"bearerAuth": {}}
+     *      },
+     *      @OA\Response(
+     *          response=200,
+     *          description="Success",
+     *          @OA\JsonContent(
+     *            type="object"
+     *         )
+     *      )
+     * )
+     *
+     * Logs user into the system.
+     *
+     * @param Request $request
+     * @return void
+     */
     public function download_error_data_regional(Request $request){
         $request->validate([
             'date_import' => 'required|date',
         ]);
         $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
-      
+        
         $data_header=array(array("CARNET","TIPO APORTANTE","PRIMER NOMBRE","SEGUNDO NOMBRE","APELLIDO PATERNO","APELLIDO MATERNO","APELLIDO CASADA","NRO RECIBO","FECHA DEPOSITO","TOTAL DEPOSITADO","MES","AÑO","PENSION","RENTA DIGNIDAD","COTIZABLE","APORTE","%APORTE","OBSERVACIÓN"));
 
         $data_payroll_copy_regional = "SELECT carnet,tipo_aportante,nom,nom2,pat,mat,ap_casada,recibo,fecha_deposito,total_depositado,mes,a_o,total_pension,renta_dignidad,cotizable,aporte,porcentaje_aporte,error_message FROM payroll_copy_regionals pcr WHERE created_at::date = '".$date_import."' AND (error_message IS NOT NULL OR deleted_at IS NOT NULL) order by carnet";
@@ -321,38 +321,38 @@ class ImportPayrollRegionalController extends Controller
             return Excel::download($export, $file_name."_".$extension);
     }
 
-   /**
-    * @OA\Post(
-    *      path="/api/contribution/validation_affiliate_regional",
-    *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
-    *      summary="PASO 2 VALIDACIÓN AFILIADOS Y APORTES",
-    *      operationId="validation_affiliate_regional",
-    *      description="Validación de afiliados y aportes de la planilla regionales",
-    *      @OA\RequestBody(
-    *          description= "Provide auth credentials",
-    *          required=false,
-    *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
-    *              @OA\Property(property="date_import", type="string", description="fecha importación required", example= "2025-11-07")
-    *          )
-    *        ),
-    *     ),
-    *     security={
-    *       {"bearerAuth": {}}
-    *     },
-    *     @OA\Response(
-    *       response=200,
-    *       description="Success",
-    *       @OA\JsonContent(
-    *           type="object"
-    *       )
-    *     )
-    * )
-    *
-    * Logs user into the system.
-    *
-    * @param Request $request
-    * @return void
-    */
+    /**
+     * @OA\Post(
+     *      path="/api/contribution/validation_affiliate_regional",
+     *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
+     *      summary="PASO 2 VALIDACIÓN AFILIADOS Y APORTES",
+     *      operationId="validation_affiliate_regional",
+     *      description="Validación de afiliados y aportes de la planilla regionales",
+     *      @OA\RequestBody(
+     *          description= "Provide auth credentials",
+     *          required=false,
+     *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
+     *              @OA\Property(property="date_import", type="string", description="fecha importación required", example= "2025-11-07")
+     *          )
+     *        ),
+     *     ),
+     *     security={
+     *       {"bearerAuth": {}}
+     *     },
+     *     @OA\Response(
+     *       response=200,
+     *       description="Success",
+     *       @OA\JsonContent(
+     *           type="object"
+     *       )
+     *     )
+     * )
+     *
+     * Logs user into the system.
+     *
+     * @param Request $request
+     * @return void
+     */
     public function validation_affiliate_regional(Request $request){
         $request->validate([
             'date_import' => 'required|date',
@@ -416,6 +416,7 @@ class ImportPayrollRegionalController extends Controller
                 $successfully =false;
                 $message = 'Ops ocurrió algo inesperado.';
             }
+            DB::commit();
             return response()->json([
                 'message' => $message,
                 'payload' => [
@@ -448,11 +449,11 @@ class ImportPayrollRegionalController extends Controller
             FROM payroll_copy_regionals
             WHERE created_at::date = '$date_import'
         ";
-      
+        
         $payroll_regional = DB::select("SELECT pcr.id, cp.affiliate_id, pcr.aporte, cp.total, cp.contribution_type_mortuary_id
             FROM contribution_passives cp
             JOIN dblink('$connection_db_aux', $$ $sql_dblink $$)
-            AS pcr(id INT, affiliate_id INT, a_o INT, mes INT, aporte NUMERIC(13,2), created_at date) 
+            AS pcr(id INT, affiliate_id INT, a_o INT, mes INT, aporte NUMERIC(13,2), created_at date)
             ON cp.affiliate_id = pcr.affiliate_id
             WHERE EXTRACT(YEAR FROM cp.month_year) = pcr.a_o
             AND EXTRACT(MONTH FROM cp.month_year) = pcr.mes
@@ -468,50 +469,62 @@ class ImportPayrollRegionalController extends Controller
             }
             if (!empty($messages)) {
                 $error_message = implode(' - ', $messages);
-                $update_query = "
+                DB::connection('db_aux')->update("
                     UPDATE payroll_copy_regionals pcr
-                    SET error_message = CONCAT(COALESCE(error_message, ''), ' - ', '$error_message')
-                    WHERE pcr.id = $update_payroll->id AND created_at::date = '$date_import;
-                ";
-                $update_query = DB::connection('db_aux')->select($update_query);
+                    SET error_message = 
+                        CONCAT(
+                            COALESCE(NULLIF(error_message, ''), ''),
+                            CASE 
+                                WHEN error_message IS NULL OR error_message = '' THEN '' 
+                                ELSE ' - ' 
+                            END,
+                            ?
+                        )
+                    WHERE pcr.id = ? 
+                    AND created_at::date = ?
+                ", [
+                    $error_message,
+                    $update_payroll->id,
+                    $date_import
+                ]);
                 $different_contribution = true;
             }
         }
         return !$different_contribution;
-   }
-  
-    /**
-    * @OA\Post(
-    *      path="/api/contribution/import_payroll_regional",
-    *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
-    *      summary="PASO 3 VALIDACIÓN DE DATOS APORTES",
-    *      operationId="validation_contribution_regional",
-    *      description="Validación de datos de aportes de payroll_copy_regionals a la tabla payroll_regionals",
-    *      @OA\RequestBody(
-    *          description= "Provide auth credentials",
-    *          required=true,
-    *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
-    *              @OA\Property(property="date_import", type="string", description="fecha importación required", example= "2025-11-07")
-    *            )
-    *          ),
-    *     ),
-    *     security={
-    *          {"bearerAuth": {}}
-    *     },
-    *     @OA\Response(
-    *          response=200,
-    *          description="Success",
-    *          @OA\JsonContent(
-    *              type="object"
-    *         )
-    *     )
-    * )
-    *
-    * Logs user into the system.
-    *
-    * @param Request $request
-    * @return void
-   */
+    }
+
+        /**
+     * @OA\Post(
+     *      path="/api/contribution/import_payroll_regional",
+     *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
+     *      summary="PASO 3 VALIDACIÓN DE DATOS APORTES",
+     *      operationId="validation_contribution_regional",
+     *      description="Validación de datos de aportes de payroll_copy_regionals a la tabla payroll_regionals",
+     *      @OA\RequestBody(
+     *          description= "Provide auth credentials",
+     *          required=true,
+     *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
+     *              @OA\Property(property="date_import", type="string", description="fecha importación required", example= "2025-11-07")
+     *            )
+     *          ),
+     *     ),
+     *     security={
+     *          {"bearerAuth": {}}
+     *     },
+     *     @OA\Response(
+     *          response=200,
+     *          description="Success",
+     *          @OA\JsonContent(
+     *              type="object"
+     *         )
+     *     )
+     * )
+     *
+     * Logs user into the system.
+     *
+     * @param Request $request
+     * @return void
+     */
     public function import_payroll_regional(Request $request){
         $request->validate([
             'date_import' => 'required|date',
@@ -522,8 +535,8 @@ class ImportPayrollRegionalController extends Controller
             $message = "No hay datos";
             $successfully = false;
             $connection_db_aux = Util::connection_db_aux();
-  
-            // Conteo de  affiliate_id is null distinto del criterio 9-no-identificado
+
+                // Conteo de  affiliate_id is null distinto del criterio 9-no-identificado
             $count_data = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE error_message IS NULL AND deleted_at IS NULL AND state = 'accomplished' AND affiliate_id IS NOT NULL AND criteria!='9-no-identificado' AND created_at::date = '".$date_import."';";
             $count_data = DB::connection('db_aux')->select($count_data);
             if ($count_data[0]->count == 0){
@@ -539,7 +552,7 @@ class ImportPayrollRegionalController extends Controller
                         $data_payroll_copy_regional = "SELECT * FROM payroll_copy_regionals WHERE state = 'validated' AND created_at::date = '".$date_import."';";
                         $data_payroll_copy_regional = DB::connection('db_aux')->select($data_payroll_copy_regional);
                         if (count($data_payroll_copy_regional)> 0){
-                            $message = "Excel";                           
+                            $message = "Excel";                          
                         }
                     }
                     DB::commit();
@@ -583,37 +596,37 @@ class ImportPayrollRegionalController extends Controller
     }
 
     /**
-    * @OA\Post(
-    *      path="/api/contribution/import_contribution_regional",
-    *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
-    *      summary="PASO 4 IMPORTACIÓN DE CONTRIBUCIONES REGIONAL",
-    *      operationId="import_contribution_regional",
-    *      description="Importación de aportes de regional a la tabla contribution_passives",
-    *      @OA\RequestBody(
-    *          description="Provide auth credentials",
-    *          required=true,
-    *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
-    *             @OA\Property(property="date_import", type="string", description="fecha importación required", example= "2025-11-07")
-    *            )
-    *          ),
-    *     ),
-    *     security={
-    *         {"bearerAuth": {}}
-    *     },
-    *     @OA\Response(
-    *          response=200,
-    *          description="Success",
-    *          @OA\JsonContent(
-    *            type="object"
-    *         )
-    *     )
-    * )
-    *
-    * Logs user into the system.
-    *
-    * @param Request $request
-    * @return void
-    */
+     * @OA\Post(
+     *      path="/api/contribution/import_contribution_regional",
+     *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
+     *      summary="PASO 4 IMPORTACIÓN DE CONTRIBUCIONES REGIONAL",
+     *      operationId="import_contribution_regional",
+     *      description="Importación de aportes de regional a la tabla contribution_passives",
+     *      @OA\RequestBody(
+     *          description="Provide auth credentials",
+     *          required=true,
+     *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
+     *             @OA\Property(property="date_import", type="string", description="fecha importación required", example= "2025-11-07")
+     *            )
+     *          ),
+     *     ),
+     *     security={
+     *         {"bearerAuth": {}}
+     *     },
+     *     @OA\Response(
+     *          response=200,
+     *          description="Success",
+     *          @OA\JsonContent(
+     *            type="object"
+     *         )
+     *     )
+     * )
+     *
+     * Logs user into the system.
+     *
+     * @param Request $request
+     * @return void
+     */
     public function import_contribution_regional(Request $request){
         $request->validate([
             'date_import' => 'required|date',
@@ -624,13 +637,13 @@ class ImportPayrollRegionalController extends Controller
             $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
             $message = 'No existen datos de la planilla.';
             $success = false;
-  
+
             // Verifica si ya se realizó una importación
             $existingContributions = DB::table('contribution_passives')
                 ->where('contributionable_type', 'payroll_regionals')
                 ->whereDate('created_at', '=', $date_import)
                 ->count();
-  
+
             if ($existingContributions > 0) {
                 return response()->json([
                     'message' => 'Error, ya se realizó la importación de datos.',
@@ -642,17 +655,17 @@ class ImportPayrollRegionalController extends Controller
             }
             // Verifica si hay datos en payroll_regionals
             $payrollCount = DB::table('payroll_regionals')->whereDate('created_at', '=', $date_import)->count();
-  
+            
             if ($payrollCount > 0) {
                 DB::statement("SELECT import_contribution_regional($userId, '$date_import')");
                 DB::commit();
                 $message = 'Importación realizada con éxito.';
                 $success = true;
-  
+
                 $totalContributions = DB::table('contribution_passives')
-                    ->where('contributionable_type', 'payroll_regionals')
-                    ->whereDate('created_at', '=', $date_import)
-                    ->count();
+                   ->where('contributionable_type', 'payroll_regionals')
+                   ->whereDate('created_at', '=', $date_import)
+                   ->count();
             } else {
                 $totalContributions = 0;
             }
