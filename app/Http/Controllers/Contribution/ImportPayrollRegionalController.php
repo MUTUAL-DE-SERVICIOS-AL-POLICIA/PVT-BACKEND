@@ -444,6 +444,8 @@ class ImportPayrollRegionalController extends Controller
         $connection_db_aux = Util::connection_db_aux();
         // Reemplaza los casos que tengan aportes iguales registrados desde la planilla de regionales
         // Reemplaza los valores que contengan cero en aporte aunque estén clasificados
+
+        // Consulta para traer los registros con diferencias en el aporte
         $sql_dblink = "
             SELECT id, affiliate_id, a_o, mes, aporte, created_at
             FROM payroll_copy_regionals
@@ -470,18 +472,16 @@ class ImportPayrollRegionalController extends Controller
             if (!empty($messages)) {
                 $error_message = implode(' - ', $messages);
                 DB::connection('db_aux')->update("
-                    UPDATE payroll_copy_regionals pcr
-                    SET error_message = 
-                        CONCAT(
-                            COALESCE(NULLIF(error_message, ''), ''),
-                            CASE 
-                                WHEN error_message IS NULL OR error_message = '' THEN '' 
-                                ELSE ' - ' 
-                            END,
-                            ?
-                        )
-                    WHERE pcr.id = ? 
-                    AND created_at::date = ?
+                UPDATE payroll_copy_regionals pcr
+                SET error_message = 
+                    COALESCE(NULLIF(error_message, ''), '') ||
+                    CASE 
+                        WHEN error_message IS NULL OR error_message = '' THEN '' 
+                        ELSE ' - ' 
+                    END ||
+                    ?
+                WHERE pcr.id = ?
+                  AND created_at::date = ?
                 ", [
                     $error_message,
                     $update_payroll->id,
