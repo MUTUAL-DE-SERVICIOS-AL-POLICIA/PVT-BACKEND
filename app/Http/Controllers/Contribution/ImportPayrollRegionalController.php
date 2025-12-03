@@ -687,4 +687,160 @@ class ImportPayrollRegionalController extends Controller
             ]);
         }
     }
+
+    /**
+     * @OA\Post(
+     *      path="/api/contribution/download_data_regional",
+     *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
+     *      summary="DESCARGA ARCHIVO DE REGISTROS CORRECTOS Y OBSERVADOS",
+     *      operationId="download_data_regional",
+     *      description="Genera un reporte con los registros de payroll_copy_regionals filtrados por tipo: correctos u observados para el date_import dado.",
+     *      @OA\RequestBody(
+     *          required=true,
+     *          @OA\MediaType(
+     *              mediaType="multipart/form-data",
+     *              @OA\Schema(
+     *                  @OA\Property(
+     *                      property="date_import",
+     *                      type="string",
+     *                      description="fecha importación required",
+     *                      example="2025-11-07"
+     *                  ),
+     *                  @OA\Property(
+     *                      property="type",
+     *                      type="string",
+     *                      description="Tipo de registros a descargar: correcto u observado",
+     *                      example="correcto"
+     *                  )
+     *              )
+     *          ),
+     *      ),
+     *      security={
+     *          {"bearerAuth": {}}
+     *      },
+     *      @OA\Response(
+     *          response=200,
+     *          description="Success",
+     *          @OA\JsonContent(
+     *              type="string",
+     *              example="Archivo Excel generado"
+     *          )
+     *      )
+     * )
+     *
+     * @param Request $request
+     * @return void
+     */
+    public function download_data_regional(Request $request)
+    {
+        $request->validate([
+            'date_import'=>'required|date',
+            'type'=>'nullable|string|in:correcto,observado',
+        ]);
+
+        $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
+        $type = $request->input('type', 'correcto'); 
+        // Encabezados del archivo
+        $data_header = [
+            [
+                "CARNET",
+                "TIPO APORTANTE",
+                "PRIMER NOMBRE",
+                "SEGUNDO NOMBRE",
+                "APELLIDO PATERNO",
+                "APELLIDO MATERNO",
+                "APELLIDO CASADA",
+                "NRO RECIBO",
+                "FECHA DEPOSITO",
+                "TOTAL DEPOSITADO",
+                "MES",
+                "AÑO",
+                "PENSION",
+                "RENTA DIGNIDAD",
+                "COTIZABLE",
+                "APORTE",
+                "%APORTE",
+            ]
+        ];
+
+        if ($type === 'correcto') {
+            // SOLO CORRECTOS
+            $where = "
+                created_at::date = '".$date_import."'
+                AND error_message IS NULL
+                AND criteria != '9-no-identificado'
+                AND state = 'accomplished'
+                AND affiliate_id IS NOT NULL 
+                AND affiliate_id != 0
+                AND deleted_at IS NULL
+            ";
+        } else {
+            // SOLO OBSERVADOS
+            $where = "
+                created_at::date = '".$date_import."'
+                AND (
+                    error_message IS NOT NULL
+                    OR criteria = '9-no-identificado'
+                    OR state != 'accomplished'
+                    OR affiliate_id = 0
+                    OR deleted_at IS NOT NULL
+                )
+            ";
+        }
+
+        $sql = "
+            SELECT
+                carnet,
+                tipo_aportante,
+                nom,
+                nom2,
+                pat,
+                mat,
+                ap_casada,
+                recibo,
+                fecha_deposito,
+                total_depositado,
+                mes,
+                a_o,
+                total_pension,
+                renta_dignidad,
+                cotizable,
+                aporte,
+                porcentaje_aporte
+            FROM payroll_copy_regionals
+            WHERE $where
+            ORDER BY carnet, a_o, mes
+        ";
+
+        $rows = DB::connection('db_aux')->select($sql);
+
+        foreach ($rows as $row) {
+            $data_header[] = [
+                $row->carnet,
+                $row->tipo_aportante,
+                $row->nom,
+                $row->nom2,
+                $row->pat,
+                $row->mat,
+                $row->ap_casada,
+                $row->recibo,
+                $row->fecha_deposito,
+                $row->total_depositado,
+                $row->mes,
+                $row->a_o,
+                $row->total_pension,
+                $row->renta_dignidad,
+                $row->cotizable,
+                $row->aporte,
+                $row->porcentaje_aporte,
+            ];
+        }
+
+        $export = new ArchivoPrimarioExport($data_header);
+        $file_name = "regional_" . $type . "_" . $date_import;
+        $extension = '.xls';
+
+        return Excel::download($export, $file_name.$extension);
+    }
+
 }
