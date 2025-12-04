@@ -537,63 +537,63 @@ class ImportPayrollRegionalController extends Controller
      * @return void
      */
     public function import_payroll_regional(Request $request){
-    $request->validate([
-        'date_import' => 'required|date',
-    ]);
-    $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
-    try{
-        DB::beginTransaction();
-        $message = "No hay datos";
-        $successfully = false;
-        $connection_db_aux = Util::connection_db_aux();
+        $request->validate([
+            'date_import' => 'required|date',
+        ]);
+        $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
+        try{
+            DB::beginTransaction();
+            $message = "No hay datos";
+            $successfully = false;
+            $connection_db_aux = Util::connection_db_aux();
 
-        // Conteo de  affiliate_id is null distinto del criterio 9-no-identificado
-        $count_data_sql = "SELECT COUNT(id) AS c FROM payroll_copy_regionals WHERE error_message IS NULL AND deleted_at IS NULL AND state = 'accomplished' AND affiliate_id IS NOT NULL AND criteria!='9-no-identificado' AND created_at::date = '".$date_import."';";
-        $count_data = DB::connection('db_aux')->select($count_data_sql);
-        if ($count_data[0]->c > 0){
-            $count_validated_sql = "SELECT COUNT(id) AS c FROM payroll_copy_regionals WHERE state = 'validated' AND created_at::date = '".$date_import."';";
-            $count_data_validated = DB::connection('db_aux')->select($count_validated_sql);
+            // Conteo de  affiliate_id is null distinto del criterio 9-no-identificado
+            $count_data = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE error_message IS NULL AND deleted_at IS NULL AND state = 'accomplished' AND affiliate_id IS NOT NULL AND criteria!='9-no-identificado' AND created_at::date = '".$date_import."';";
+            $count_data = DB::connection('db_aux')->select($count_data);
+            if ($count_data[0]->count > 0){
+                $count_data_validated = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE state ='validated' AND created_at::date = '".$date_import."';";
+                $count_data_validated = DB::connection('db_aux')->select($count_data_validated);
 
-            if ($count_data_validated[0]->c == 0){
-                $query = "SELECT registration_payroll_regionals('$connection_db_aux', '$date_import');";
-                $data_validated = DB::select($query);
-                if ($data_validated){
-                    $message = "Realizado con éxito";
-                    $successfully = true;
-                    $data_payroll_copy_regional = "SELECT * FROM payroll_copy_regionals WHERE state = 'validated' AND created_at::date = '".$date_import."';";
-                    $data_payroll_copy_regional = DB::connection('db_aux')->select($data_payroll_copy_regional);
-                    if (count($data_payroll_copy_regional)> 0){
-                        $message = "Excel";
+                if ($count_data_validated[0]->count == 0){
+                    $query = "SELECT registration_payroll_regionals('$connection_db_aux', '$date_import');";
+                    $data_validated = DB::select($query);
+                    if ($data_validated){
+                        $message = "Realizado con éxito";
+                        $successfully = true;
+                        $data_payroll_copy_regional = "SELECT * FROM payroll_copy_regionals WHERE state = 'validated' AND created_at::date = '".$date_import."';";
+                        $data_payroll_copy_regional = DB::connection('db_aux')->select($data_payroll_copy_regional);
+                        if (count($data_payroll_copy_regional)> 0){
+                            $message = "Excel";                          
+                        }
                     }
+                    DB::commit();
+                    $data_count = $this->data_count_payroll_regional($date_import);
+                    return response()->json([
+                        'message' => $message,
+                        'payload' => [
+                            'successfully' => $successfully,
+                            'data_count' =>  $data_count
+                        ],
+                    ]);
+                }else{
+                    $errorMessage = 'Error, ya realizó la validación de datos.';
+                    return response()->json([
+                        'message' => $errorMessage,
+                        'payload' => [
+                            'successfully' => $successfully,
+                            'error' => $errorMessage
+                        ],
+                    ]);
                 }
-                DB::commit();
-                $data_count = $this->data_count_payroll_regional($date_import);
-                return response()->json([
-                    'message' => $message,
-                    'payload' => [
-                        'successfully' => $successfully,
-                        'data_count' =>  $data_count
-                    ],
-                ]);
             }else{
-                $errorMessage = 'Error, ya realizó la validación de datos.';
                 return response()->json([
-                    'message' => $errorMessage,
+                    'message' => "Error no existen datos en la tabla del copiado de datos",
                     'payload' => [
                         'successfully' => $successfully,
-                        'error' => $errorMessage
+                        'error' => 'Error el primer paso no está concluido o se concluyó el paso 3.'
                     ],
                 ]);
             }
-        }else{
-            return response()->json([
-                'message' => "Error no existen datos en la tabla del copiado de datos",
-                'payload' => [
-                    'successfully' => $successfully,
-                    'error' => 'Error el primer paso no está concluido o se concluyó el paso 3.'
-                ],
-            ]);
-        }
         }catch(Exception $e){
             DB::rollBack();
             return response()->json([
@@ -780,7 +780,6 @@ class ImportPayrollRegionalController extends Controller
                 created_at::date = '".$date_import."'
                 AND error_message IS NULL
                 AND criteria != '9-no-identificado'
-                AND state = 'accomplished'
                 AND affiliate_id IS NOT NULL 
                 AND affiliate_id != 0
                 AND deleted_at IS NULL
@@ -791,8 +790,7 @@ class ImportPayrollRegionalController extends Controller
                 created_at::date = '".$date_import."'
                 AND (
                     error_message IS NOT NULL
-                    OR criteria = '9-no-identificado'
-                    OR state != 'accomplished'
+                    OR criteria ILIKE '9-no-identificado'
                     OR affiliate_id = 0
                     OR deleted_at IS NOT NULL
                 )
