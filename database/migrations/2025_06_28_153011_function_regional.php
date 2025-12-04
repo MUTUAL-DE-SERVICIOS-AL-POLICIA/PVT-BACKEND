@@ -221,6 +221,8 @@ return new class extends Migration
                         AND deleted_at IS NULL
                         AND state = ''accomplished''
                         AND affiliate_id IS NOT NULL
+                        AND affiliate_id <> 0
+                        AND (criteria IS NULL OR criteria <> ''9-no-identificado'')
                         AND created_at::date = ' || quote_literal(date_import) || '')
                     AS payroll_copy_regionals(
                         carnet varchar(255),
