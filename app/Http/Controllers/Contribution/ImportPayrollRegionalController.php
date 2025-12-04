@@ -144,7 +144,7 @@ class ImportPayrollRegionalController extends Controller
                         $data_cleaning = "WITH duplicados AS (
                             SELECT id,
                                     ROW_NUMBER() OVER (
-                                        PARTITION BY carnet, tipo_aportante, a_o, mes, aporte
+                                        PARTITION BY carnet, tipo_aportante, a_o, mes, aporte, cotizable, total_pension, renta_dignidad
                                         ORDER BY id
                                     ) AS rn
                                 FROM payroll_copy_regionals
@@ -165,6 +165,17 @@ class ImportPayrollRegionalController extends Controller
                         $verify_data = DB::connection('db_aux')->select($verify_data);
 
                         $verify_data = "UPDATE payroll_copy_regionals pcr SET error_message = concat(error_message,' - ','El número de carnet es duplicado en el mismo periodo') FROM (SELECT carnet, a_o, mes, tipo_aportante FROM payroll_copy_regionals WHERE deleted_at IS NULL AND created_at::date = '".$date_import."' GROUP BY carnet, a_o, mes, tipo_aportante HAVING COUNT(*) > 1) AS subquery WHERE pcr.carnet = subquery.carnet AND pcr.a_o = subquery.a_o AND pcr.mes = subquery.mes AND pcr.tipo_aportante = subquery.tipo_aportante AND deleted_at IS NULL;";
+                        $verify_data = DB::connection('db_aux')->select($verify_data);
+
+                        $verify_data = "UPDATE payroll_copy_regionals pcr SET error_message =
+                                CASE 
+                                    WHEN error_message IS NULL OR error_message = '' THEN
+                                        'La contribución tiene error en la suma de renta pensión: cotizable + renta dignidad'
+                                    ELSE
+                                        error_message || ' - ' || 'La contribución tiene error en renta pensión, cotizable o renta dignidad'
+                                END
+                            FROM (
+                                SELECT id FROM payroll_copy_regionals WHERE created_at::date = '".$date_import."' AND deleted_at IS NULL AND (COALESCE(cotizable,0) + COALESCE(renta_dignidad,0)) <> COALESCE(total_pension,0)) AS subquery WHERE pcr.id = subquery.id;";
                         $verify_data = DB::connection('db_aux')->select($verify_data);
 
                         $verify_data = "SELECT COUNT(id) from payroll_copy_regionals pcr WHERE created_at::date = '".$date_import."' AND error_message IS NOT NULL AND deleted_at IS NULL;";
@@ -526,63 +537,63 @@ class ImportPayrollRegionalController extends Controller
      * @return void
      */
     public function import_payroll_regional(Request $request){
-        $request->validate([
-            'date_import' => 'required|date',
-        ]);
-        $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
-        try{
-            DB::beginTransaction();
-            $message = "No hay datos";
-            $successfully = false;
-            $connection_db_aux = Util::connection_db_aux();
+    $request->validate([
+        'date_import' => 'required|date',
+    ]);
+    $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
+    try{
+        DB::beginTransaction();
+        $message = "No hay datos";
+        $successfully = false;
+        $connection_db_aux = Util::connection_db_aux();
 
-                // Conteo de  affiliate_id is null distinto del criterio 9-no-identificado
-            $count_data = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE error_message IS NULL AND deleted_at IS NULL AND state = 'accomplished' AND affiliate_id IS NOT NULL AND criteria!='9-no-identificado' AND created_at::date = '".$date_import."';";
-            $count_data = DB::connection('db_aux')->select($count_data);
-            if ($count_data[0]->count == 0){
-                $count_data_validated = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE state ='validated' AND created_at::date = '".$date_import."';";
-                $count_data_validated = DB::connection('db_aux')->select($count_data_validated);
+        // Conteo de  affiliate_id is null distinto del criterio 9-no-identificado
+        $count_data_sql = "SELECT COUNT(id) AS c FROM payroll_copy_regionals WHERE error_message IS NULL AND deleted_at IS NULL AND state = 'accomplished' AND affiliate_id IS NOT NULL AND criteria!='9-no-identificado' AND created_at::date = '".$date_import."';";
+        $count_data = DB::connection('db_aux')->select($count_data_sql);
+        if ($count_data[0]->c > 0){
+            $count_validated_sql = "SELECT COUNT(id) AS c FROM payroll_copy_regionals WHERE state = 'validated' AND created_at::date = '".$date_import."';";
+            $count_data_validated = DB::connection('db_aux')->select($count_validated_sql);
 
-                if ($count_data_validated[0]->count == 0 || $count_data[0]->count > 0){
-                    $query = "SELECT registration_payroll_regionals('$connection_db_aux', '$date_import');";
-                    $data_validated = DB::select($query);
-                    if ($data_validated){
-                        $message = "Realizado con éxito";
-                        $successfully = true;
-                        $data_payroll_copy_regional = "SELECT * FROM payroll_copy_regionals WHERE state = 'validated' AND created_at::date = '".$date_import."';";
-                        $data_payroll_copy_regional = DB::connection('db_aux')->select($data_payroll_copy_regional);
-                        if (count($data_payroll_copy_regional)> 0){
-                            $message = "Excel";                          
-                        }
+            if ($count_data_validated[0]->c == 0){
+                $query = "SELECT registration_payroll_regionals('$connection_db_aux', '$date_import');";
+                $data_validated = DB::select($query);
+                if ($data_validated){
+                    $message = "Realizado con éxito";
+                    $successfully = true;
+                    $data_payroll_copy_regional = "SELECT * FROM payroll_copy_regionals WHERE state = 'validated' AND created_at::date = '".$date_import."';";
+                    $data_payroll_copy_regional = DB::connection('db_aux')->select($data_payroll_copy_regional);
+                    if (count($data_payroll_copy_regional)> 0){
+                        $message = "Excel";
                     }
-                    DB::commit();
-                    $data_count = $this->data_count_payroll_regional($date_import);
-                    return response()->json([
-                        'message' => $message,
-                        'payload' => [
-                            'successfully' => $successfully,
-                            'data_count' =>  $data_count
-                        ],
-                    ]);
-                }else{
-                    $errorMessage = 'Error, ya realizó la validación de datos.';
-                    return response()->json([
-                        'message' => $errorMessage,
-                        'payload' => [
-                            'successfully' => $successfully,
-                            'error' => $errorMessage
-                        ],
-                    ]);
                 }
-            }else{
+                DB::commit();
+                $data_count = $this->data_count_payroll_regional($date_import);
                 return response()->json([
-                    'message' => "Error no existen datos en la tabla del copiado de datos",
+                    'message' => $message,
                     'payload' => [
                         'successfully' => $successfully,
-                        'error' => 'Error el primer paso no esta concluido o se concluyó el paso 3.'
+                        'data_count' =>  $data_count
+                    ],
+                ]);
+            }else{
+                $errorMessage = 'Error, ya realizó la validación de datos.';
+                return response()->json([
+                    'message' => $errorMessage,
+                    'payload' => [
+                        'successfully' => $successfully,
+                        'error' => $errorMessage
                     ],
                 ]);
             }
+        }else{
+            return response()->json([
+                'message' => "Error no existen datos en la tabla del copiado de datos",
+                'payload' => [
+                    'successfully' => $successfully,
+                    'error' => 'Error el primer paso no está concluido o se concluyó el paso 3.'
+                ],
+            ]);
+        }
         }catch(Exception $e){
             DB::rollBack();
             return response()->json([
