@@ -345,7 +345,7 @@ return new class extends Migration
             BEGIN
                 -- Buscar si ya existe contribución para ese afiliado y periodo
                 id_contribution_passive:= search_affiliate_period_regional(affiliate,year_copy,month_copy);
-                IF id_contribution_passive = 0 then
+                IF id_contribution_passive = 0 THEN
                     type_action:= 'created';
                 -- Creación de un nuevo registro en contribution_passives con Pagado = 2
                     INSERT INTO public.contribution_passives(
@@ -367,12 +367,12 @@ return new class extends Migration
                     SELECT 
                         user_reg AS user_id, 
                         affiliate,
-                        TO_DATE(prs.year || '-' || prs.month || '-' || 1, 'YYYY-MM-DD') as month_year, 
-                        0 AS quotable, 
-                        0 AS rent_pension,
-                        0 AS dignity_rent, 
+                        TO_DATE(prs.year || '-' || prs.month || '-01', 'YYYY-MM-DD') as month_year, 
+                        prs.quotable, 
+                        prs.total_pension,
+                        prs.dignity_rent, 
                         0 AS interest, 
-                        prs.contribution AS total,
+                        prs.contribution,
                         current_timestamp AS created_at,
                         current_timestamp AS updated_at, 
                     CASE prs.rent_class
@@ -393,14 +393,14 @@ return new class extends Migration
                     UPDATE contribution_passives cp
                     SET 
                         quotable = prs.quotable,
+                        rent_pension = prs.total_pension,
                         dignity_rent = prs.dignity_rent, 
                         total = prs.contribution,
-                        rent_pension = prs.total_pension,
                         updated_at = current_timestamp,
                         affiliate_rent_class = CASE prs.rent_class
                             WHEN 'V' THEN 'VIUDEDAD'
                             ELSE 'VEJEZ'
-                            END,
+                        END,
                         contribution_state_id = 2,
                         contributionable_type = 'payroll_regionals'::character varying,
                         contributionable_id = payroll_regional_id
