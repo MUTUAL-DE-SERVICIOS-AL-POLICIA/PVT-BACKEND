@@ -170,7 +170,7 @@ class ImportPayrollRegionalController extends Controller
                         $verify_data = "UPDATE payroll_copy_regionals pcr SET error_message =
                                 CASE 
                                     WHEN error_message IS NULL OR error_message = '' THEN
-                                        'La contribución tiene error en la suma de renta pensión, cotizable y renta dignidad'
+                                        'La contribución tiene error en la suma de renta pensión: cotizable + renta dignidad'
                                     ELSE
                                         error_message || ' - ' || 'La contribución tiene error en renta pensión, cotizable o renta dignidad'
                                 END
