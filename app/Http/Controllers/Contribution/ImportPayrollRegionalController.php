@@ -752,30 +752,29 @@ class ImportPayrollRegionalController extends Controller
         $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
         $type = $request->input('type', 'correcto'); 
         // Encabezados del archivo
-        $data_header = [
-            [
-                "CARNET",
-                "TIPO APORTANTE",
-                "PRIMER NOMBRE",
-                "SEGUNDO NOMBRE",
-                "APELLIDO PATERNO",
-                "APELLIDO MATERNO",
-                "APELLIDO CASADA",
-                "NRO RECIBO",
-                "FECHA DEPOSITO",
-                "TOTAL DEPOSITADO",
-                "MES",
-                "AÑO",
-                "PENSION",
-                "RENTA DIGNIDAD",
-                "COTIZABLE",
-                "APORTE",
-                "%APORTE",
-            ]
+        $base_header = [
+            "CARNET",
+            "TIPO APORTANTE",
+            "PRIMER NOMBRE",
+            "SEGUNDO NOMBRE",
+            "APELLIDO PATERNO",
+            "APELLIDO MATERNO",
+            "APELLIDO CASADA",
+            "NRO RECIBO",
+            "FECHA DEPOSITO",
+            "TOTAL DEPOSITADO",
+            "MES",
+            "AÑO",
+            "PENSION",
+            "RENTA DIGNIDAD",
+            "COTIZABLE",
+            "APORTE",
+            "%APORTE",
         ];
 
         if ($type === 'correcto') {
-            // SOLO CORRECTOS
+            // SOLO CORRECTOS 
+            $data_header = [ $base_header ];
             $where = "
                 created_at::date = '".$date_import."'
                 AND error_message IS NULL
@@ -783,9 +782,63 @@ class ImportPayrollRegionalController extends Controller
                 AND affiliate_id IS NOT NULL 
                 AND affiliate_id != 0
                 AND deleted_at IS NULL
+                AND state ILIKE 'validated'
             ";
+            $sql = "
+                SELECT
+                    carnet,
+                    tipo_aportante,
+                    nom,
+                    nom2,
+                    pat,
+                    mat,
+                    ap_casada,
+                    recibo,
+                    fecha_deposito,
+                    total_depositado,
+                    mes,
+                    a_o,
+                    total_pension,
+                    renta_dignidad,
+                    cotizable,
+                    aporte,
+                    porcentaje_aporte
+                FROM payroll_copy_regionals
+                WHERE $where
+                ORDER BY carnet, a_o, mes
+            ";
+            $rows = DB::connection('db_aux')->select($sql);
+            foreach ($rows as $row) {
+                $data_header[] = [
+                    $row->carnet,
+                    $row->tipo_aportante,
+                    $row->nom,
+                    $row->nom2,
+                    $row->pat,
+                    $row->mat,
+                    $row->ap_casada,
+                    $row->recibo,
+                    $row->fecha_deposito,
+                    $row->total_depositado,
+                    $row->mes,
+                    $row->a_o,
+                    $row->total_pension,
+                    $row->renta_dignidad,
+                    $row->cotizable,
+                    $row->aporte,
+                    $row->porcentaje_aporte,
+                ];
+            }
         } else {
             // SOLO OBSERVADOS
+            $data_header = [
+                array_merge($base_header, [
+                    "AFFILIATE_ID",
+                    "CRITERIA",
+                    "DELETED_AT",
+                    "ERROR_MESSAGE",
+                ])
+            ];
             $where = "
                 created_at::date = '".$date_import."'
                 AND (
@@ -793,56 +846,65 @@ class ImportPayrollRegionalController extends Controller
                     OR criteria ILIKE '9-no-identificado'
                     OR affiliate_id = 0
                     OR deleted_at IS NOT NULL
+                    OR state ILIKE 'accomplished'
                 )
             ";
-        }
 
-        $sql = "
-            SELECT
-                carnet,
-                tipo_aportante,
-                nom,
-                nom2,
-                pat,
-                mat,
-                ap_casada,
-                recibo,
-                fecha_deposito,
-                total_depositado,
-                mes,
-                a_o,
-                total_pension,
-                renta_dignidad,
-                cotizable,
-                aporte,
-                porcentaje_aporte
-            FROM payroll_copy_regionals
-            WHERE $where
-            ORDER BY carnet, a_o, mes
-        ";
+            $sql = "
+                SELECT
+                    carnet,
+                    tipo_aportante,
+                    nom,
+                    nom2,
+                    pat,
+                    mat,
+                    ap_casada,
+                    recibo,
+                    fecha_deposito,
+                    total_depositado,
+                    mes,
+                    a_o,
+                    total_pension,
+                    renta_dignidad,
+                    cotizable,
+                    aporte,
+                    porcentaje_aporte,
+                    affiliate_id,
+                    criteria,
+                    deleted_at,
+                    error_message
+                FROM payroll_copy_regionals
+                WHERE $where
+                ORDER BY carnet, a_o, mes
+            ";
 
-        $rows = DB::connection('db_aux')->select($sql);
+            $rows = DB::connection('db_aux')->select($sql);
 
-        foreach ($rows as $row) {
-            $data_header[] = [
-                $row->carnet,
-                $row->tipo_aportante,
-                $row->nom,
-                $row->nom2,
-                $row->pat,
-                $row->mat,
-                $row->ap_casada,
-                $row->recibo,
-                $row->fecha_deposito,
-                $row->total_depositado,
-                $row->mes,
-                $row->a_o,
-                $row->total_pension,
-                $row->renta_dignidad,
-                $row->cotizable,
-                $row->aporte,
-                $row->porcentaje_aporte,
-            ];
+            foreach ($rows as $row) {
+                $data_header[] = [
+                    $row->carnet,
+                    $row->tipo_aportante,
+                    $row->nom,
+                    $row->nom2,
+                    $row->pat,
+                    $row->mat,
+                    $row->ap_casada,
+                    $row->recibo,
+                    $row->fecha_deposito,
+                    $row->total_depositado,
+                    $row->mes,
+                    $row->a_o,
+                    $row->total_pension,
+                    $row->renta_dignidad,
+                    $row->cotizable,
+                    $row->aporte,
+                    $row->porcentaje_aporte,
+                    $row->affiliate_id,
+                    $row->criteria,
+                    $row->deleted_at,
+                    $row->error_message,
+                ];
+            }
         }
 
         $export = new ArchivoPrimarioExport($data_header);

@@ -145,6 +145,8 @@ return new class extends Migration
             BEGIN
                 FOR record_row IN cur_payroll LOOP
                     IF record_row.tipo_aportante = 'T' THEN
+                        affiliate_id_result:=0;
+                        type_state:=NULL;
                         IF identified_affiliate_regional(criterion_one, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
                             affiliate_id_result := identified_affiliate_regional(criterion_one, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
                             type_state := '1-CI-PN-SN-PA-SA-AC';
@@ -158,6 +160,7 @@ return new class extends Migration
                             affiliate_id_result := identified_affiliate_regional(criterion_four, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
                             type_state := '4-sCI-PN-PA-SA';
                         ELSE
+                            affiliate_id_result := 0;
                             type_state := '9-no-identificado';
                         END IF;
                         PERFORM dblink_exec(conection_db_aux, 
