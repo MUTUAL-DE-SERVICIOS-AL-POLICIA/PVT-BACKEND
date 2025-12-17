@@ -112,7 +112,6 @@ return new class extends Migration
                 criterion_seven integer := 7;
                 criterion_eight integer := 8;
 
-                cant varchar;
                 cur_payroll CURSOR FOR (
                     SELECT * 
                     FROM dblink(conection_db_aux,
@@ -159,19 +158,25 @@ return new class extends Migration
                         ELSIF identified_affiliate_regional(criterion_four, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
                             affiliate_id_result := identified_affiliate_regional(criterion_four, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
                             type_state := '4-sCI-PN-PA-SA';
-                        ELSE
+                        END IF;
+                        IF affiliate_id_result IS NULL OR affiliate_id_result = 0 THEN
                             affiliate_id_result := 0;
                             type_state := '9-no-identificado';
                         END IF;
                         PERFORM dblink_exec(conection_db_aux, 
                             'UPDATE payroll_copy_regionals 
-                            SET state=' || quote_literal('accomplished') || ', criteria=' || quote_literal(type_state) || ', affiliate_id=' || COALESCE(affiliate_id_result,0) || ' 
-                            WHERE id=' || record_row.id
+                            SET state = ' || quote_literal('accomplished') || ', 
+                                criteria = ' || quote_literal(type_state) || ', 
+                                affiliate_id = ' || COALESCE(affiliate_id_result,0) || ' 
+                            WHERE id = ' || record_row.id || '
+                                AND created_at::date = ' || quote_literal(date_import)
                         );
                     END IF;
                     IF record_row.tipo_aportante = 'V' THEN
-                        affiliate_id_result := identified_affiliate_regional(criterion_five, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
-                        IF affiliate_id_result > 0 THEN
+                        affiliate_id_result := 0;
+                        type_state := NULL;
+                        IF identified_affiliate_regional(criterion_five, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
+                            affiliate_id_result := identified_affiliate_regional(criterion_five, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
                             type_state := '5-CI-PN-SN-PA-SA-AC';
                         ELSIF identified_affiliate_regional(criterion_six, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
                             affiliate_id_result := identified_affiliate_regional(criterion_six, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
@@ -182,7 +187,8 @@ return new class extends Migration
                         ELSIF identified_affiliate_regional(criterion_eight, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
                             affiliate_id_result := identified_affiliate_regional(criterion_eight, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
                             type_state := '8-sCI-PN-PA-SA';
-                        ELSE
+                        END IF;
+                        IF affiliate_id_result IS NULL OR affiliate_id_result = 0 THEN
                             affiliate_id_result := 0;
                             type_state := '9-no-identificado';
                         END IF;
@@ -190,7 +196,7 @@ return new class extends Migration
                         PERFORM dblink_exec(
                             conection_db_aux,
                             'UPDATE payroll_copy_regionals
-                            SET state = ''accomplished'',
+                            SET state = ' || quote_literal('accomplished') || ',
                                 criteria = ' || quote_literal(type_state) || ',
                                 affiliate_id = ' || COALESCE(affiliate_id_result, 0) || '
                             WHERE id = ' || record_row.id || '
