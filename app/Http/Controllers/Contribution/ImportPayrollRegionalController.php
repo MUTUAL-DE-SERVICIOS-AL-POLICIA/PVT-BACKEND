@@ -397,7 +397,7 @@ class ImportPayrollRegionalController extends Controller
         try{
             DB::beginTransaction();
             $message = "No hay datos por validar.";
-            $successfully =false;
+            $successfully = false;
             $data_count['num_total_data_copy'] = 0;
             $data_count['count_data_automatic_link'] = 0;
             $data_count['count_data_unidentified'] = 0;
@@ -435,21 +435,21 @@ class ImportPayrollRegionalController extends Controller
                 $valid_contribution = "SELECT COUNT(id) FROM payroll_copy_regionals pcr WHERE state LIKE 'accomplished' AND error_message IS NOT NULL AND created_at::date = '".$date_import."';";
                 $valid_contribution = DB::connection('db_aux')->select($valid_contribution);
                 if($valid_contribution[0]->count == 0){
-                    $successfully =true;
+                    $successfully = true;
                     $message = 'Excel';
                     $route = '/contribution/download_data_revision';
                     $route_file_name = 'afiliados_para_creacion.xls';
                 }else{
-                    $successfully =false;
+                    $successfully = false;
                     $message = 'Excel';
                     $route = '/contribution/download_error_data_archive';
                     $route_file_name = 'datos_aportes_observados.xls';
                 }
             }elseif($count_data_unidentified[0]->count == 0 && $count_data_error[0]->count == 0){
-                $successfully =true;
+                $successfully = true;
                 $message = 'Realizado con éxito.';
             }else{
-                $successfully =false;
+                $successfully = false;
                 $message = 'Ops ocurrió algo inesperado.';
             }
             DB::commit();
@@ -939,4 +939,100 @@ class ImportPayrollRegionalController extends Controller
         return Excel::download($export, $file_name.$extension);
     }
 
+    /**
+     * @OA\Post(
+     *      path="/api/contribution/rollback_payroll_copy_regionals",
+     *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
+     *      summary="REHACER IMPORTACIÓN PLANILLA REGIONAL",
+     *      operationId="rollback_payroll_copy_regional",
+     *      description="Para rehacer la importación de planilla regional",
+     *      @OA\RequestBody(
+     *          description="Provide auth credentials",
+     *          required=true,
+     *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
+     *             @OA\Property(property="date_payroll", type="string",description="fecha de planilla required",example= "2025-11-07")
+     *            )
+     *          ),
+     *     ),
+     *     security={
+     *         {"bearerAuth": {}}
+     *     },
+     *      @OA\Response(
+     *          response=200,
+     *          description="Success",
+     *          @OA\JsonContent(
+     *            type="object"
+     *         )
+     *      )
+     * )
+     *
+     * Logs user into the system.
+     *
+     * @param Request $request
+     * @return void
+    */
+    public function rollback_payroll_copy_regionals(Request $request)
+    {
+        $request->validate([
+            'date_import' => 'required|date_format:"Y-m-d"',
+        ]);
+        DB::beginTransaction();
+        try{
+            $result['delete_step_1'] = false;
+            $valid_rollback = false;
+            $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
+
+            if($this->exists_data_payroll_copy_regionals($date_import) && !PayrollRegional::data_period($date_import)['exist_data']){
+                $result['delete_step_1'] = $this->delete_payroll_copy_regionals($date_import);
+
+                if($result['delete_step_1'] == true){
+                    $valid_rollback = true;
+                    $message = "Realizado con éxito!";
+                }
+            }else{
+                if(PayrollRegional::data_period($date_import)['exist_data'])
+                    $message = "No se puede rehacer, porque ya realizó la validación de la planilla.";
+                else
+                    $message = "No existen datos para rehacer.";
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => $message,
+                'payload' => [
+                    'valid_rollback' => $valid_rollback,
+                    'delete_step' => $result
+                ],
+            ]);
+        }catch (Exception $e)
+        {
+            DB::rollback();
+            return $e;
+        }
+    }
+
+    //borrado de datos de la tabla payroll_copy_commands paso 1
+    public function delete_payroll_copy_regionals($date_import)
+    {
+        if ($this->exists_data_payroll_copy_regionals($date_import)) {
+            $query = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import';";
+            $query = DB::connection('db_aux')->select($query);
+            DB::commit();
+            return true;
+        } else
+            return false;
+    }
+
+    //método para verificar si existe datos en el paso 1 
+    public function exists_data_payroll_copy_regionals($date_import)
+    {
+        $exists_data = true;
+        $query = "SELECT * FROM payroll_copy_regionals WHERE created_at::date = '$date_import';";
+        $verify_data = DB::connection('db_aux')->select($query);
+
+        if ($verify_data == []) $exists_data = false;
+
+        return $exists_data;
+    }
 }
