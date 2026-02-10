@@ -47,8 +47,14 @@ return new class extends Migration
                         AND (COALESCE(first_name, '') ILIKE COALESCE(first_name_entry, ''))
                         AND (COALESCE(last_name, '') ILIKE COALESCE(last_name_entry, ''))
                         AND (COALESCE(mothers_last_name, '') ILIKE COALESCE(mothers_last_name_entry, ''));
+                    
+                    WHEN (order_entry = 5 AND tipo_aportante_entry = 'T') THEN
+                        SELECT id INTO affiliate_id FROM affiliates
+                        WHERE word_similarity(identity_card, identity_card_entry) >= 0.5
+                        AND (word_similarity(first_name, first_name_entry) >= 0.5 OR word_similarity(second_name, first_name_entry) >= 0.5)
+                        AND (word_similarity(last_name, last_name_entry) >= 0.5 OR word_similarity(mothers_last_name, last_name_entry) >= 0.5);                    
 
-                    WHEN (order_entry = 5 AND tipo_aportante_entry = 'V') THEN
+                    WHEN (order_entry = 6 AND tipo_aportante_entry = 'V') THEN
                         SELECT s.affiliate_id INTO affiliate_id FROM spouses s
                         WHERE identity_card ILIKE identity_card_entry
                         AND word_similarity(first_name , first_name_entry) >= 0.5
@@ -57,25 +63,32 @@ return new class extends Migration
                         AND word_similarity(mothers_last_name, mothers_last_name_entry) >= 0.5
                         AND word_similarity(surname_husband, surname_husband_entry) >= 0.5;
 
-                    WHEN (order_entry = 6 AND tipo_aportante_entry = 'V') THEN
+                    WHEN (order_entry = 7 AND tipo_aportante_entry = 'V') THEN
                         SELECT s.affiliate_id INTO affiliate_id FROM spouses s
                         WHERE identity_card ILIKE identity_card_entry
                         AND word_similarity(first_name , first_name_entry) >= 0.5
                         AND word_similarity(last_name, last_name_entry) >= 0.5
                         AND word_similarity(mothers_last_name, mothers_last_name_entry) >= 0.5;
 
-                    WHEN (order_entry = 7 AND tipo_aportante_entry = 'V') THEN
+                    WHEN (order_entry = 8 AND tipo_aportante_entry = 'V') THEN
                         SELECT s.affiliate_id INTO affiliate_id FROM spouses s
                         WHERE split_part(identity_card,'-',1) ILIKE identity_card_entry
                         AND (word_similarity(first_name, first_name_entry) >= 0.5 OR word_similarity(first_name, second_name_entry) >= 0.5)
                         AND word_similarity(last_name, last_name_entry) >= 0.5;
 
-                    WHEN (order_entry = 8 AND tipo_aportante_entry = 'V') THEN
+                    WHEN (order_entry = 9 AND tipo_aportante_entry = 'V') THEN
                         SELECT s.affiliate_id INTO affiliate_id FROM spouses s
                         WHERE word_similarity(identity_card, identity_card_entry) >= 0.4
                         AND (COALESCE(first_name, '') ILIKE COALESCE(first_name_entry, ''))
                         AND (COALESCE(last_name, '') ILIKE COALESCE(last_name_entry, ''))
                         AND (COALESCE(mothers_last_name, '') ILIKE COALESCE(mothers_last_name_entry, ''));
+                    
+                    WHEN (order_entry = 10 AND tipo_aportante_entry = 'V') THEN
+                        SELECT s.affiliate_id INTO affiliate_id FROM spouses s
+                        WHERE word_similarity(identity_card, identity_card_entry) >= 0.5
+                        AND (word_similarity(first_name, first_name_entry) >= 0.5 OR word_similarity(second_name, first_name_entry) >= 0.5)
+                        AND (word_similarity(last_name, last_name_entry) >= 0.5 OR word_similarity(mothers_last_name, last_name_entry) >= 0.5);   
+
                     ELSE
                         affiliate_id := 0;
                 END CASE;
@@ -106,11 +119,13 @@ return new class extends Migration
                 criterion_two integer := 2;
                 criterion_three integer := 3;
                 criterion_four integer := 4;
-                -- spouses
                 criterion_five integer := 5;
+                -- spouses
                 criterion_six integer := 6;
                 criterion_seven integer := 7;
                 criterion_eight integer := 8;
+                criterion_nine integer := 9;
+                criterion_ten integer := 10;
 
                 cur_payroll CURSOR FOR (
                     SELECT * 
@@ -158,10 +173,13 @@ return new class extends Migration
                         ELSIF identified_affiliate_regional(criterion_four, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
                             affiliate_id_result := identified_affiliate_regional(criterion_four, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
                             type_state := '4-sCI-PN-PA-SA';
+                        ELSIF identified_affiliate_regional(criterion_five, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
+                            affiliate_id_result := identified_affiliate_regional(criterion_five, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
+                            type_state := '5-sCI-sPN';
                         END IF;
                         IF affiliate_id_result IS NULL OR affiliate_id_result = 0 THEN
                             affiliate_id_result := 0;
-                            type_state := '9-no-identificado';
+                            type_state := '11-no-identificado';
                         END IF;
                         PERFORM dblink_exec(conection_db_aux, 
                             'UPDATE payroll_copy_regionals 
@@ -175,22 +193,25 @@ return new class extends Migration
                     IF record_row.tipo_aportante = 'V' THEN
                         affiliate_id_result := 0;
                         type_state := NULL;
-                        IF identified_affiliate_regional(criterion_five, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
-                            affiliate_id_result := identified_affiliate_regional(criterion_five, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
-                            type_state := '5-CI-PN-SN-PA-SA-AC';
-                        ELSIF identified_affiliate_regional(criterion_six, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
+                        IF identified_affiliate_regional(criterion_six, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
                             affiliate_id_result := identified_affiliate_regional(criterion_six, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
-                            type_state := '6-CI-sPN-sPA-sSA';
+                            type_state := '6-CI-PN-SN-PA-SA-AC';
                         ELSIF identified_affiliate_regional(criterion_seven, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
                             affiliate_id_result := identified_affiliate_regional(criterion_seven, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
-                            type_state := '7-partCI-sPN-sPA';
+                            type_state := '7-CI-sPN-sPA-sSA';
                         ELSIF identified_affiliate_regional(criterion_eight, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
                             affiliate_id_result := identified_affiliate_regional(criterion_eight, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
-                            type_state := '8-sCI-PN-PA-SA';
+                            type_state := '8-partCI-sPN-sPA';
+                        ELSIF identified_affiliate_regional(criterion_nine, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
+                            affiliate_id_result := identified_affiliate_regional(criterion_nine, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
+                            type_state := '9-sCI-PN-PA-SA';
+                        ELSIF identified_affiliate_regional(criterion_ten, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante) > 0 THEN
+                            affiliate_id_result := identified_affiliate_regional(criterion_ten, record_row.carnet, record_row.nom, record_row.nom2, record_row.pat, record_row.mat, record_row.ap_casada, record_row.tipo_aportante);
+                            type_state := '10-sCI-sPN';
                         END IF;
                         IF affiliate_id_result IS NULL OR affiliate_id_result = 0 THEN
                             affiliate_id_result := 0;
-                            type_state := '9-no-identificado';
+                            type_state := '11-no-identificado';
                         END IF;
 
                         PERFORM dblink_exec(
@@ -231,7 +252,7 @@ return new class extends Migration
                         AND state = ''accomplished''
                         AND affiliate_id IS NOT NULL
                         AND affiliate_id <> 0
-                        AND (criteria IS NULL OR criteria <> ''9-no-identificado'')
+                        AND (criteria IS NULL OR criteria <> ''11-no-identificado'' OR criteria <> ''5-sCI-sPN'' OR criteria <> ''10-sCI-sPN'')
                         AND created_at::date = ' || quote_literal(date_import) || '')
                     AS payroll_copy_regionals(
                         carnet varchar(255),

@@ -77,6 +77,8 @@ Route::group([
             Route::post('/validation_affiliate_regional', [App\Http\Controllers\Contribution\ImportPayrollRegionalController::class, 'validation_affiliate_regional']);
             Route::post('/import_payroll_regional', [App\Http\Controllers\Contribution\ImportPayrollRegionalController::class, 'import_payroll_regional']);
             Route::post('import_contribution_regional', [App\Http\Controllers\Contribution\ImportPayrollRegionalController::class, 'import_contribution_regional']);
+            Route::post('/download_data_regional_revision', [App\Http\Controllers\Contribution\ImportPayrollRegionalController::class, 'download_data_regional_revision']);
+            Route::post('/rollback_payroll_copy_regionals', [App\Http\Controllers\Contribution\ImportPayrollTranscriptController::class, 'rollback_payroll_copy_regionals']);
         });
         Route::group([
             'middleware' => 'permission:download-report-payroll-senasir|download-report-payroll-command|download-report-payroll-transcript'

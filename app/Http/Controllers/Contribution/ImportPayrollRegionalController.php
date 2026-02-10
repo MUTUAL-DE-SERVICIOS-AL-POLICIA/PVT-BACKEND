@@ -23,13 +23,13 @@ class ImportPayrollRegionalController extends Controller
      *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
      *      summary="PASO 1 COPIADO DE DATOS PLANILLA REGIONAL",
      *      operationId="upload_copy_payroll_regional",
-     *      description="Copiado de datos del archivo de planillas regional a la tabla payroll_copy_regionals",
+     *      description="Copiado de datos del archivo de planilla regional a la tabla payroll_copy_regionals",
      *      @OA\RequestBody(
      *          description= "Provide auth credentials",
      *          required=true,
      *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
      *              @OA\Property(property="file", type="file", description="file required", example="file"),
-     *              @OA\Property(property="date_import", type="string", description="fecha importacion required", example= "2025-11-07")
+     *              @OA\Property(property="date_import", type="string", description="fecha importación required", example= "2025-11-07")
      *            )
      *          ),
      *     ),
@@ -411,7 +411,7 @@ class ImportPayrollRegionalController extends Controller
             $query = "SELECT search_affiliate_regional('$connection_db_aux', '$date_import');";
             $data_validated = DB::select($query);
             $num_total_data_copy = $this->data_count_payroll_regional($date_import);
-            $count_data_automatic_link = "SELECT COUNT(id) FROM payroll_copy_regionals pcr WHERE criteria IN ('1-CI-PN-SN-PA-SA-AC', '2-CI-sPN-sPA-sSA', '3-partCI-sPN-sPA', '4-sCI-PN-PA-SA', '5-CI-PN-SN-PA-SA-AC','6-CI-sPN-sPA-sSA','7-partCI-sPN-sPA','8-sCI-PN-PA-SA') AND created_at::date = '".$date_import."'";
+            $count_data_automatic_link = "SELECT COUNT(id) FROM payroll_copy_regionals pcr WHERE criteria IN ('1-CI-PN-SN-PA-SA-AC','2-CI-sPN-sPA-sSA','3-partCI-sPN-sPA','4-sCI-PN-PA-SA','6-CI-PN-SN-PA-SA-AC','7-CI-sPN-sPA-sSA','8-partCI-sPN-sPA','9-sCI-PN-PA-SA') AND created_at::date = '".$date_import."'";
             $count_data_automatic_link = DB::connection('db_aux')->select($count_data_automatic_link);
             $count_data_unidentified = "SELECT COUNT(id) FROM payroll_copy_regionals pcr WHERE criteria IN ('9-no-identificado') AND created_at::date = '".$date_import."'";
             $count_data_unidentified = DB::connection('db_aux')->select($count_data_unidentified);
@@ -429,7 +429,7 @@ class ImportPayrollRegionalController extends Controller
             }elseif($count_data_unidentified[0]->count > 0){
                 $successfully = false;
                 $message = 'Excel';
-                $route = '/contribution/download_data_revision';
+                $route = '/contribution/download_data_regional_revision';
                 $route_file_name = 'observados_para_revision.xls';
             }elseif($count_data_unidentified[0]->count == 0 && $count_data_error[0]->count > 0){
                 $valid_contribution = "SELECT COUNT(id) FROM payroll_copy_regionals pcr WHERE state LIKE 'accomplished' AND error_message IS NOT NULL AND created_at::date = '".$date_import."';";
@@ -437,7 +437,7 @@ class ImportPayrollRegionalController extends Controller
                 if($valid_contribution[0]->count == 0){
                     $successfully = true;
                     $message = 'Excel';
-                    $route = '/contribution/download_data_revision';
+                    $route = '/contribution/download_data_regional_revision';
                     $route_file_name = 'afiliados_para_creacion.xls';
                 }else{
                     $successfully = false;
@@ -573,7 +573,7 @@ class ImportPayrollRegionalController extends Controller
             $connection_db_aux = Util::connection_db_aux();
 
             // Conteo de  affiliate_id is null distinto del criterio 9-no-identificado
-            $count_data = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE error_message IS NULL AND deleted_at IS NULL AND state = 'accomplished' AND affiliate_id IS NOT NULL AND criteria!='9-no-identificado' AND created_at::date = '".$date_import."';";
+            $count_data = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE error_message IS NULL AND deleted_at IS NULL AND state = 'accomplished' AND affiliate_id IS NOT NULL AND (criteria!='9-no-identificado' OR criteria!='5-sCI-sPN' OR criteria!='10-sCI-sPN') AND created_at::date = '".$date_import."';";
             $count_data = DB::connection('db_aux')->select($count_data);
             if ($count_data[0]->count > 0){
                 $count_data_validated = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE state ='validated' AND created_at::date = '".$date_import."';";
@@ -612,7 +612,7 @@ class ImportPayrollRegionalController extends Controller
                 }
             }else{
                 return response()->json([
-                    'message' => "Error no existen datos en la tabla del copiado de datos",
+                    'message' => "Error no existen datos en la tabla del copiado de datos.",
                     'payload' => [
                         'successfully' => $successfully,
                         'error' => 'Error el primer paso no está concluido o se concluyó el paso 3.'
@@ -803,7 +803,7 @@ class ImportPayrollRegionalController extends Controller
             $where = "
                 created_at::date = '".$date_import."'
                 AND error_message IS NULL
-                AND criteria != '9-no-identificado'
+                AND criteria NOT IN ('11-no-identificado', '5-sCI-sPN','10-sCI-sPN')
                 AND affiliate_id IS NOT NULL 
                 AND affiliate_id != 0
                 AND deleted_at IS NULL
@@ -868,7 +868,7 @@ class ImportPayrollRegionalController extends Controller
                 created_at::date = '".$date_import."'
                 AND (
                     error_message IS NOT NULL
-                    OR criteria ILIKE '9-no-identificado'
+                    OR criteria IN ('11-no-identificado', '5-sCI-sPN', '10-sCI-sPN')
                     OR affiliate_id = 0
                     OR deleted_at IS NOT NULL
                     OR state ILIKE 'accomplished'
@@ -941,16 +941,16 @@ class ImportPayrollRegionalController extends Controller
 
     /**
       * @OA\Post(
-      *      path="/api/contribution/download_data_revision",
+      *      path="/api/contribution/download_data_regional_revision",
       *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
-      *      summary="DESCARGA EL ARCHIVO, PARA LA REVISIÓN DE DATOS DE LOS AFILIADOS",
-      *      operationId="download_data_revision",
+      *      summary="DESCARGA EL ARCHIVO, PARA LA REVISIÓN DE DATOS DE LOS AFILIADOS Y VIUDAS",
+      *      operationId="download_data_regional_revision",
       *      description="Descarga el archivo, para la revisión de datos de los afiliados identificados con CI y primer nombre similar",
       *      @OA\RequestBody(
       *          description= "Provide auth credentials",
       *          required=true,
       *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
-      *             @OA\Property(property="date_payroll", type="string", description="fecha de importación required", example= "2025-11-07")
+      *             @OA\Property(property="date_import", type="string", description="fecha de importación required", example= "2025-11-07")
       *            )
       *          ),
       *     ),
@@ -971,23 +971,23 @@ class ImportPayrollRegionalController extends Controller
       * @param Request $request
       * @return void
     */
-    public function download_data_revision(Request $request){
+    public function download_data_regional_revision(Request $request){
         $request->validate([
             'date_import' => 'required|date_format:"Y-m-d"',
         ]);
-        $message = "No hay datos";
-        $data_header=array(array("AÑO","MES","CARNET","APELLIDO PATERNO","APELLIDO MATERNO","PRIMER NOMBRE","SEGUNDO NOMBRE","APORTE","DETALLE PARA REVISIÓN","***","NUP-AFILIADO CON SIMILITUD"));
+        $data_header=array(array("APORTANTE","CARNET","PRIMER NOMBRE","SEGUNDO NOMBRE","APELLIDO PATERNO","APELLIDO MATERNO","APELLIDO DE CASADA","DETALLE PARA REVISIÓN","***","NUP-AFILIADO CON SIMILITUD"));
         $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
         
-        $data_payroll_copy_regional = "SELECT carnet,tipo_aportante,nom,nom2,pat,mat,ap_casada,'***',
-        (CASE WHEN (criteria = '5-sCI-sPN' OR criteria = '10-sCI-sPN') THEN
+        $data_payroll_copy_regional = "SELECT DISTINCT tipo_aportante,carnet,nom,nom2,pat,mat,ap_casada,
+        CASE WHEN criteria IN ('5-sCI-sPN','10-sCI-sPN') THEN
             'IDENTIFICADO PARA SUBSANAR'
         ELSE
             'NO SE ENCONTRARON SIMILITUDES'
-        END) as criteria, affiliate_id FROM payroll_copy_regionals pcr where created_at ='$date_import' and criteria in('5-sCI-sPN','10-sCI-sPN','11-no-identificado') order by criteria DESC";
+        END as criteria, affiliate_id FROM payroll_copy_regionals pcr WHERE created_at::date = '$date_import'
+        AND criteria IN('5-sCI-sPN','10-sCI-sPN','11-no-identificado') ORDER BY criteria DESC";
         $data_payroll_copy_regional = DB::connection('db_aux')->select($data_payroll_copy_regional);
             foreach ($data_payroll_copy_regional as $row){
-                array_push($data_header, array($row->carnet,$row->tipo_aportante,$row->nom,$row->nom2,
+                array_push($data_header, array($row->tipo_aportante,$row->carnet,$row->nom,$row->nom2,
                 $row->pat,$row->mat,$row->ap_casada,$row->criteria,'***',$row->affiliate_id));
             }
             $export = new ArchivoPrimarioExport($data_header);
