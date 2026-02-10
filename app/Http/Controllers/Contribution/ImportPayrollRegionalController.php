@@ -442,7 +442,7 @@ class ImportPayrollRegionalController extends Controller
                 }else{
                     $successfully = false;
                     $message = 'Excel';
-                    $route = '/contribution/download_error_data_archive';
+                    $route = '/contribution/download_error_data_regional';
                     $route_file_name = 'datos_aportes_observados.xls';
                 }
             }elseif($count_data_unidentified[0]->count == 0 && $count_data_error[0]->count == 0){
@@ -937,6 +937,63 @@ class ImportPayrollRegionalController extends Controller
         $extension = '.xls';
 
         return Excel::download($export, $file_name.$extension);
+    }
+
+    /**
+      * @OA\Post(
+      *      path="/api/contribution/download_data_revision",
+      *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
+      *      summary="DESCARGA EL ARCHIVO, PARA LA REVISIÓN DE DATOS DE LOS AFILIADOS",
+      *      operationId="download_data_revision",
+      *      description="Descarga el archivo, para la revisión de datos de los afiliados identificados con CI y primer nombre similar",
+      *      @OA\RequestBody(
+      *          description= "Provide auth credentials",
+      *          required=true,
+      *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
+      *             @OA\Property(property="date_payroll", type="string", description="fecha de importación required", example= "2025-11-07")
+      *            )
+      *          ),
+      *     ),
+      *     security={
+      *         {"bearerAuth": {}}
+      *     },
+      *      @OA\Response(
+      *          response=200,
+      *          description="Success",
+      *          @OA\JsonContent(
+      *            type="object"
+      *         )
+      *      )
+      * )
+      *
+      * Logs user into the system.
+      *
+      * @param Request $request
+      * @return void
+    */
+    public function download_data_revision(Request $request){
+        $request->validate([
+            'date_import' => 'required|date_format:"Y-m-d"',
+        ]);
+        $message = "No hay datos";
+        $data_header=array(array("AÑO","MES","CARNET","APELLIDO PATERNO","APELLIDO MATERNO","PRIMER NOMBRE","SEGUNDO NOMBRE","APORTE","DETALLE PARA REVISIÓN","***","NUP-AFILIADO CON SIMILITUD"));
+        $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
+        
+        $data_payroll_copy_regional = "SELECT carnet,tipo_aportante,nom,nom2,pat,mat,ap_casada,'***',
+        (CASE WHEN (criteria = '5-sCI-sPN' OR criteria = '10-sCI-sPN') THEN
+            'IDENTIFICADO PARA SUBSANAR'
+        ELSE
+            'NO SE ENCONTRARON SIMILITUDES'
+        END) as criteria, affiliate_id FROM payroll_copy_regionals pcr where created_at ='$date_import' and criteria in('5-sCI-sPN','10-sCI-sPN','11-no-identificado') order by criteria DESC";
+        $data_payroll_copy_regional = DB::connection('db_aux')->select($data_payroll_copy_regional);
+            foreach ($data_payroll_copy_regional as $row){
+                array_push($data_header, array($row->carnet,$row->tipo_aportante,$row->nom,$row->nom2,
+                $row->pat,$row->mat,$row->ap_casada,$row->criteria,'***',$row->affiliate_id));
+            }
+            $export = new ArchivoPrimarioExport($data_header);
+            $file_name = "observacion-data-revision";
+            $extension = '.xls';
+            return Excel::download($export, $file_name."_".$date_import.$extension);
     }
 
     /**
