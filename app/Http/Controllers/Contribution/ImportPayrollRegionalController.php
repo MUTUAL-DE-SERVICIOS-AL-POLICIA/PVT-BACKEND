@@ -1133,17 +1133,15 @@ class ImportPayrollRegionalController extends Controller
             'with_data_count' => 'boolean'
         ]);
 
-        $with_data_count = !isset($request->with_data_count) || is_null($request->with_data_count)
-            ? true
-            : (bool) $request->with_data_count;
+        $with_data_count = !isset($request->with_data_count) || is_null($request->with_data_count) ? true : $request->with_data_count;
+        $period_year = $request->get('period_year');
 
-        $period_year = (int) $request->get('period_year');
-
-        // Meses existentes según created_at (tu query, pero con bindings y campos con alias)
         $query = "
             SELECT DISTINCT
+                created_at::date AS date,
+                EXTRACT(DAY FROM created_at)::int AS period_day,
                 EXTRACT(MONTH FROM created_at)::int AS period_month,
-                EXTRACT(YEAR  FROM created_at)::int AS period_year,
+                EXTRACT(YEAR FROM created_at)::int AS period_year,
                 to_char(
                     to_date(
                         EXTRACT(YEAR FROM created_at)::int || '-' || EXTRACT(MONTH FROM created_at)::int,
@@ -1154,26 +1152,23 @@ class ImportPayrollRegionalController extends Controller
             FROM payroll_regionals
             WHERE deleted_at IS NULL
             AND EXTRACT(YEAR FROM created_at)::int = ?
-            ORDER BY period_month ASC
-        ";
+            ORDER BY date ASC";
 
-        $months_import_with_name = collect(DB::select($query, [$period_year]));
+        $dates = collect(DB::select($query, [$period_year]));
 
         if ($with_data_count) {
-            foreach ($months_import_with_name as $months_import) {
-                $months_import->data_count = DB::table('payroll_regionals')
+            foreach ($dates as $row) {
+                $row->data_count = DB::table('payroll_regionals')
                     ->whereNull('deleted_at')
-                    ->whereYear('created_at', $period_year)
-                    ->whereMonth('created_at', $months_import->period_month)
+                    ->whereDate('created_at', $row->date)
                     ->count();
             }
         }
 
         return response()->json([
-            'message' => 'Exito',
+            'message' => 'Éxito',
             'payload' => [
-                'list_months' => $months_import_with_name->values()->all(),
-                'list_months_not_import' => [],
+                'list_dates' => $dates->all(),
             ],
         ]);
     }
