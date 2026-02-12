@@ -72,6 +72,7 @@ Route::group([
             Route::post('/copy_affiliate_id_filemaker', [App\Http\Controllers\Contribution\ImportPayrollFilemakerController::class, 'copy_affiliate_id_frcam_to_affiliate_id']);
 
             Route::post('/upload_copy_payroll_regional', [App\Http\Controllers\Contribution\ImportPayrollRegionalController::class, 'upload_copy_payroll_regional']);
+            Route::post('/list_dates_regional', [App\Http\Controllers\Contribution\ImportPayrollRegionalController::class, 'list_dates_regional']);
             Route::post('/download_error_data_regional', [App\Http\Controllers\Contribution\ImportPayrollRegionalController::class, 'download_error_data_regional']);
             Route::post('/download_data_regional', [App\Http\Controllers\Contribution\ImportPayrollRegionalController::class, 'download_data_regional']);
             Route::post('/validation_affiliate_regional', [App\Http\Controllers\Contribution\ImportPayrollRegionalController::class, 'validation_affiliate_regional']);
