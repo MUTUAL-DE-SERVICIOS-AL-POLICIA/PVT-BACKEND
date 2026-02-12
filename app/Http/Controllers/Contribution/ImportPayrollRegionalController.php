@@ -1092,4 +1092,89 @@ class ImportPayrollRegionalController extends Controller
 
         return $exists_data;
     }
+
+    /**
+     * @OA\Post(
+     *      path="/api/contribution/list_dates_regional",
+     *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
+     *      summary="LISTA LAS FECHAS QUE SE REALIZARON IMPORTACIONES PLANILLA DE TIPO REGIONAL EN BASE A UN AÑO DADO EJ:2021",
+     *      operationId="list_dates_regional",
+     *      description="Lista las fechas de importación de la tabla payroll_copy_regionals enviando como parámetro un año en específico",
+     *     @OA\RequestBody(
+     *          description= "Provide auth credentials",
+     *          required=true,
+     *          @OA\JsonContent(
+     *              type="object",
+     *              @OA\Property(property="period_year", type="integer",description="Año de contribución a listar",example= "2026"),
+     *              @OA\Property(property="with_data_count", type="boolean",description="valor para pedir envio de conteo de datos",example= false)
+     *          )
+     *     ),
+     *     security={
+     *         {"bearerAuth": {}}
+     *     },
+     *      @OA\Response(
+     *          response=200,
+     *          description="Success",
+     *          @OA\JsonContent(
+     *            type="object"
+     *         )
+     *      )
+     * )
+     *
+     * Logs user into the system.
+     *
+     * @param Request $request
+     * @return void
+    */
+    public function list_dates_regional(Request $request)
+    {
+        $request->validate([
+            'period_year' => 'required|date_format:"Y"',
+            'with_data_count' => 'boolean'
+        ]);
+
+        $with_data_count = !isset($request->with_data_count) || is_null($request->with_data_count)
+            ? true
+            : (bool) $request->with_data_count;
+
+        $period_year = (int) $request->get('period_year');
+
+        // Meses existentes según created_at (tu query, pero con bindings y campos con alias)
+        $query = "
+            SELECT DISTINCT
+                EXTRACT(MONTH FROM created_at)::int AS period_month,
+                EXTRACT(YEAR  FROM created_at)::int AS period_year,
+                to_char(
+                    to_date(
+                        EXTRACT(YEAR FROM created_at)::int || '-' || EXTRACT(MONTH FROM created_at)::int,
+                        'YYYY-MM'
+                    ),
+                    'TMMonth'
+                ) AS period_month_name
+            FROM payroll_regionals
+            WHERE deleted_at IS NULL
+            AND EXTRACT(YEAR FROM created_at)::int = ?
+            ORDER BY period_month ASC
+        ";
+
+        $months_import_with_name = collect(DB::select($query, [$period_year]));
+
+        if ($with_data_count) {
+            foreach ($months_import_with_name as $months_import) {
+                $months_import->data_count = DB::table('payroll_regionals')
+                    ->whereNull('deleted_at')
+                    ->whereYear('created_at', $period_year)
+                    ->whereMonth('created_at', $months_import->period_month)
+                    ->count();
+            }
+        }
+
+        return response()->json([
+            'message' => 'Exito',
+            'payload' => [
+                'list_months' => $months_import_with_name->values()->all(),
+                'list_months_not_import' => [],
+            ],
+        ]);
+    }
 }
