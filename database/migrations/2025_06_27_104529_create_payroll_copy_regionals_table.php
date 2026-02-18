@@ -30,7 +30,7 @@ return new class extends Migration
             $table->decimal('cotizable')->default(0)->comment('Cotizable');
             $table->decimal('aporte')->default(0)->comment('Monto de aporte');
             $table->decimal('porcentaje_aporte')->default(0)->comment('Porcentaje de aporte');
-            $table->string('error_message')->nullable()->comment('Mensaje del error');
+            $table->text('error_message')->nullable()->comment('Mensaje del error');
             $table->unsignedBigInteger('affiliate_id')->nullable()->comment('Id del afiliado titular');
             $table->enum('state', ['accomplished','unrealized','validated'])->default('unrealized')->comment('Estado si fue encontrado o no encontrado');
             $table->string('criteria')->nullable()->comment('criterio de identificación del afiliado');

@@ -526,6 +526,46 @@ class ImportPayrollRegionalController extends Controller
                 $different_contribution = true;
             }
         }
+        $duplicates = DB::connection('db_aux')->select("
+            SELECT
+                affiliate_id, a_o, mes
+            FROM payroll_copy_regionals
+            WHERE deleted_at IS NULL
+            AND created_at::date = ?   
+            GROUP BY affiliate_id, a_o, mes 
+            HAVING COUNT(*) > 1
+            AND SUM(CASE WHEN tipo_aportante = 'V' THEN 1 ELSE 0 END) > 0
+            AND SUM(CASE WHEN tipo_aportante = 'T' THEN 1 ELSE 0 END) > 0
+        ", [$date_import]);
+        
+        $duplicate_msg = "aportes duplicado en el mismo periodo por diferentes aportantes";
+
+        foreach ($duplicates as $dup) {
+            $updated = DB::connection('db_aux')->update("
+                UPDATE payroll_copy_regionals pcr
+                SET error_message =
+                    LEFT(COALESCE(NULLIF(error_message, ''), '') ||
+                    CASE
+                        WHEN error_message IS NULL OR error_message = '' THEN ''
+                        ELSE ' - '
+                    END ||
+                    ?
+                , 255)    
+                WHERE pcr.created_at::date = ?
+                AND pcr.affiliate_id = ?
+                AND pcr.a_o = ?
+                AND pcr.mes = ?
+            ", [
+                $duplicate_msg,
+                $date_import,
+                $dup->affiliate_id,
+                $dup->a_o,
+                $dup->mes
+            ]);
+            if ($updated > 0) {
+                $different_contribution = true;
+            }
+        }
         return !$different_contribution;
     }
 
@@ -1097,9 +1137,9 @@ class ImportPayrollRegionalController extends Controller
      * @OA\Post(
      *      path="/api/contribution/list_dates_regional",
      *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
-     *      summary="LISTA LAS FECHAS QUE SE REALIZARON IMPORTACIONES PLANILLA DE TIPO REGIONAL EN BASE A UN AÑO DADO EJ:2021",
+     *      summary="LISTA LAS FECHAS QUE SE REALIZARON IMPORTACIONES PLANILLA DE TIPO REGIONAL EN BASE A UN AÑO DADO EJ:2026",
      *      operationId="list_dates_regional",
-     *      description="Lista las fechas de importación de la tabla payroll_copy_regionals enviando como parámetro un año en específico",
+     *      description="Lista las fechas de importación de la tabla payroll_regionals enviando como parámetro un año en específico.",
      *     @OA\RequestBody(
      *          description= "Provide auth credentials",
      *          required=true,
