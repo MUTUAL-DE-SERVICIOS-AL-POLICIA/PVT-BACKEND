@@ -274,7 +274,6 @@ class ImportPayrollRegionalController extends Controller
         $data_count['num_total_data_copy'] = 0;
         $data_count['num_data_not_considered'] = 0;
         $data_count['num_data_considered'] = 0;
-        $data_count['num_data_unrelated'] = 0;
         $data_count['num_data_validated'] = 0;
 
         // Total de datos del archivo (planilla)
@@ -291,11 +290,6 @@ class ImportPayrollRegionalController extends Controller
         $query_data_considered = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import' AND error_message IS NULL AND deleted_at IS NULL AND affiliate_id IS NOT null AND affiliate_id != 0 AND state ILIKE 'validated' AND criteria NOT IN ('11-no-identificado', '5-sCI-sPN', '10-sCI-sPN');";
         $query_data_considered = DB::connection('db_aux')->select($query_data_considered);
         $data_count['num_data_considered'] = $query_data_considered[0]->count;
-
-        // Número de personas no relacionadas
-        $query_data_unrelated = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import' AND error_message IS NULL AND deleted_at IS NULL AND criteria IN ('11-no-identificado', '5-sCI-sPN', '10-sCI-sPN');";
-        $query_data_unrelated = DB::connection('db_aux')->select($query_data_unrelated);
-        $data_count['num_data_unrelated'] = $query_data_unrelated[0]->count;
 
         // Número de datos válidos
         $data_count['num_data_validated'] = PayrollRegional::data_period($date_import)['count_data'];
