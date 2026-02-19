@@ -273,30 +273,29 @@ class ImportPayrollRegionalController extends Controller
     public function data_count_payroll_regional($date_import){
         $data_count['num_total_data_copy'] = 0;
         $data_count['num_data_not_considered'] = 0;
-        $data_count['num_data_unrelated'] = 0;
         $data_count['num_data_considered'] = 0;
+        $data_count['num_data_unrelated'] = 0;
         $data_count['num_data_validated'] = 0;
-        $data_count['num_data_not_validated'] = 0;
 
-        // Total de datos del archivo
+        // Total de datos del archivo (planilla)
         $query_total_data = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import';";
         $query_total_data = DB::connection('db_aux')->select($query_total_data);
         $data_count['num_total_data_copy'] = $query_total_data[0]->count;
 
-        // Número de datos no considerados duplicados de afiliados y aportes
-        $query_data_not_considered = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import' AND (error_message IS NOT NULL OR deleted_at IS NOT NULL);";
+        // Número de datos no considerados (OBSERVADOS)
+        $query_data_not_considered = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import' AND (error_message IS NOT NULL OR deleted_at IS NOT NULL OR affiliate_id = 0 OR criteria IN ('11-no-identificado', '5-sCI-sPN', '10-sCI-sPN') OR state ILIKE 'accomplished');";
         $query_data_not_considered = DB::connection('db_aux')->select($query_data_not_considered);
         $data_count['num_data_not_considered'] = $query_data_not_considered[0]->count;
 
-        // Número de datos no relacionados
-        $query_data_unrelated = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import' AND error_message IS NULL AND deleted_at IS NULL AND criteria = '9-no-identificado';";
-        $query_data_unrelated = DB::connection('db_aux')->select($query_data_unrelated);
-        $data_count['num_data_unrelated'] = $query_data_unrelated[0]->count;
-
-        // Número de datos considerados
-        $query_data_considered = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import' AND error_message IS NULL AND deleted_at IS NULL;";
+        // Número de datos considerados (CORRECTOS)
+        $query_data_considered = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import' AND error_message IS NULL AND deleted_at IS NULL AND affiliate_id IS NOT null AND affiliate_id != 0 AND state ILIKE 'validated' AND criteria NOT IN ('11-no-identificado', '5-sCI-sPN', '10-sCI-sPN');";
         $query_data_considered = DB::connection('db_aux')->select($query_data_considered);
         $data_count['num_data_considered'] = $query_data_considered[0]->count;
+
+        // Número de personas no relacionadas
+        $query_data_unrelated = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import' AND error_message IS NULL AND deleted_at IS NULL AND criteria IN ('11-no-identificado', '5-sCI-sPN', '10-sCI-sPN');";
+        $query_data_unrelated = DB::connection('db_aux')->select($query_data_unrelated);
+        $data_count['num_data_unrelated'] = $query_data_unrelated[0]->count;
 
         // Número de datos válidos
         $data_count['num_data_validated'] = PayrollRegional::data_period($date_import)['count_data'];
@@ -402,8 +401,6 @@ class ImportPayrollRegionalController extends Controller
             $data_count['count_data_automatic_link'] = 0;
             $data_count['count_data_unidentified'] = 0;
             $data_count['count_data_error'] = 0;
-            $data_count['num_total_data_payroll'] = 0;
-            $data_count['num_total_data_contribution'] = 0;
             $route = '';
             $route_file_name = '';
 
@@ -413,7 +410,7 @@ class ImportPayrollRegionalController extends Controller
             $num_total_data_copy = $this->data_count_payroll_regional($date_import);
             $count_data_automatic_link = "SELECT COUNT(id) FROM payroll_copy_regionals pcr WHERE criteria IN ('1-CI-PN-SN-PA-SA-AC','2-CI-sPN-sPA-sSA','3-partCI-sPN-sPA','4-sCI-PN-PA-SA','6-CI-PN-SN-PA-SA-AC','7-CI-sPN-sPA-sSA','8-partCI-sPN-sPA','9-sCI-PN-PA-SA') AND created_at::date = '".$date_import."'";
             $count_data_automatic_link = DB::connection('db_aux')->select($count_data_automatic_link);
-            $count_data_unidentified = "SELECT COUNT(id) FROM payroll_copy_regionals pcr WHERE criteria IN ('9-no-identificado') AND created_at::date = '".$date_import."'";
+            $count_data_unidentified = "SELECT COUNT(id) FROM payroll_copy_regionals pcr WHERE criteria IN ('11-no-identificado', '5-sCI-sPN', '10-sCI-sPN') AND created_at::date = '".$date_import."'";
             $count_data_unidentified = DB::connection('db_aux')->select($count_data_unidentified);
             $count_data_error = "SELECT COUNT(id) FROM payroll_copy_regionals pcr WHERE (error_message IS NOT NULL OR deleted_at IS NOT NULL) AND created_at::date = '".$date_import."'";
             $count_data_error = DB::connection('db_aux')->select($count_data_error);
@@ -721,12 +718,19 @@ class ImportPayrollRegionalController extends Controller
                 ->whereDate('created_at', '=', $date_import)
                 ->count();
 
+            $updatedContributions = DB::table('contribution_passives')
+                ->where('contributionable_type', 'payroll_regionals')
+                ->whereDate('updated_at', $date_import)
+                ->whereDate('created_at', '!=', $date_import)
+                ->count();
+
             if ($existingContributions > 0) {
                 return response()->json([
                     'message' => 'Error, ya se realizó la importación de datos.',
                     'payload' => [
                         'successfully' => false,
-                        'num_total_data_contribution' => $existingContributions,
+                        'num_total_created_data_contribution' => $existingContributions,
+                        'num_total_updated_data_contribution' => $updatedContributions,
                     ],
                 ]);
             }
@@ -743,6 +747,12 @@ class ImportPayrollRegionalController extends Controller
                    ->where('contributionable_type', 'payroll_regionals')
                    ->whereDate('created_at', '=', $date_import)
                    ->count();
+
+                $updatedContributions = DB::table('contribution_passives')
+                    ->where('contributionable_type', 'payroll_regionals')
+                    ->whereDate('updated_at', $date_import)
+                    ->whereDate('created_at', '!=', $date_import)
+                    ->count();
             } else {
                 $totalContributions = 0;
             }
@@ -750,7 +760,8 @@ class ImportPayrollRegionalController extends Controller
                 'message' => $message,
                 'payload' => [
                     'successfully' => $success,
-                    'num_total_data_contribution' => $totalContributions,
+                    'num_total_created_data_contribution' => $totalContributions,
+                    'num_total_updated_data_contribution' => $updatedContributions,
                 ],
             ]);
         } catch (Throwable $e) {
