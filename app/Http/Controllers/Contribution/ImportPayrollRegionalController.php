@@ -526,31 +526,32 @@ class ImportPayrollRegionalController extends Controller
                 $different_contribution = true;
             }
         }
+
         $duplicates = DB::connection('db_aux')->select("
-            SELECT
-                affiliate_id, a_o, mes
+            SELECT 
+                affiliate_id, a_o, mes,
+                COUNT(*) AS pr_rows_for_key,
+                ARRAY_AGG(id ORDER BY id) AS pr_ids
             FROM payroll_copy_regionals
             WHERE deleted_at IS NULL
-            AND created_at::date = ?   
-            GROUP BY affiliate_id, a_o, mes 
+            AND affiliate_id != 0
+            AND created_at::date = ?
+            GROUP BY affiliate_id, a_o, mes
             HAVING COUNT(*) > 1
-            AND SUM(CASE WHEN tipo_aportante = 'V' THEN 1 ELSE 0 END) > 0
-            AND SUM(CASE WHEN tipo_aportante = 'T' THEN 1 ELSE 0 END) > 0
+            ORDER BY pr_rows_for_key DESC, affiliate_id, a_o, mes
         ", [$date_import]);
-        
-        $duplicate_msg = "aportes duplicado en el mismo periodo por diferentes aportantes";
 
         foreach ($duplicates as $dup) {
+            $duplicate_msg = "Aporte duplicado en el mismo periodo por diferentes aportantes para NUP {$dup->affiliate_id}";
             $updated = DB::connection('db_aux')->update("
                 UPDATE payroll_copy_regionals pcr
                 SET error_message =
-                    LEFT(COALESCE(NULLIF(error_message, ''), '') ||
+                    COALESCE(NULLIF(error_message, ''), '') ||
                     CASE
                         WHEN error_message IS NULL OR error_message = '' THEN ''
                         ELSE ' - '
                     END ||
-                    ?
-                , 255)    
+                    ? 
                 WHERE pcr.created_at::date = ?
                 AND pcr.affiliate_id = ?
                 AND pcr.a_o = ?
@@ -569,7 +570,7 @@ class ImportPayrollRegionalController extends Controller
         return !$different_contribution;
     }
 
-        /**
+    /**
      * @OA\Post(
      *      path="/api/contribution/import_payroll_regional",
      *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
@@ -1041,13 +1042,16 @@ class ImportPayrollRegionalController extends Controller
      *      path="/api/contribution/rollback_payroll_copy_regionals",
      *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
      *      summary="REHACER IMPORTACIÓN PLANILLA REGIONAL",
-     *      operationId="rollback_payroll_copy_regional",
+     *      operationId="rollback_payroll_copy_regionals",
      *      description="Para rehacer la importación de planilla regional",
      *      @OA\RequestBody(
      *          description="Provide auth credentials",
      *          required=true,
      *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
-     *             @OA\Property(property="date_payroll", type="string",description="fecha de planilla required",example= "2025-11-07")
+     *             @OA\Property(property="date_import", 
+     *              type="string",
+     *              description="fecha de planilla required",  
+     *              example= "2025-11-07")
      *            )
      *          ),
      *     ),
