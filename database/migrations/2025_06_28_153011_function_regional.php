@@ -219,7 +219,16 @@ return new class extends Migration
                             'UPDATE payroll_copy_regionals
                             SET state = ' || quote_literal('accomplished') || ',
                                 criteria = ' || quote_literal(type_state) || ',
-                                affiliate_id = ' || COALESCE(affiliate_id_result, 0) || '
+                                affiliate_id = ' || COALESCE(affiliate_id_result, 0) || ', 
+                                     error_message = 
+                                        CASE 
+                                            WHEN ' || quote_literal(type_state) || ' IN (''11-no-identificado'',''5-sCI-sPN'',''10-sCI-sPN'') THEN
+                                        CASE
+                                            WHEN error_message IS NULL OR error_message = '''' THEN ''Persona no identificada''
+                                            ELSE error_message || '' - Persona no identificada''
+                                        END
+                                    ELSE error_message
+                                END
                             WHERE id = ' || record_row.id || '
                             AND created_at::date = ' || quote_literal(date_import)
                         );
@@ -252,7 +261,7 @@ return new class extends Migration
                         AND state = ''accomplished''
                         AND affiliate_id IS NOT NULL
                         AND affiliate_id <> 0
-                        AND (criteria IS NULL OR criteria <> ''11-no-identificado'' OR criteria <> ''5-sCI-sPN'' OR criteria <> ''10-sCI-sPN'')
+                        AND (criteria IS NULL OR criteria NOT IN (''11-no-identificado'', ''5-sCI-sPN'', ''10-sCI-sPN''))
                         AND created_at::date = ' || quote_literal(date_import) || '')
                     AS payroll_copy_regionals(
                         carnet varchar(255),
