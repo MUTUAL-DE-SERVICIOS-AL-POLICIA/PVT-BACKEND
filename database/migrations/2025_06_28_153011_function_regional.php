@@ -181,13 +181,23 @@ return new class extends Migration
                             affiliate_id_result := 0;
                             type_state := '11-no-identificado';
                         END IF;
-                        PERFORM dblink_exec(conection_db_aux, 
-                            'UPDATE payroll_copy_regionals 
-                            SET state = ' || quote_literal('accomplished') || ', 
-                                criteria = ' || quote_literal(type_state) || ', 
-                                affiliate_id = ' || COALESCE(affiliate_id_result,0) || ' 
+                        PERFORM dblink_exec(
+                            conection_db_aux,
+                            'UPDATE payroll_copy_regionals
+                            SET state = ' || quote_literal('accomplished') || ',
+                                criteria = ' || quote_literal(type_state) || ',
+                                affiliate_id = ' || COALESCE(affiliate_id_result, 0) || ', 
+                                     error_message = 
+                                        CASE 
+                                            WHEN ' || quote_literal(type_state) || ' IN (''11-no-identificado'',''5-sCI-sPN'',''10-sCI-sPN'') THEN
+                                        CASE
+                                            WHEN error_message IS NULL OR error_message = '''' THEN ''Persona no identificada''
+                                            ELSE error_message || '' - Persona no identificada''
+                                        END
+                                    ELSE error_message
+                                END
                             WHERE id = ' || record_row.id || '
-                                AND created_at::date = ' || quote_literal(date_import)
+                            AND created_at::date = ' || quote_literal(date_import)
                         );
                     END IF;
                     IF record_row.tipo_aportante = 'V' THEN
