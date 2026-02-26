@@ -1268,4 +1268,116 @@ class ImportPayrollRegionalController extends Controller
             ],
         ]);
     }
+    
+    /**
+     * @OA\Post(
+     *   path="/api/contribution/verify_import_process",
+     *   tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
+     *   summary="VERIFICA SI SE CONCLUYE O NO LA IMPORTACIÓN EN UNA FECHA DETERMINADA",
+     *   operationId="verify_import_process",
+     *   description="Método para verificar si el proceso de importación se completó o quedó inconclusa",
+     *   @OA\RequestBody(
+     *     description="Provide auth credentials",
+     *     required=true,
+     *     @OA\MediaType(mediaType="multipart/form-data",@OA\Schema(
+     *         @OA\Property(property="date_import", 
+     *           type="string",
+     *           description="fecha de planilla required",
+     *           example="2025-11-07")
+     *       )
+     *     ),
+     *   ),
+     *   security={
+     *       {"bearerAuth": {}}
+     *   },
+     *   @OA\Response(
+     *     response=200,
+     *     description="Success",
+     *     @OA\JsonContent(
+     *        type="object"
+     *      )
+     *   )
+     * )
+     *
+     * Logs user into the system.
+     *
+     * @param Request $request
+     * @return void
+    */
+    public function verify_import_process(Request $request)
+    {
+        $request->validate([
+            'date_import' => 'required|date_format:Y-m-d',
+        ]);
+
+        $date_import = $request->input('date_import');
+
+        $error_process = false;
+        $message = 'Sin datos para la fecha.';
+
+        //cantidad esperada en base de datos auxiliar
+        $count_data_aux = DB::connection('db_aux')->table('payroll_copy_regionals')
+            ->whereDate('created_at', $date_import)
+            ->whereNull('error_message')
+            ->whereNull('deleted_at')
+            ->where('state', 'ILIKE', 'validated')
+            ->whereNotIn('criteria', ['11-no-identificado', '5-sCI-sPN', '10-sCI-sPN'])
+            ->count();
+
+        //cantidad de registros válidos en payroll_regionals
+        $count_data_payroll_regionals = PayrollRegional::whereDate('created_at', $date_import)->count();
+
+        //cantidad importada a contribution_passives
+        $connection_db_aux = Util::connection_db_aux();
+        $sql = "
+            WITH pcr AS (
+                SELECT *
+                FROM dblink(
+                    '{$connection_db_aux}',
+                    $$
+                        SELECT affiliate_id, a_o, mes
+                        FROM payroll_copy_regionals
+                        WHERE created_at::date = '{$date_import}'
+                        AND error_message IS NULL
+                        AND deleted_at IS NULL
+                        AND state ILIKE 'validated'
+                        AND criteria NOT IN ('11-no-identificado', '5-sCI-sPN', '10-sCI-sPN')
+                    $$
+                ) AS pcr(affiliate_id INT, a_o INT, mes INT)
+            )
+            SELECT COUNT(*) AS cnt
+            FROM contribution_passives cp
+            JOIN payroll_regionals pr
+                ON pr.id = cp.contributionable_id
+            AND cp.contributionable_type = 'payroll_regionals'
+            JOIN pcr
+                ON pcr.affiliate_id = pr.affiliate_id
+            AND pcr.a_o = pr.year
+            AND pcr.mes = pr.month
+            WHERE pr.created_at::date = '{$date_import}'
+            ";
+        $count_data_contribution_passives = (int) DB::selectOne($sql)->cnt;
+
+        if ($count_data_aux === 0) {
+            $error_process = true;
+            $message = "No existen registros válidos en la base de datos auxiliar para $date_import.";
+        } elseif ($count_data_contribution_passives === $count_data_aux) {
+            $error_process = false;
+            $message = "Importación completada para $date_import.";
+        } elseif ($count_data_payroll_regionals === $count_data_aux) {
+            $error_process = true;
+            $message = "No se concluyó la importación para $date_import falta registros en contribution_passives.";
+        } else {
+            $error_process = true;
+            $message = "No se concluyó la importación para $date_import faltan registros en payroll_regionals y contribution_passives).";
+        }
+        return [
+            'error_proceso' => $error_process,
+            'message' => $message,
+            'count_data_aux' => $count_data_aux,
+            'count_data_payroll_regionals' => $count_data_payroll_regionals,
+            'count_data_contribution_passives' => $count_data_contribution_passives,
+            'date_import' => $date_import,
+        ];
+    }
 }
