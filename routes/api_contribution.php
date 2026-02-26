@@ -80,6 +80,7 @@ Route::group([
             Route::post('import_contribution_regional', [App\Http\Controllers\Contribution\ImportPayrollRegionalController::class, 'import_contribution_regional']);
             Route::post('/download_data_regional_revision', [App\Http\Controllers\Contribution\ImportPayrollRegionalController::class, 'download_data_regional_revision']);
             Route::post('/rollback_payroll_copy_regionals', [App\Http\Controllers\Contribution\ImportPayrollRegionalController::class, 'rollback_payroll_copy_regionals']);
+            Route::post('/verify_import_process', [App\Http\Controllers\Contribution\ImportPayrollRegionalController::class, 'verify_import_process']);
         });
         Route::group([
             'middleware' => 'permission:download-report-payroll-senasir|download-report-payroll-command|download-report-payroll-transcript'
