@@ -429,7 +429,7 @@ class ImportPayrollRegionalController extends Controller
                     $successfully = true;
                     $message = 'Excel';
                     $route = '/contribution/download_data_regional_revision';
-                    $route_file_name = 'afiliados_para_creacion.xls';
+                    $route_file_name = 'datos_personales_para_revisión.xls';
                 }else{
                     $successfully = false;
                     $message = 'Excel';
