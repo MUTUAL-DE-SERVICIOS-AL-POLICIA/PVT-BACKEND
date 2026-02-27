@@ -425,17 +425,10 @@ class ImportPayrollRegionalController extends Controller
             }elseif($count_data_unidentified[0]->count == 0 && $count_data_error[0]->count > 0){
                 $valid_contribution = "SELECT COUNT(id) FROM payroll_copy_regionals pcr WHERE state LIKE 'accomplished' AND error_message IS NOT NULL AND created_at::date = '".$date_import."';";
                 $valid_contribution = DB::connection('db_aux')->select($valid_contribution);
-                if($valid_contribution[0]->count == 0){
-                    $successfully = true;
-                    $message = 'Excel';
-                    $route = '/contribution/download_data_regional_revision';
-                    $route_file_name = 'datos_personales_para_revisión.xls';
-                }else{
                     $successfully = false;
                     $message = 'Excel';
                     $route = '/contribution/download_error_data_regional';
                     $route_file_name = 'datos_aportes_observados.xls';
-                }
             }elseif($count_data_unidentified[0]->count == 0 && $count_data_error[0]->count == 0){
                 $successfully = true;
                 $message = 'Realizado con éxito.';
@@ -1169,7 +1162,7 @@ class ImportPayrollRegionalController extends Controller
     public function delete_payroll_copy_regionals($date_import)
     {
         if ($this->exists_data_payroll_copy_regionals($date_import)) {
-            $query = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import';";
+            $query = "DELETE FROM payroll_copy_regionals WHERE created_at::date = '$date_import';";
             $query = DB::connection('db_aux')->select($query);
             DB::commit();
             return true;
@@ -1254,7 +1247,7 @@ class ImportPayrollRegionalController extends Controller
 
         if ($with_data_count) {
             foreach ($dates as $row) {
-                $row->data_count = DB::table('payroll_regionals')
+                $row->data_count['num_total_data_contribution'] = DB::table('payroll_regionals')
                     ->whereNull('deleted_at')
                     ->whereDate('created_at', $row->date)
                     ->count();
@@ -1380,4 +1373,116 @@ class ImportPayrollRegionalController extends Controller
             'date_import' => $date_import,
         ];
     }
+
+     /**
+     * @OA\Post(
+     *      path="/api/contribution/import_payroll_regional_progress_bar",
+     *      tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
+     *      summary="INFORMACIÓN DE PROGRESO DE IMPORTACIÓN PLANILLA REGIONAL",
+     *      operationId="import_payroll_regional_progress_bar",
+     *      description="Muestra la información de la importación de regionales  (-1)Si existió algún error en algún paso, (100) Si todo fue exitoso, (25 50 75)paso 1,2,3 respectivamente (0)si esta iniciando la importación",
+     *      @OA\RequestBody(
+     *          description= "Provide auth credentials",
+     *          required=true,
+     *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
+     *             @OA\Property(property="date_import", type="string",description="fecha de planilla required",example= "1999-01-01")
+     *            )
+     *          ),
+     *     ),
+     *     security={
+     *         {"bearerAuth": {}}
+     *     },
+     *      @OA\Response(
+     *          response=200,
+     *          description="Success",
+     *          @OA\JsonContent(
+     *            type="object"
+     *         )
+     *      )
+     * )
+     *
+     * Logs user into the system.
+     *
+     * @param Request $request
+     * @return void
+    */
+
+    public function import_payroll_regional_progress_bar(Request $request){
+        $request->validate([
+            'date_import' => 'required|date_format:"Y-m-d"',
+          ]);
+
+        $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
+
+        $message = "Exito";
+
+        $result['file_exists'] = false;
+        $result['file_name'] = "";
+        $result['percentage'] = 0;
+        $result['query_step_1'] = false;
+        $result['query_step_2'] = false;
+        $result['query_step_3'] = false;
+        $result['query_step_4'] = false;
+
+        $task['task_step_1'] = false;
+        $task['task_step_2'] = false;
+        $task['task_step_3'] = false;
+        $task['task_step_4'] = false;
+
+        $task['task_step_1'] = $this->exists_data_payroll_copy_regionals($date_import);
+        //****** paso 2 *****/
+        $step_2 = "select count(id) from payroll_copy_regionals where created_at::date = '$date_import' and (error_message is not null)";
+        $step_2 = DB::connection('db_aux')->select($step_2);
+
+        $step = "select count(id) from payroll_copy_regionals where created_at::date = '$date_import' and state like 'accomplished'";
+        $step = DB::connection('db_aux')->select($step);
+
+        $task['task_step_2']  = $this->exists_data_payroll_copy_regionals($date_import) && $step_2[0]->count == 0 && $step[0]->count > 0? true : false;
+        //****** paso 3 *****/
+        $step_3 = "select count(id) from payroll_regionals where created_at::date = '$date_import';";
+        $step_3 = DB::select($step_3);
+        $task['task_step_3'] = $step_3[0]->count > 0? true : false;
+        //****** paso 3 *****/
+        $step_4 = "select count(id) from contributions where created_at::date = '$date_import' and contributionable_type like 'payroll_regionals';";
+        $step_4 = DB::select($step_4);
+        $task['task_step_4'] = $step_4[0]->count > 0? true : false;
+
+        //verificamos si existe el archivo de importación
+        //$date_month= strlen($month)==1?'0'.$month:$month;
+        $new_file_name = 'regional.csv';
+        $base_path = 'planillas/planilla_regional/'.$date_import.'/'.$new_file_name;
+
+        if (Storage::disk('ftp')->has($base_path)) {
+            $result['file_name'] = $new_file_name;
+            $result['file_exists'] = true;
+        }
+
+        if($result['file_exists'] == true && $task['task_step_1'] == true && $task['task_step_2']  == true && $task['task_step_3'] == true && $task['task_step_4'] == true){
+            $result['percentage'] = 100;
+        }elseif($result['file_exists'] == true && $task['task_step_1'] == true && $task['task_step_2']  == false && $task['task_step_3'] == false && $task['task_step_4'] == false){
+            $result['percentage'] = 25;
+            $result['query_step_2'] = true;
+        }elseif($result['file_exists'] == true && $task['task_step_1'] == true && $task['task_step_2']  == true && $task['task_step_3'] == false && $task['task_step_4'] == false){
+            $result['percentage'] = 50;
+            $result['query_step_3'] = true;
+        }elseif($result['file_exists'] == true && $task['task_step_1'] == true && $task['task_step_2']  == true && $task['task_step_3'] == true && $task['task_step_4'] == false){
+            $result['percentage'] = 75;
+            $result['query_step_4'] = true;
+        }elseif($task['task_step_1'] == false && $task['task_step_2']  == false && $task['task_step_3'] == false && $task['task_step_4'] == false){
+            $result['percentage'] = 0;
+        }else{
+            $result['percentage'] = -1;
+            $message = "Error! Algo salió mal en algún paso.";
+        }
+
+        return response()->json([
+            'message' => $message,
+            'payload' => [
+                'import_progress_bar' =>  $result,
+                'data_count' =>  $this->data_count_payroll_regional($date_import),
+                'task'=>$task
+            ],
+        ]);
+    }
+
 }
