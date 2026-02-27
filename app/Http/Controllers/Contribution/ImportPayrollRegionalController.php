@@ -1262,49 +1262,9 @@ class ImportPayrollRegionalController extends Controller
         ]);
     }
     
-    /**
-     * @OA\Post(
-     *   path="/api/contribution/verify_import_process",
-     *   tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
-     *   summary="VERIFICA SI SE CONCLUYE O NO LA IMPORTACIÓN EN UNA FECHA DETERMINADA",
-     *   operationId="verify_import_process",
-     *   description="Método para verificar si el proceso de importación se completó o quedó inconclusa",
-     *   @OA\RequestBody(
-     *     description="Provide auth credentials",
-     *     required=true,
-     *     @OA\MediaType(mediaType="multipart/form-data",@OA\Schema(
-     *         @OA\Property(property="date_import", 
-     *           type="string",
-     *           description="fecha de planilla required",
-     *           example="2025-11-07")
-     *       )
-     *     ),
-     *   ),
-     *   security={
-     *       {"bearerAuth": {}}
-     *   },
-     *   @OA\Response(
-     *     response=200,
-     *     description="Success",
-     *     @OA\JsonContent(
-     *        type="object"
-     *      )
-     *   )
-     * )
-     *
-     * Logs user into the system.
-     *
-     * @param Request $request
-     * @return void
-    */
-    public function verify_import_process(Request $request)
+    //método para verificar si el proceso de importación se completó o quedó inconclusa en una fecha determinada
+    public function verify_import_process($date_import)
     {
-        $request->validate([
-            'date_import' => 'required|date_format:Y-m-d',
-        ]);
-
-        $date_import = $request->input('date_import');
-
         $error_process = false;
         $message = 'Sin datos para la fecha.';
 
@@ -1313,7 +1273,7 @@ class ImportPayrollRegionalController extends Controller
             ->whereDate('created_at', $date_import)
             ->whereNull('error_message')
             ->whereNull('deleted_at')
-            ->where('state', 'ILIKE', 'validated')
+            // ->where('state', 'ILIKE', 'validated')
             ->whereNotIn('criteria', ['11-no-identificado', '5-sCI-sPN', '10-sCI-sPN'])
             ->count();
 
@@ -1353,7 +1313,7 @@ class ImportPayrollRegionalController extends Controller
 
         if ($count_data_aux === 0) {
             $error_process = true;
-            $message = "No existen registros válidos en la base de datos auxiliar para $date_import.";
+            $message = "No existen registros en la base de datos auxiliar para $date_import.";
         } elseif ($count_data_contribution_passives === $count_data_aux) {
             $error_process = false;
             $message = "Importación completada para $date_import.";
@@ -1362,15 +1322,91 @@ class ImportPayrollRegionalController extends Controller
             $message = "No se concluyó la importación para $date_import falta registros en contribution_passives.";
         } else {
             $error_process = true;
-            $message = "No se concluyó la importación para $date_import faltan registros en payroll_regionals y contribution_passives).";
+            $message = "No se concluyó la importación para $date_import faltan registros en payroll_regionals y contribution_passives.";
         }
         return [
-            'error_proceso' => $error_process,
+            'error_process' => $error_process,
             'message' => $message,
             'count_data_aux' => $count_data_aux,
             'count_data_payroll_regionals' => $count_data_payroll_regionals,
             'count_data_contribution_passives' => $count_data_contribution_passives,
             'date_import' => $date_import,
+        ];
+    }
+    /**
+     * @OA\Post(
+     *   path="/api/contribution/list_incomplete_processes",
+     *   tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
+     *   summary="VERIFICA SI SE CONCLUYE O NO LA IMPORTACIÓN EN FECHAS ANTERIORES A UNA FECHA DADA",
+     *   operationId="list_incomplete_processes",
+     *   description="Método para verificar si los procesos de importación se completaron o quedaron inconclusas",
+     *   @OA\RequestBody(
+     *     description="Provide auth credentials",
+     *     required=true,
+     *     @OA\MediaType(mediaType="multipart/form-data",@OA\Schema(
+     *         @OA\Property(property="date_import", 
+     *           type="string",
+     *           description="fecha de planilla required",
+     *           example="2025-11-07")
+     *       )
+     *     ),
+     *   ),
+     *   security={
+     *       {"bearerAuth": {}}
+     *   },
+     *   @OA\Response(
+     *     response=200,
+     *     description="Success",
+     *     @OA\JsonContent(
+     *        type="object"
+     *      )
+     *   )
+     * )
+     *
+     * Logs user into the system.
+     *
+     * @param Request $request
+     * @return void
+    */
+    public function list_incomplete_processes(Request $request)
+    {
+        $request->validate([
+            'date_import' => 'required|date_format:Y-m-d',
+        ]);
+        $date_import = $request->input('date_import');
+
+        $incomplete_processes = [];
+        $hasError = false;
+
+        $datesQuery = DB::connection('db_aux')
+            ->table('payroll_copy_regionals as pcr')
+            ->selectRaw('DISTINCT pcr.created_at::date AS date_import')
+            ->whereDate('pcr.created_at', '<=', $date_import)
+            ->orderByRaw('pcr.created_at::date DESC')
+            ->get();
+
+        $dates = $datesQuery->pluck('date_import')->toArray();
+
+        foreach ($dates as $date) {
+            $result = $this->verify_import_process($date);
+
+            if (!empty($result['error_process'])) {
+                $hasError = true;
+
+                $incomplete_processes[] = [
+                    'error_process' => $result['error_process'],
+                    'message' => $result['message'],
+                    'count_data_aux' => $result['count_data_aux'],
+                    'count_data_payroll_regionals' => $result['count_data_payroll_regionals'],
+                    'count_data_contribution_passives' => $result['count_data_contribution_passives'],
+                    'date_import' => $result['date_import'],
+                ];
+            }
+        }
+
+        return [
+            'error' => $hasError,
+            'incomplete_processes' => $incomplete_processes,
         ];
     }
 
