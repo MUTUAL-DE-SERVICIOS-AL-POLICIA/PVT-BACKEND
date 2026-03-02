@@ -347,7 +347,7 @@ class ImportPayrollRegionalController extends Controller
             $export = new ArchivoPrimarioExport($data_header);
             $file_name = "observacion-planilla-regional";
             $extension = '.xls';
-            return Excel::download($export, $file_name."_".$extension);
+            return Excel::download($export, $file_name . $extension);
     }
 
     /**
@@ -381,7 +381,7 @@ class ImportPayrollRegionalController extends Controller
      *
      * @param Request $request
      * @return void
-     */
+    */
     public function validation_affiliate_regional(Request $request){
         $request->validate([
             'date_import' => 'required|date',
@@ -852,7 +852,7 @@ class ImportPayrollRegionalController extends Controller
      *
      * @param Request $request
      * @return void
-     */
+    */
     public function download_data_regional(Request $request)
     {
         $request->validate([
@@ -1059,7 +1059,7 @@ class ImportPayrollRegionalController extends Controller
     */
     public function download_data_regional_revision(Request $request){
         $request->validate([
-            'date_import' => 'required|date_format:"Y-m-d"',
+            'date_import' => 'required|date_format:Y-m-d',
         ]);
         $data_header=array(array("APORTANTE","CARNET","PRIMER NOMBRE","SEGUNDO NOMBRE","APELLIDO PATERNO","APELLIDO MATERNO","APELLIDO DE CASADA","DETALLE PARA REVISIÓN","***","NUP-AFILIADO CON SIMILITUD"));
         $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
@@ -1120,7 +1120,7 @@ class ImportPayrollRegionalController extends Controller
     public function rollback_payroll_copy_regionals(Request $request)
     {
         $request->validate([
-            'date_import' => 'required|date_format:"Y-m-d"',
+            'date_import' => 'required|date_format:Y-m-d',
         ]);
         DB::beginTransaction();
         try{
@@ -1153,35 +1153,133 @@ class ImportPayrollRegionalController extends Controller
             ]);
         }catch (Exception $e)
         {
-            DB::rollback();
+            DB::rollBack();
             return $e;
         }
     }
 
-    //borrado de datos de la tabla payroll_copy_commands paso 1
+    // borrado de datos de la tabla payroll_copy_regionals (base de datos auxiliar)
     public function delete_payroll_copy_regionals($date_import)
     {
         if ($this->exists_data_payroll_copy_regionals($date_import)) {
-            $query = "DELETE FROM payroll_copy_regionals WHERE created_at::date = '$date_import';";
-            $query = DB::connection('db_aux')->select($query);
-            DB::commit();
+
+            DB::connection('db_aux')
+                ->table('payroll_copy_regionals')
+                ->whereDate('created_at', $date_import)
+                ->delete();
+
             return true;
-        } else
-            return false;
+        }
+        return false;
     }
 
-    //método para verificar si existe datos en el paso 1 
+    // método para verificar si existe datos en payroll_copy_regionals (base de datos auxiliar)
     public function exists_data_payroll_copy_regionals($date_import)
     {
-        $exists_data = true;
-        $query = "SELECT * FROM payroll_copy_regionals WHERE created_at::date = '$date_import';";
-        $verify_data = DB::connection('db_aux')->select($query);
-
-        if ($verify_data == []) $exists_data = false;
-
-        return $exists_data;
+        return DB::connection('db_aux')
+            ->table('payroll_copy_regionals')
+            ->whereDate('created_at', $date_import)
+            ->exists();
     }
 
+    // borrado de datos de la tabla payroll_regionals
+    public function delete_payroll_regionals($date_import)
+    {
+        if($this->exists_data_payroll_regionals($date_import))
+        {
+            DB::table('payroll_regionals')
+                ->whereDate('created_at', $date_import)
+                ->delete();
+
+            return true;
+        }
+        return false;
+    }
+
+    // método para verificar si existe datos en el paso 1 
+    public function exists_data_payroll_regionals($date_import)
+    {
+        return DB::table('payroll_regionals')
+            ->whereDate('created_at', $date_import)
+            ->exists();
+    }
+
+    /**
+     * @OA\Post(
+     *   path="/api/contribution/delete_incomplete_processes",
+     *   tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
+     *   summary="ELIMINA LOS REGISTROS DE LA TABLA payroll_regionals y payroll_copy_regionals",
+     *   operationId="delete_incomplete_processes",
+     *   description="Método para eliminar registros de un proceso que no fue concluido.",
+     *   @OA\RequestBody(
+     *     description="Provide auth credentials",
+     *     required=true,
+     *     @OA\MediaType(mediaType="multipart/form-data",@OA\Schema(
+     *         @OA\Property(property="date_import", 
+     *           type="string",
+     *           description="fecha de planilla required",
+     *           example="2025-11-07")
+     *       )
+     *     ),
+     *   ),
+     *   security={
+     *       {"bearerAuth": {}}
+     *   },
+     *   @OA\Response(
+     *     response=200,
+     *     description="Success",
+     *     @OA\JsonContent(
+     *        type="object"
+     *      )
+     *   )
+     * )
+     *
+     * Logs user into the system.
+     *
+     * @param Request $request
+     * @return void
+    */
+    public function delete_incomplete_processes(Request $request)
+    {
+        $request->validate([
+            'date_import' => 'required|date_format:Y-m-d',
+        ]);
+        $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
+        DB::beginTransaction();
+        try {
+            $verify = $this->verify_import_process($date_import);
+
+            if ($verify['error_process'] === false) {
+                DB::rollBack();
+                return [
+                    'successfully' => false,
+                    'message' => "No se eliminó, el proceso está concluido para: $date_import",
+                    'detail' => $verify,
+                ];
+            }
+            $deleted_payroll  = $this->delete_payroll_regionals($date_import);
+            $deleted_copy = $this->delete_payroll_copy_regionals($date_import);
+
+            DB::commit();
+
+            return [
+                'successfully' => true,
+                'message' => "Procesos eliminados para $date_import",
+                'deleted' => [
+                    'payroll_regionals' => $deleted_payroll,
+                    'payroll_copy_regionals' => $deleted_copy,
+                ],
+                'detail' => $verify,
+            ];
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return [
+                'successfully' => false,
+                'message' => "Error al eliminar para $date_import",
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
     /**
      * @OA\Post(
      *      path="/api/contribution/list_dates_regional",
@@ -1333,6 +1431,7 @@ class ImportPayrollRegionalController extends Controller
             'date_import' => $date_import,
         ];
     }
+
     /**
      * @OA\Post(
      *   path="/api/contribution/list_incomplete_processes",
@@ -1445,7 +1544,7 @@ class ImportPayrollRegionalController extends Controller
 
     public function import_payroll_regional_progress_bar(Request $request){
         $request->validate([
-            'date_import' => 'required|date_format:"Y-m-d"',
+            'date_import' => 'required|date_format:Y-m-d',
           ]);
 
         $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
@@ -1478,8 +1577,8 @@ class ImportPayrollRegionalController extends Controller
         $step_3 = "select count(id) from payroll_regionals where created_at::date = '$date_import';";
         $step_3 = DB::select($step_3);
         $task['task_step_3'] = $step_3[0]->count > 0? true : false;
-        //****** paso 3 *****/
-        $step_4 = "select count(id) from contributions where created_at::date = '$date_import' and contributionable_type like 'payroll_regionals';";
+        //****** paso 4 *****/
+        $step_4 = "select count(id) from contribution_passives where created_at::date = '$date_import' and contributionable_type like 'payroll_regionals';";
         $step_4 = DB::select($step_4);
         $task['task_step_4'] = $step_4[0]->count > 0? true : false;
 
