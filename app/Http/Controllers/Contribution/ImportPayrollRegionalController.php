@@ -1369,10 +1369,10 @@ class ImportPayrollRegionalController extends Controller
         //cantidad esperada en base de datos auxiliar
         $count_data_aux = DB::connection('db_aux')->table('payroll_copy_regionals')
             ->whereDate('created_at', $date_import)
-            ->whereNull('error_message')
-            ->whereNull('deleted_at')
+            //->whereNull('error_message')
+            //->whereNull('deleted_at')
             // ->where('state', 'ILIKE', 'validated')
-            ->whereNotIn('criteria', ['11-no-identificado', '5-sCI-sPN', '10-sCI-sPN'])
+            //->whereNotIn('criteria', ['11-no-identificado', '5-sCI-sPN', '10-sCI-sPN'])
             ->count();
 
         //cantidad de registros válidos en payroll_regionals
@@ -1433,23 +1433,12 @@ class ImportPayrollRegionalController extends Controller
     }
 
     /**
-     * @OA\Post(
+     * @OA\Get(
      *   path="/api/contribution/list_incomplete_processes",
      *   tags={"IMPORTACIÓN-PLANILLA-REGIONAL"},
      *   summary="VERIFICA SI SE CONCLUYE O NO LA IMPORTACIÓN EN FECHAS ANTERIORES A UNA FECHA DADA",
      *   operationId="list_incomplete_processes",
      *   description="Método para verificar si los procesos de importación se completaron o quedaron inconclusas",
-     *   @OA\RequestBody(
-     *     description="Provide auth credentials",
-     *     required=true,
-     *     @OA\MediaType(mediaType="multipart/form-data",@OA\Schema(
-     *         @OA\Property(property="date_import", 
-     *           type="string",
-     *           description="fecha de planilla required",
-     *           example="2025-11-07")
-     *       )
-     *     ),
-     *   ),
      *   security={
      *       {"bearerAuth": {}}
      *   },
@@ -1469,18 +1458,13 @@ class ImportPayrollRegionalController extends Controller
     */
     public function list_incomplete_processes(Request $request)
     {
-        $request->validate([
-            'date_import' => 'required|date_format:Y-m-d',
-        ]);
-        $date_import = $request->input('date_import');
-
         $incomplete_processes = [];
         $hasError = false;
 
         $datesQuery = DB::connection('db_aux')
             ->table('payroll_copy_regionals as pcr')
             ->selectRaw('DISTINCT pcr.created_at::date AS date_import')
-            ->whereDate('pcr.created_at', '<=', $date_import)
+            ->whereDate('pcr.created_at', '<', Carbon::now()->format('Y-m-d'))
             ->orderByRaw('pcr.created_at::date DESC')
             ->get();
 
@@ -1504,7 +1488,7 @@ class ImportPayrollRegionalController extends Controller
         }
 
         return [
-            'error' => $hasError,
+            'error_process' => $hasError,
             'incomplete_processes' => $incomplete_processes,
         ];
     }
@@ -1582,8 +1566,6 @@ class ImportPayrollRegionalController extends Controller
         $step_4 = DB::select($step_4);
         $task['task_step_4'] = $step_4[0]->count > 0? true : false;
 
-        //verificamos si existe el archivo de importación
-        //$date_month= strlen($month)==1?'0'.$month:$month;
         $new_file_name = 'regional.csv';
         $base_path = 'planillas/planilla_regional/'.$date_import.'/'.$new_file_name;
 
