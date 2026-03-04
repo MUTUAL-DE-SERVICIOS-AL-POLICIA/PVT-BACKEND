@@ -39,4 +39,9 @@ class EconomicComplement extends Model
     public function sends() {
         return $this->morphMany(NotificationSend::class, 'sendable');
     }
+
+    public function eco_com_reception_type()
+    {
+        return $this->belongsTo(EcoComReceptionType::class);
+    }
 }

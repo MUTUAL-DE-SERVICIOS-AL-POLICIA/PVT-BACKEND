@@ -275,16 +275,16 @@ class Util
                 $shipping['sms_num'] = Util::remove_special_char($shipping['sms_num']);
                 $code_num = '591' . $shipping['sms_num'];
                 $message = $shipping['message'];
-                $response = Http::get($sms_server_url . "dosend.php?USERNAME=$root&PASSWORD=$password&smsprovider=$sms_provider&smsnum=$code_num&method=2&Memo=$message");
+                $response = Http::timeout(300)->get($sms_server_url . "dosend.php?USERNAME=$root&PASSWORD=$password&smsprovider=$sms_provider&smsnum=$code_num&method=2&Memo=$message");
                 if($response->successful()) {
                     $delivered = false;
                     $clipped_chain = substr($response, strrpos($response, "id=") + 3);
                     $end_of_chain = substr($clipped_chain,  strrpos($clipped_chain, "&U"));
                     $id = substr($clipped_chain, 0, -strlen($end_of_chain));
-                    $result = Http::timeout(60)->get($sms_server_url . "resend.php?messageid=$id&USERNAME=$root&PASSWORD=$password");
+                    $result = Http::timeout(300)->get($sms_server_url . "resend.php?messageid=$id&USERNAME=$root&PASSWORD=$password");
                     if($result->successful()) {
-                        // logger("se envío sms ". $i);
-                        $var = $result->getBody(); // obteniendo el cuerpo de la página html
+                         // logger("se envío sms ". $i);
+                         $var = $result->getBody(); // obteniendo el cuerpo de la página html
                         $obj = $morph_type ? new Affiliate() : new Loan();
                         $alias = $obj->getMorphClass();
                         $notification_send = new NotificationSend();
@@ -366,7 +366,7 @@ class Util
         ->where('id', 1)
         ->update(['next_time' => 'UNIX_TIMESTAMP()',
                   'fixed_next_time' => 'if(recharge_con_type=2, UNIX_TIMESTAMP(), fixed_next_time)']);
-        sleep(60); 
+        sleep(60);
         $result = DB::connection('mysql')->table('USSD')->select('USSD_RETURN')->orderBy('INSERTTIME', 'desc')->first();
         return $result->USSD_RETURN;
     }
@@ -375,7 +375,7 @@ class Util
     {
         $dom_pdf = $pdf->getDomPDF();
         $canvas = $dom_pdf->get_canvas();
-        
+
         $width = $canvas->get_width();
         $height = $canvas->get_height();
         $pageNumberWidth = $width / 2;
@@ -387,5 +387,39 @@ class Util
             'type' => 'pdf',
             'file_name' => $file_name
         ];
+    }
+
+    public static function removeSpaces($text)
+    {
+        $re = '/\s+/';
+        $subst = ' ';
+        $result = preg_replace($re, $subst, $text);
+        return $result ? trim($result) : null;
+    }
+
+    public static function verifyMonthYearDate(string $value)
+    {
+        return preg_match('/^\d{1,2}\/\d{4}$/', $value) === 1;
+    }
+
+    public static function getDateFormat(?string $date, string $size = 'short')
+    {
+        if (empty($date)) {
+            return 'sin fecha';
+        }
+
+        try {
+            if (self::verifyMonthYearDate($date)) {
+                $date = Carbon::createFromFormat('d/m/Y', '01/' . $date)->toDateString();
+            }
+
+            $carbonDate = Carbon::parse($date)->locale('es');
+            return match ($size) {
+                'large' => $carbonDate->isoFormat('D MMMM YYYY'),  // Ejemplo: 5 mayo 1983
+                default => $carbonDate->isoFormat('D MMM YYYY'),   // Ejemplo: 5 may 1983
+            };
+        } catch (\Exception) {
+            return 'sin fecha';
+        }
     }
 }

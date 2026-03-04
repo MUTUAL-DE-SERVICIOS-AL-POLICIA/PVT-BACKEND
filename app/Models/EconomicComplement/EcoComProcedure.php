@@ -2,6 +2,7 @@
 
 namespace App\Models\EconomicComplement;
 
+use App\Helpers\Util;
 use App\Models\Admin\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -39,5 +40,18 @@ class EcoComProcedure extends Model
     public function getYear()
     {
         return Carbon::parse($this->year)->year;
+    }
+
+    public function getActiveProcedures()
+    {
+        return EcoComProcedure::where('normal_start_date', '<=', now())
+            ->where('normal_end_date', '>=', now())
+            ->orderBy('year')
+            ->get();
+    }
+
+    public function fullName()
+    {
+        return  Util::removeSpaces($this->semester.'/SEM/'.Carbon::parse($this->year)->year);
     }
 }
