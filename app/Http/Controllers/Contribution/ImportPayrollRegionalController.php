@@ -290,6 +290,7 @@ class ImportPayrollRegionalController extends Controller
         $data_count['num_data_not_considered'] = 0;
         $data_count['num_data_considered'] = 0;
         $data_count['num_data_validated'] = 0;
+        $data_count['count_data_automatic_link'] = 0;
 
         // Total de datos del archivo (planilla)
         $query_total_data = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import';";
@@ -305,6 +306,10 @@ class ImportPayrollRegionalController extends Controller
         $query_data_considered = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import' AND error_message IS NULL AND deleted_at IS NULL AND affiliate_id IS NOT null AND affiliate_id != 0 AND state ILIKE 'validated' AND criteria NOT IN ('11-no-identificado', '5-sCI-sPN', '10-sCI-sPN');";
         $query_data_considered = DB::connection('db_aux')->select($query_data_considered);
         $data_count['num_data_considered'] = $query_data_considered[0]->count;
+
+        $query_data_automatic_link = "SELECT COUNT(id) FROM payroll_copy_regionals pcr WHERE criteria IN ('1-CI-PN-SN-PA-SA-AC','2-CI-sPN-sPA-sSA','3-partCI-sPN-sPA','4-sCI-PN-PA-SA','6-CI-PN-SN-PA-SA-AC','7-CI-sPN-sPA-sSA','8-partCI-sPN-sPA','9-sCI-PN-PA-SA') AND created_at::date = '".$date_import."'";
+        $query_data_automatic_link = DB::connection('db_aux')->select($query_data_automatic_link);
+        $data_count['count_data_automatic_link'] = $query_data_automatic_link[0]->count;
 
         // Número de datos válidos
         $data_count['num_data_validated'] = PayrollRegional::data_period($date_import)['count_data'];
