@@ -59,6 +59,21 @@ class ImportPayrollRegionalController extends Controller
         ]);
         
         $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
+
+        $exists_data_payroll_copy_regionals = $this->exists_data_payroll_copy_regionals($date_import);
+        $exists_data_payroll_regionals = $this->exists_data_payroll_regionals($date_import);
+        $exists_data_contribution_passives = $this->exists_data_contribution_passives($date_import);
+
+        if ($exists_data_payroll_copy_regionals || $exists_data_payroll_regionals || $exists_data_contribution_passives) {
+            return response()->json([
+                'message' => 'No permitido',
+                'payload' => [
+                    'successfully' => false,
+                    'error' => "No se puede cargar la planilla. Ya existe un proceso para: $date_import.",
+                ],
+            ], 409);
+        }
+
         $extension = strtolower($request->file->getClientOriginalExtension());
         $file_name_entry = $request->file->getClientOriginalName();
 
@@ -1196,7 +1211,7 @@ class ImportPayrollRegionalController extends Controller
         return false;
     }
 
-    // método para verificar si existe datos en el paso 1 
+    // método para verificar si existe datos en payrrol_regionals
     public function exists_data_payroll_regionals($date_import)
     {
         return DB::table('payroll_regionals')
@@ -1204,6 +1219,17 @@ class ImportPayrollRegionalController extends Controller
             ->exists();
     }
 
+    // método para verificar si existe datos en contribution_passives
+    public function exists_data_contribution_passives($date_import)
+    {
+        return DB::table('contribution_passives')
+            ->where('contributionable_type', 'payroll_regionals')
+            ->where(function ($query) use ($date_import) {
+                $query->whereDate('created_at', $date_import)
+                    ->orWhereDate('updated_at', $date_import);
+                })
+            ->exists();
+    }
     /**
      * @OA\Post(
      *   path="/api/contribution/delete_incomplete_processes",
