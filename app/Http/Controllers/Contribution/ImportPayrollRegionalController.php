@@ -91,7 +91,7 @@ class ImportPayrollRegionalController extends Controller
             if($extension == "csv"){
                 $rollback_period = "DELETE FROM payroll_copy_regionals WHERE state = 'unrealized' AND created_at::date ='".$date_import."';";
                 $rollback_period = DB::connection('db_aux')->select($rollback_period);
-                $file_name = "regional".'.'.$extension;
+                $file_name = "regional-{$date_import}.{$extension}";
                     if($file_name_entry == $file_name){
                         $base_path = 'planillas/planilla_regional/'.Carbon::now()->toDateString();
                         $file_path = Storage::disk('ftp')->putFileAs($base_path, $request->file, $file_name);
@@ -1386,6 +1386,7 @@ class ImportPayrollRegionalController extends Controller
         return response()->json([
             'message' => 'Éxito',
             'payload' => [
+                'current_date' => now()->format('Y-m-d'), 
                 'list_dates' => $dates->all(),
             ],
         ]);
