@@ -59,6 +59,21 @@ class ImportPayrollRegionalController extends Controller
         ]);
         
         $date_import = Carbon::parse($request->date_import)->format('Y-m-d');
+
+        $exists_data_payroll_copy_regionals = $this->exists_data_payroll_copy_regionals($date_import);
+        $exists_data_payroll_regionals = $this->exists_data_payroll_regionals($date_import);
+        $exists_data_contribution_passives = $this->exists_data_contribution_passives($date_import);
+
+        if ($exists_data_payroll_copy_regionals || $exists_data_payroll_regionals || $exists_data_contribution_passives) {
+            return response()->json([
+                'message' => 'No permitido',
+                'payload' => [
+                    'successfully' => false,
+                    'error' => "No se puede cargar la planilla. Ya existe un proceso para: $date_import.",
+                ],
+            ], 409);
+        }
+
         $extension = strtolower($request->file->getClientOriginalExtension());
         $file_name_entry = $request->file->getClientOriginalName();
 
@@ -76,7 +91,7 @@ class ImportPayrollRegionalController extends Controller
             if($extension == "csv"){
                 $rollback_period = "DELETE FROM payroll_copy_regionals WHERE state = 'unrealized' AND created_at::date ='".$date_import."';";
                 $rollback_period = DB::connection('db_aux')->select($rollback_period);
-                $file_name = "regional".'.'.$extension;
+                $file_name = "regional-{$date_import}.{$extension}";
                     if($file_name_entry == $file_name){
                         $base_path = 'planillas/planilla_regional/'.Carbon::now()->toDateString();
                         $file_path = Storage::disk('ftp')->putFileAs($base_path, $request->file, $file_name);
@@ -275,6 +290,7 @@ class ImportPayrollRegionalController extends Controller
         $data_count['num_data_not_considered'] = 0;
         $data_count['num_data_considered'] = 0;
         $data_count['num_data_validated'] = 0;
+        $data_count['count_data_automatic_link'] = 0;
 
         // Total de datos del archivo (planilla)
         $query_total_data = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import';";
@@ -290,6 +306,10 @@ class ImportPayrollRegionalController extends Controller
         $query_data_considered = "SELECT COUNT(id) FROM payroll_copy_regionals WHERE created_at::date = '$date_import' AND error_message IS NULL AND deleted_at IS NULL AND affiliate_id IS NOT null AND affiliate_id != 0 AND state ILIKE 'validated' AND criteria NOT IN ('11-no-identificado', '5-sCI-sPN', '10-sCI-sPN');";
         $query_data_considered = DB::connection('db_aux')->select($query_data_considered);
         $data_count['num_data_considered'] = $query_data_considered[0]->count;
+
+        $query_data_automatic_link = "SELECT COUNT(id) FROM payroll_copy_regionals pcr WHERE criteria IN ('1-CI-PN-SN-PA-SA-AC','2-CI-sPN-sPA-sSA','3-partCI-sPN-sPA','4-sCI-PN-PA-SA','6-CI-PN-SN-PA-SA-AC','7-CI-sPN-sPA-sSA','8-partCI-sPN-sPA','9-sCI-PN-PA-SA') AND created_at::date = '".$date_import."'";
+        $query_data_automatic_link = DB::connection('db_aux')->select($query_data_automatic_link);
+        $data_count['count_data_automatic_link'] = $query_data_automatic_link[0]->count;
 
         // Número de datos válidos
         $data_count['num_data_validated'] = PayrollRegional::data_period($date_import)['count_data'];
@@ -1196,7 +1216,7 @@ class ImportPayrollRegionalController extends Controller
         return false;
     }
 
-    // método para verificar si existe datos en el paso 1 
+    // método para verificar si existe datos en payrrol_regionals
     public function exists_data_payroll_regionals($date_import)
     {
         return DB::table('payroll_regionals')
@@ -1204,6 +1224,17 @@ class ImportPayrollRegionalController extends Controller
             ->exists();
     }
 
+    // método para verificar si existe datos en contribution_passives
+    public function exists_data_contribution_passives($date_import)
+    {
+        return DB::table('contribution_passives')
+            ->where('contributionable_type', 'payroll_regionals')
+            ->where(function ($query) use ($date_import) {
+                $query->whereDate('created_at', $date_import)
+                    ->orWhereDate('updated_at', $date_import);
+                })
+            ->exists();
+    }
     /**
      * @OA\Post(
      *   path="/api/contribution/delete_incomplete_processes",
@@ -1355,6 +1386,7 @@ class ImportPayrollRegionalController extends Controller
         return response()->json([
             'message' => 'Éxito',
             'payload' => [
+                'current_date' => now()->format('Y-m-d'), 
                 'list_dates' => $dates->all(),
             ],
         ]);
