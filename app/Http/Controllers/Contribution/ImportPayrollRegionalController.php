@@ -64,7 +64,7 @@ class ImportPayrollRegionalController extends Controller
         $exists_data_payroll_regionals = $this->exists_data_payroll_regionals($date_import);
         $exists_data_contribution_passives = $this->exists_data_contribution_passives($date_import);
 
-        if ($exists_data_payroll_copy_regionals || $exists_data_payroll_regionals || $exists_data_contribution_passives) {
+        if ($exists_data_payroll_copy_regionals && $exists_data_payroll_regionals && $exists_data_contribution_passives) {
             return response()->json([
                 'message' => 'No permitido',
                 'payload' => [
@@ -93,7 +93,7 @@ class ImportPayrollRegionalController extends Controller
                 $rollback_period = DB::connection('db_aux')->select($rollback_period);
                 $file_name = "regional-{$date_import}.{$extension}";
                     if($file_name_entry == $file_name){
-                        $base_path = 'planillas/planilla_regional/'.Carbon::now()->toDateString();
+                        $base_path = 'planillas/planilla_regional';
                         $file_path = Storage::disk('ftp')->putFileAs($base_path, $request->file, $file_name);
                         $base_path ='ftp://'.env('FTP_HOST').env('FTP_ROOT').$file_path;
 
@@ -704,7 +704,7 @@ class ImportPayrollRegionalController extends Controller
                 }
             }else{
                 return response()->json([
-                    'message' => "Error no existen datos en la tabla del copiado de datos.",
+                    'message' => "Error no existen datos en la tabla del copiado de datos. REHACER: Error el primer paso no concluyó CORRECTAMENTE",
                     'payload' => [
                         'successfully' => $successfully,
                         'error' => 'Error el primer paso no está concluido o se concluyó el paso 3.'
@@ -1598,8 +1598,8 @@ class ImportPayrollRegionalController extends Controller
         $step_4 = DB::select($step_4);
         $task['task_step_4'] = $step_4[0]->count > 0? true : false;
 
-        $new_file_name = 'regional.csv';
-        $base_path = 'planillas/planilla_regional/'.$date_import.'/'.$new_file_name;
+        $new_file_name = "regional-{$date_import}.csv";
+        $base_path = 'planillas/planilla_regional/'.$new_file_name;
 
         if (Storage::disk('ftp')->has($base_path)) {
             $result['file_name'] = $new_file_name;
