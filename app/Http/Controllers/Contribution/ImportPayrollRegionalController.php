@@ -1356,21 +1356,22 @@ class ImportPayrollRegionalController extends Controller
 
         $query = "
             SELECT DISTINCT
-                created_at::date AS date,
-                EXTRACT(DAY FROM created_at)::int AS period_day,
-                EXTRACT(MONTH FROM created_at)::int AS period_month,
-                EXTRACT(YEAR FROM created_at)::int AS period_year,
-                to_char(
-                    to_date(
-                        EXTRACT(YEAR FROM created_at)::int || '-' || EXTRACT(MONTH FROM created_at)::int,
-                        'YYYY-MM'
-                    ),
-                    'TMMonth'
-                ) AS period_month_name
-            FROM payroll_regionals
-            WHERE deleted_at IS NULL
-            AND EXTRACT(YEAR FROM created_at)::int = ?
-            ORDER BY date ASC";
+                pr.created_at::date AS date,
+                EXTRACT(DAY FROM pr.created_at)::int AS period_day,
+                EXTRACT(MONTH FROM pr.created_at)::int AS period_month,
+                EXTRACT(YEAR FROM pr.created_at)::int AS period_year,
+                to_char(pr.created_at, 'TMMonth') AS period_month_name
+            FROM payroll_regionals pr
+            WHERE pr.deleted_at IS NULL
+            AND EXTRACT(YEAR FROM pr.created_at)::int = ?
+            AND EXISTS (
+                SELECT 1
+                FROM contribution_passives cp
+                WHERE cp.deleted_at IS NULL
+                    AND cp.created_at::date = pr.created_at::date
+            )
+            ORDER BY date ASC
+        ";
 
         $dates = collect(DB::select($query, [$period_year]));
 
