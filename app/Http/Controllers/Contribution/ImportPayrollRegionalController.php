@@ -1356,21 +1356,17 @@ class ImportPayrollRegionalController extends Controller
 
         $query = "
             SELECT DISTINCT
-                created_at::date AS date,
-                EXTRACT(DAY FROM created_at)::int AS period_day,
-                EXTRACT(MONTH FROM created_at)::int AS period_month,
-                EXTRACT(YEAR FROM created_at)::int AS period_year,
-                to_char(
-                    to_date(
-                        EXTRACT(YEAR FROM created_at)::int || '-' || EXTRACT(MONTH FROM created_at)::int,
-                        'YYYY-MM'
-                    ),
-                    'TMMonth'
-                ) AS period_month_name
-            FROM payroll_regionals
-            WHERE deleted_at IS NULL
-            AND EXTRACT(YEAR FROM created_at)::int = ?
-            ORDER BY date ASC";
+                pr.created_at::date AS date,
+                EXTRACT(DAY FROM pr.created_at)::int AS period_day,
+                EXTRACT(MONTH FROM pr.created_at)::int AS period_month,
+                EXTRACT(YEAR FROM pr.created_at)::int AS period_year,
+				to_char(pr.created_at, 'TMMonth') AS period_month_name
+            FROM payroll_regionals pr
+            left join contribution_passives cp 
+            on cp.contributionable_id = pr.id and cp.contributionable_type = 'payroll_regionals'
+            WHERE pr.deleted_at IS null and cp.id is not null
+            AND EXTRACT(YEAR FROM pr.created_at)::int = ?
+            ORDER BY date asc";
 
         $dates = collect(DB::select($query, [$period_year]));
 
@@ -1401,10 +1397,10 @@ class ImportPayrollRegionalController extends Controller
         //cantidad esperada en base de datos auxiliar
         $count_data_aux = DB::connection('db_aux')->table('payroll_copy_regionals')
             ->whereDate('created_at', $date_import)
-            ->whereNull('error_message')
-            ->whereNull('deleted_at')
-            ->where('state', 'ILIKE', 'validated')
-            ->whereNotIn('criteria', ['11-no-identificado', '5-sCI-sPN', '10-sCI-sPN'])
+            // ->whereNull('error_message')
+            // ->whereNull('deleted_at')
+            // ->where('state', 'ILIKE', 'validated')
+            // ->whereNotIn('criteria', ['11-no-identificado', '5-sCI-sPN', '10-sCI-sPN'])
             ->count();
 
         //cantidad de registros válidos en payroll_regionals
@@ -1585,7 +1581,7 @@ class ImportPayrollRegionalController extends Controller
         $step_2 = "select count(id) from payroll_copy_regionals where created_at::date = '$date_import' and (error_message is not null)";
         $step_2 = DB::connection('db_aux')->select($step_2);
 
-        $step = "select count(id) from payroll_copy_regionals where created_at::date = '$date_import' and state like 'accomplished'";
+        $step = "select count(id) from payroll_copy_regionals where created_at::date = '$date_import' and state in ('accomplished', 'validated')";
         $step = DB::connection('db_aux')->select($step);
 
         $task['task_step_2']  = $this->exists_data_payroll_copy_regionals($date_import) && $step_2[0]->count == 0 && $step[0]->count > 0? true : false;
