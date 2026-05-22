@@ -33,10 +33,12 @@ return new class extends Migration
                             retirement_fund_into:= total * cr_retirement_fund/percentage;
                          elsif (percentage = round(cr_mortuary_quota,2)) THEN
                              retirement_fund_into:=0;
-                         elseif (total=0 and base_wage >0) THEN
+                         elsif (total=0 and base_wage >0) THEN
                              retirement_fund_into:=0;
                          else
-                            RAISE exception '(%)', 'Unknown percentage of contribution!';
+                            RAISE EXCEPTION 
+							'Error en el afiliado % porque el porcentaje calculado es inválido (%).', 
+							affiliate_id, percentage;
                          end if;
                     return round(retirement_fund_into,2);
                     end;

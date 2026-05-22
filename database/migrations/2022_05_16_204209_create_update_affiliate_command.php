@@ -128,7 +128,7 @@ return new class extends Migration
                                      insert into affiliate_records(user_id,affiliate_id,type_id,date,message,created_at,updated_at) values(user_id_into,record_row.id,type_id,date_period,message_into,current_timestamp,current_timestamp);
                                        count_update:= count_update+1;
                                  end if;
-                               ELSEIF (record_row.pc_affiliate_type ='NUEVO') THEN
+                               ELSIF (record_row.pc_affiliate_type ='NUEVO') THEN
                                    --nuevo
                                      message_into:= 'Afiliado ingresó de Servicio';
                                      type_id :=10;
