@@ -13,7 +13,7 @@ return new class extends Migration
          * payroll_copy_commands (db_aux)
          */
         Schema::connection('db_aux')->table('payroll_copy_commands', function (Blueprint $table) {
-            $table->enum('type_payroll', ['mensual', 'reintegro', 'adicional'])
+            $table->enum('type_payroll', ['mensual', 'reintegro', 'regularizacion'])
                 ->default('mensual');
         });
 
@@ -34,7 +34,7 @@ return new class extends Migration
          * payroll_commands
          */
         Schema::table('payroll_commands', function (Blueprint $table) {
-            $table->enum('type_payroll', ['mensual', 'reintegro', 'adicional'])
+            $table->enum('type_payroll', ['mensual', 'reintegro', 'regularizacion'])
                 ->default('mensual');
         });
 
@@ -55,7 +55,7 @@ return new class extends Migration
          * reimbursements
          */
         Schema::table('reimbursements', function (Blueprint $table) {
-            $table->enum('type_payroll', ['reintegro', 'adicional'])
+            $table->enum('type_payroll', ['reintegro', 'regularizacion'])
                 ->default('reintegro');
         });
 

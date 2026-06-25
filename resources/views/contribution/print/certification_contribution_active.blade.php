@@ -32,8 +32,8 @@
             <thead class="bg-grey-darker text-xxs text-white">
                 <tr class="text-white text-xxs">
                     <th class="data-row py-2">N°</th>
-                    <th class="data-row py-2">AÑO</th>
                     <th class="data-row py-2">MES</th>
+                    <th class="data-row py-2">AÑO</th>                    
                     <th class="data-row py-2">TOTAL COTIZABLE</td>
                     <th class="data-row py-2">AP. FONDO DE RETIRO</th>
                     <th class="data-row py-2">AP. CUOTA MORTUORIA</th>
@@ -44,8 +44,8 @@
                 @foreach ($contributions as $contribution)
                     <tr>
                         <td class="data-row py-2">{{ $num = $num + 1 }}</td>
+                                                <td class="data-row py-2">{{ date('m', strtotime($contribution->month_year)) }}</td>
                         <td class="data-row py-2">{{ date('Y', strtotime($contribution->month_year)) }}</td>
-                        <td class="data-row py-2">{{ date('m', strtotime($contribution->month_year)) }}</td>
                         <td class="data-row py-2">{{ Util::money_format($contribution->quotable) }}</td>
                         <td class="data-row py-2">{{ Util::money_format($contribution->retirement_fund) }}</td>
                         <td class="data-row py-2">{{ Util::money_format($contribution->mortuary_quota) }}</td>
@@ -55,8 +55,8 @@
                         @if ($contribution->month_year == $reimbursement->month_year)
                             <tr>
                                 <td class="data-row py-2"></td>
-                                <td class="data-row py-2">Ri</td>
-                                <td class="data-row py-2">{{ date('m', strtotime($reimbursement->month_year)) }}</td>
+                                <td class="data-row py-2">{{ $reimbursement->type_payroll == 'reintegro' ? 'Ri' : 'Reg' }}</td>
+                                <td class="data-row py-2">{{ date('Y', strtotime($reimbursement->month_year)) }}</td>
                                 <td class="data-row py-2">{{ Util::money_format($reimbursement->quotable) }}</td>
                                 <td class="data-row py-2">{{ Util::money_format($reimbursement->retirement_fund) }}
                                 </td>

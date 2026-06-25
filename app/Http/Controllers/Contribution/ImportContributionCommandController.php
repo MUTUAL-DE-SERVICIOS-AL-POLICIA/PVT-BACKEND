@@ -105,7 +105,7 @@ class ImportContributionCommandController extends Controller
          }
 
          //Importacion adicionales
-         $query_ad = "SELECT distinct month_year, to_char( month_year, 'TMMonth') as period_month_name, extract(year from month_year) as period_year,extract(month from month_year) as period_month from reimbursements where deleted_at is null and (extract(year from month_year::timestamp)) = $period_year and contributionable_type = 'payroll_commands' and type_payroll = 'adicional' group by month_year, type_payroll;";
+         $query_ad = "SELECT distinct month_year, to_char( month_year, 'TMMonth') as period_month_name, extract(year from month_year) as period_year,extract(month from month_year) as period_month from reimbursements where deleted_at is null and (extract(year from month_year::timestamp)) = $period_year and contributionable_type = 'payroll_commands' and type_payroll = 'regularizacion' group by month_year, type_payroll;";
          $query_ad = DB::select($query_ad);
 
          $query_months_ad = "select id as period_month ,name as period_month_name from months order by id asc";
@@ -119,10 +119,10 @@ class ImportContributionCommandController extends Controller
                     break;
                 }
             }
-            $month_ad->state_validated_payroll = PayrollCommand::data_period($month_ad->period_month,$period_year,'adicional')['exist_data'];
+            $month_ad->state_validated_payroll = PayrollCommand::data_period($month_ad->period_month,$period_year,'regularizacion')['exist_data'];
             $date_payroll_format_ad = Carbon::parse($period_year.'-'.$month_ad->period_month.'-'.'01')->toDateString();
             if($with_data_count)
-            $month_ad->data_count = $this->data_count_contribution($month_ad->period_month,$period_year,$date_payroll_format_ad,'adicional');
+            $month_ad->data_count = $this->data_count_contribution($month_ad->period_month,$period_year,$date_payroll_format_ad,'regularizacion');
          }
 
 
@@ -229,7 +229,7 @@ class ImportContributionCommandController extends Controller
     public function import_contribution_command(Request $request){
         $request->validate([
         'period_contribution' => 'required|date_format:"Y-m-d"',
-        'type_payroll' => 'required|in:mensual,reintegro,adicional'
+        'type_payroll' => 'required|in:mensual,reintegro,regularizacion'
         ]);
      try{
         DB::beginTransaction();
@@ -410,7 +410,7 @@ class ImportContributionCommandController extends Controller
      *          required=true,
      *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
      *             @OA\Property(property="date_contribution", type="string",description="fecha de planilla required",example= "2022-03-01"),
-     *             @OA\Property(property="type_payroll", type="string", description="Tipo de planilla: reintegro, adicional", example="reintegro")
+     *             @OA\Property(property="type_payroll", type="string", description="Tipo de planilla: reintegro, regularizacion", example="reintegro")
      *            )
      *          ),
      *     ),
@@ -435,7 +435,7 @@ class ImportContributionCommandController extends Controller
 
         $request->validate([
             'date_contribution' => 'required|date_format:"Y-m-d"',
-            'type_payroll' => 'required|in:reintegro,adicional'
+            'type_payroll' => 'required|in:reintegro,regularizacion'
         ]);
 
         DB::beginTransaction();

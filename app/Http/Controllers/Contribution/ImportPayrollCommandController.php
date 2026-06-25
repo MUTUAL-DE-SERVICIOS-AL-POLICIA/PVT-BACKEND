@@ -121,7 +121,7 @@ class ImportPayrollCommandController extends Controller
      *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
      *            @OA\Property(property="file", type="file", description="file required", example="file"),
      *             @OA\Property(property="date_payroll", type="string",description="fecha de planilla required",example= "2023-04-01"),
-     *              @OA\Property(property="type_payroll", type="string",description="Tipo de planilla: mensual, reintegro, adicional",example="mensual")
+     *              @OA\Property(property="type_payroll", type="string",description="Tipo de planilla: mensual, reintegro, regularizacion",example="mensual")
   
      *            ) 
      *          ),
@@ -149,7 +149,7 @@ class ImportPayrollCommandController extends Controller
         $request->validate([
             'file' => 'required',
             'date_payroll' => 'required|date_format:"Y-m-d"',
-            'type_payroll' => 'required|in:mensual,reintegro,adicional'
+            'type_payroll' => 'required|in:mensual,reintegro,regularizacion'
         ]);
         $extencion = strtolower($request->file->getClientOriginalExtension());
         $file_name_entry = $request->file->getClientOriginalName();
@@ -176,7 +176,7 @@ class ImportPayrollCommandController extends Controller
                 }elseif($type_payroll == 'reintegro'){
                     $file_name = "re-comando-".$month."-".$year.'.'.$extencion;
                 }else{
-                    $file_name = "ad-comando-".$month."-".$year.'.'.$extencion;
+                    $file_name = "reg-comando-".$month."-".$year.'.'.$extencion;
                 }
                 
                     if($file_name_entry == $file_name){
@@ -319,7 +319,7 @@ class ImportPayrollCommandController extends Controller
 
         $request->validate([
             'date_payroll' => 'required|date_format:"Y-m-d"',
-            "type_payroll" => 'required|in:mensual,reintegro,adicional'
+            "type_payroll" => 'required|in:mensual,reintegro,regularizacion'
           ]);
 
         $date_payroll = Carbon::parse($request->date_payroll);
@@ -346,7 +346,7 @@ class ImportPayrollCommandController extends Controller
         }elseif($type_payroll == 'reintegro'){
             $new_file_name = "re-comando-".$date_month."-".$year.'.csv';
         }else{
-            $new_file_name = "ad-comando-".$date_month."-".$year.'.csv';
+            $new_file_name = "reg-comando-".$date_month."-".$year.'.csv';
         }
 
         $base_path = 'planillas/planilla_comando'.'/'.$new_file_name;
@@ -417,7 +417,7 @@ class ImportPayrollCommandController extends Controller
      *          required=true,
      *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
      *             @OA\Property(property="date_payroll", type="string",description="fecha de planilla required",example= "2022-03-01"),
-     *             @OA\Property(property="type_payroll", type="string", description="Tipo de planilla required: mensual, reintegro, adicional", example="mensual")
+     *             @OA\Property(property="type_payroll", type="string", description="Tipo de planilla required: mensual, reintegro, regularizacion", example="mensual")
      *            )
      *          ),
      *     ),
@@ -443,7 +443,7 @@ class ImportPayrollCommandController extends Controller
     {
        $request->validate([
            'date_payroll' => 'required|date_format:"Y-m-d"',
-           'type_payroll' => 'required|in:mensual,reintegro,adicional'
+           'type_payroll' => 'required|in:mensual,reintegro,regularizacion'
          ]);
        DB::beginTransaction();
        try{
@@ -608,7 +608,7 @@ class ImportPayrollCommandController extends Controller
                 WHERE deleted_at IS NULL
                     AND year_p = ?
                     AND type_payroll = ?
-            ", [$period_year, 'adicional'])
+            ", [$period_year, 'regularizacion'])
         )->pluck('month_p');
 
         $months_not_import_ad = $months_ids->diff($periods_ad);
@@ -628,7 +628,7 @@ class ImportPayrollCommandController extends Controller
 
         if ($with_data_count) {
             foreach ($months_import_with_name_ad as $month_import_ad) {
-                $month_import_ad->data_count = $this->data_count_payroll_command($month_import_ad->period_month, $period_year, 'adicional');
+                $month_import_ad->data_count = $this->data_count_payroll_command($month_import_ad->period_month, $period_year, 'regularizacion');
             }
         }
 
@@ -682,7 +682,7 @@ class ImportPayrollCommandController extends Controller
     public function validation_payroll_command(Request $request){
         $request->validate([
         'date_payroll' => 'required|date_format:"Y-m-d"',
-        'type_payroll' => 'required|in:mensual,reintegro,adicional'
+        'type_payroll' => 'required|in:mensual,reintegro,regularizacion'
         ]);
         try{
                 DB::beginTransaction();
@@ -793,7 +793,7 @@ class ImportPayrollCommandController extends Controller
 
         $request->validate([
             'date_payroll' => 'required|date_format:"Y-m-d"',
-            'type_payroll' => 'required|in:mensual,reintegro,adicional'
+            'type_payroll' => 'required|in:mensual,reintegro,regularizacion'
         ]);
 
         DB::beginTransaction();
@@ -870,7 +870,7 @@ class ImportPayrollCommandController extends Controller
 
         $request->validate([
             'date_payroll' => 'required|date_format:"Y-m-d"',
-            'type_payroll' => 'required|in:mensual,reintegro,adicional'
+            'type_payroll' => 'required|in:mensual,reintegro,regularizacion'
         ]);
 
         DB::beginTransaction();
