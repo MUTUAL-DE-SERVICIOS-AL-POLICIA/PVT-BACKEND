@@ -152,7 +152,7 @@ class ContributionController extends Controller
                 retirement_fund,
                 mortuary_quota,
                 total,
-                'RE' as con_re,
+                type_payroll as con_re,
                 type,
                 breakdowns.name as breakdown_name,
                 units.code as unit_code,
@@ -229,7 +229,7 @@ class ContributionController extends Controller
                 retirement_fund,
                 mortuary_quota,
                 total,
-                'RE' as con_re,
+                type_payroll as con_re,
                 type,
                 breakdowns.id as breakdown_id,
                 breakdowns.name as breakdown_name,
@@ -462,7 +462,7 @@ class ContributionController extends Controller
      * @return void
      */
 
-    public function printCertificationContributionActive(Request $request, $affiliate_id)
+    public function printCertificationContributionActive(Request $request, $affiliate_id)//web
     {
         $request['affiliate_id'] = $affiliate_id;
         $request->validate([
