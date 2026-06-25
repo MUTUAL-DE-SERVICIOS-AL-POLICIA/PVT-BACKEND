@@ -9,7 +9,7 @@ use App\Models\Contribution\ContributionCopyPayrollCommand;
 use App\Models\Contribution\PayrollCommand;
 use Carbon\Carbon;
 use DateTime;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Auth;
 use App\Helpers\Util;
 use Maatwebsite\Excel\Facades\Excel;
@@ -121,7 +121,7 @@ class ImportPayrollCommandController extends Controller
      *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
      *            @OA\Property(property="file", type="file", description="file required", example="file"),
      *             @OA\Property(property="date_payroll", type="string",description="fecha de planilla required",example= "2023-04-01"),
-     *              @OA\Property(property="reimbursement", type="boolean",description="Es reintegro",example=false)
+     *              @OA\Property(property="type_payroll", type="string",description="Tipo de planilla: mensual, reintegro, regularizacion",example="mensual")
   
      *            ) 
      *          ),
@@ -149,12 +149,12 @@ class ImportPayrollCommandController extends Controller
         $request->validate([
             'file' => 'required',
             'date_payroll' => 'required|date_format:"Y-m-d"',
-            'reimbursement' => 'required'
+            'type_payroll' => 'required|in:mensual,reintegro,regularizacion'
         ]);
         $extencion = strtolower($request->file->getClientOriginalExtension());
         $file_name_entry = $request->file->getClientOriginalName();
-        $reimbursement = $request->reimbursement;
-        $reimbursement_bool = filter_var($request->reimbursement ?? false, FILTER_VALIDATE_BOOLEAN); 
+        $type_payroll = $request->type_payroll;
+
        DB::beginTransaction();
         try{
             $username = env('FTP_USERNAME');
@@ -167,52 +167,44 @@ class ImportPayrollCommandController extends Controller
                 $month = $date_payroll->format("m");
                 $month_format =(int)$month;
 
-                $rollback_period = "delete from payroll_copy_commands WHERE mes = $month_format AND a_o = $year AND reimbursement = $reimbursement::BOOLEAN";
+                $rollback_period = "delete from payroll_copy_commands WHERE mes = $month_format AND a_o = $year AND type_payroll = '$type_payroll'";
 
                 $rollback_period  = DB::connection('db_aux')->select($rollback_period);
                 $file_name='';
-                if(!$reimbursement_bool){
+                if($type_payroll == 'mensual'){
                     $file_name = "comando-".$month."-".$year.'.'.$extencion;
-                }else{
+                }elseif($type_payroll == 'reintegro'){
                     $file_name = "re-comando-".$month."-".$year.'.'.$extencion;
+                }else{
+                    $file_name = "reg-comando-".$month."-".$year.'.'.$extencion;
                 }
-                //return $file_name_entry .'-'. $file_name.'-'.$reimbursement;
                 
                     if($file_name_entry == $file_name){
                         $base_path = 'planillas/planilla_comando';
                         $file_path = Storage::disk('ftp')->putFileAs($base_path,$request->file,$file_name);
                         $base_path ='ftp://'.env('FTP_HOST').env('FTP_ROOT').$file_path;
 
-                        $temporary_payroll = "create temporary table payroll_copy_commands_tmp(uni varchar,desg varchar, mes varchar, a_o varchar,car varchar,pat varchar,mat varchar,apes varchar,nom varchar,nom2 varchar,eciv varchar,niv varchar,gra varchar,sex varchar,sue varchar,cat varchar,est varchar,carg varchar,fro varchar,ori varchar,
+                        $temporary_payroll = "create temporary table payroll_copy_commands_tmp(uni varchar,desg varchar, mes varchar, a_o varchar,car varchar,pat varchar,mat varchar,apes varchar,nom varchar,nom2 varchar,eciv varchar,niv varchar,gra varchar,sex varchar,dtr varchar,sue varchar,cat varchar,est varchar,carg varchar,fro varchar,ori varchar,
                                       gan varchar, mus varchar,lpag varchar,nac varchar,ing varchar)";
                         $temporary_payroll = DB::connection('db_aux')->select($temporary_payroll);
 
-                        $copy = "copy payroll_copy_commands_tmp(uni,desg,mes,a_o,car,pat,mat,apes,nom,nom2,eciv,niv,gra,sex,sue,cat,est,carg,fro,ori,
+                        $copy = "copy payroll_copy_commands_tmp(uni,desg,mes,a_o,car,pat,mat,apes,nom,nom2,eciv,niv,gra,sex,dtr,sue,cat,est,carg,fro,ori,
                                 gan, mus,lpag,nac,ing)
                                 FROM PROGRAM 'wget -q -O - $@  --user=$username --password=$password $base_path'
                                 WITH DELIMITER ':' CSV header;";
                         $copy = DB::connection('db_aux')->select($copy);
 
-                        if(!$reimbursement_bool){
-                            $insert = "INSERT INTO payroll_copy_commands(uni,desg,mes,a_o,car,pat,mat,apes,nom,nom2,eciv,niv,gra,sex,sue,cat,est,carg,fro,ori,gan,mus,lpag,nac,ing,created_at,updated_at,reimbursement)
-                            SELECT uni,desg::INTEGER,mes::INTEGER,a_o::INTEGER,car,pat,mat,apes,nom,nom2,eciv,niv,gra,sex,sue,cat,est,carg,fro,ori,gan,mus,lpag,nac,ing,current_timestamp,current_timestamp,false FROM payroll_copy_commands_tmp; ";
-                            $insert = DB::connection('db_aux')->select($insert);
+                        $insert = "INSERT INTO payroll_copy_commands(uni,desg,mes,a_o,car,pat,mat,apes,nom,nom2,eciv,niv,gra,sex,sue,cat,est,carg,fro,ori,gan,mus,lpag,nac,ing,created_at,updated_at,type_payroll,dtr)
+                        SELECT uni,desg::INTEGER,mes::INTEGER,a_o::INTEGER,car,pat,mat,apes,nom,nom2,eciv,niv,gra,sex,sue,cat,est,carg,fro,ori,gan,mus,lpag,nac,ing,current_timestamp,current_timestamp,'$type_payroll',dtr::NUMERIC::INTEGER FROM payroll_copy_commands_tmp; ";
+                        $insert = DB::connection('db_aux')->select($insert);
 
-                            $update_year="UPDATE payroll_copy_commands set a_o = concat(20,'',a_o)::integer where mes =$month_format and a_o=$year_format and reimbursement=false";
-                            $update_year = DB::connection('db_aux')->select($update_year);
-                        }else{
-                            $insert = "INSERT INTO payroll_copy_commands(uni,desg,mes,a_o,car,pat,mat,apes,nom,nom2,eciv,niv,gra,sex,sue,cat,est,carg,fro,ori,gan,mus,lpag,nac,ing,created_at,updated_at,reimbursement)
-                            SELECT uni,desg::INTEGER,mes::INTEGER,a_o::INTEGER,car,pat,mat,apes,nom,nom2,eciv,niv,gra,sex,sue,cat,est,carg,fro,ori,gan,mus,lpag,nac,ing,current_timestamp,current_timestamp,true FROM payroll_copy_commands_tmp; ";
-                            $insert = DB::connection('db_aux')->select($insert);
-
-                            $update_year="UPDATE payroll_copy_commands set a_o = concat(20,'',a_o)::integer where mes =$month_format and a_o=$year_format and reimbursement=true";
-                            $update_year = DB::connection('db_aux')->select($update_year);
-                        }
+                        $update_year="UPDATE payroll_copy_commands set a_o = concat(20,'',a_o)::integer where mes =$month_format and a_o=$year_format and type_payroll='$type_payroll'";
+                        $update_year = DB::connection('db_aux')->select($update_year);
 
                         $drop = "drop table if exists payroll_copy_commands_tmp";
                         $drop = DB::select($drop);
 
-                        $query = "select * from format_payroll_copy_commands($month_format,$year,$reimbursement);";
+                        $query = "select * from format_payroll_copy_commands($month_format,$year,'$type_payroll');";
                         $data_format = DB::connection('db_aux')->select($query);
                         DB::commit();
 
@@ -226,7 +218,7 @@ class ImportPayrollCommandController extends Controller
                             'message' => $message,
                             'payload' => [
                                 'successfully' => $successfully,
-                                'data_count' => $this->data_count_payroll_command($month_format,$year,$reimbursement)
+                                'data_count' => $this->data_count_payroll_command($month_format,$year,$type_payroll)
                             ],
                         ]);
                     } else {
@@ -270,22 +262,22 @@ class ImportPayrollCommandController extends Controller
     }
 
     //data count payroll commnada
-    public function data_count_payroll_command($month,$year,$reimbursement){
+    public function data_count_payroll_command($month,$year,$type_payroll){
         $data_count['num_total_data_copy'] = 0;
         $data_count['num_data_validated'] = 0;
         $data_count['num_data_regular'] = 0;
         $data_count['num_data_new'] = 0;
 
         //---TOTAL DE DATOS DEL ARCHIVO
-        $query_total_data = "SELECT count(id) FROM payroll_copy_commands where mes = $month::INTEGER and a_o = $year::INTEGER and reimbursement=$reimbursement::BOOLEAN";
+        $query_total_data = "SELECT count(id) FROM payroll_copy_commands where mes = $month::INTEGER and a_o = $year::INTEGER and type_payroll='$type_payroll'";
         $query_total_data = DB::connection('db_aux')->select($query_total_data);
         $data_count['num_total_data_copy'] = $query_total_data[0]->count;
         // TOTAL VALIDADOS
-        $data_count['num_data_validated'] =PayrollCommand::data_count($month,$year,$reimbursement)['validated'];
+        $data_count['num_data_validated'] =PayrollCommand::data_count($month,$year,$type_payroll)['validated'];
         //CANTIDAD DE AFILIADOS REGULARES
-        $data_count['num_data_regular'] = PayrollCommand::data_count($month,$year,$reimbursement)['regular'];
+        $data_count['num_data_regular'] = PayrollCommand::data_count($month,$year,$type_payroll)['regular'];
         //CANTIDAD DE AFILIADOS NUEVOS
-        $data_count['num_data_new'] =PayrollCommand::data_count($month,$year,$reimbursement)['new'];
+        $data_count['num_data_new'] =PayrollCommand::data_count($month,$year,$type_payroll)['new'];
 
         return  $data_count;
     }
@@ -301,7 +293,7 @@ class ImportPayrollCommandController extends Controller
      *          required=true,
      *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
      *             @OA\Property(property="date_payroll", type="string",description="fecha de planilla required",example= "2022-03-01"),
-     *              @OA\Property(property="reimbursement", type="boolean", description="Es reintegro required", example=false)
+     *              @OA\Property(property="type_payroll", type="string", description="Tipo de planilla required", example="mensual")
      *            )
      *          ),
      *     ),
@@ -327,13 +319,13 @@ class ImportPayrollCommandController extends Controller
 
         $request->validate([
             'date_payroll' => 'required|date_format:"Y-m-d"',
-            "reimbursement" => 'required'
+            "type_payroll" => 'required|in:mensual,reintegro,regularizacion'
           ]);
 
         $date_payroll = Carbon::parse($request->date_payroll);
         $year = (int)$date_payroll->format("Y");
         $month = (int)$date_payroll->format("m");
-        $reimbursement = boolval($request->reimbursement);
+        $type_payroll = $request->type_payroll;
         $message = "Exito";
 
         $result['file_exists'] = false;
@@ -342,14 +334,21 @@ class ImportPayrollCommandController extends Controller
         $result['query_step_1'] = false;
         $result['query_step_2'] = false;
 
-        $result['query_step_1'] = $this->exists_data_payroll_copy_commands($month,$year,$reimbursement);
-        $result['query_step_2'] = PayrollCommand::data_period($month,$year,$reimbursement)['exist_data'];
+        $result['query_step_1'] = $this->exists_data_payroll_copy_commands($month,$year,$type_payroll);
+        $result['query_step_2'] = PayrollCommand::data_period($month,$year,$type_payroll)['exist_data'];
         $date_payroll_format = $request->date_payroll;
 
         //verificamos si existe el archivo de importación 
         $date_month= strlen($month)==1?'0'.$month:$month;
-        $origin_name = 'comando-';
-        $new_file_name = "comando-".$date_month."-".$year.'.csv';
+        $new_file_name = "";
+        if($type_payroll == 'mensual'){
+            $new_file_name = "comando-".$date_month."-".$year.'.csv';
+        }elseif($type_payroll == 'reintegro'){
+            $new_file_name = "re-comando-".$date_month."-".$year.'.csv';
+        }else{
+            $new_file_name = "reg-comando-".$date_month."-".$year.'.csv';
+        }
+
         $base_path = 'planillas/planilla_comando'.'/'.$new_file_name;
         if (Storage::disk('ftp')->has($base_path)) {
             $result['file_name'] = $new_file_name;
@@ -375,16 +374,16 @@ class ImportPayrollCommandController extends Controller
             'message' => $message,
             'payload' => [
                 'import_progress_bar' =>  $result,
-                'data_count' =>  $this->data_count_payroll_command($month,$year,$reimbursement)
+                'data_count' =>  $this->data_count_payroll_command($month,$year,$type_payroll)
             ],
         ]);
     }
     
     //método para verificar si existe datos en el paso 1 
 
-    public function exists_data_payroll_copy_commands($month,$year,$reimbursement){
+    public function exists_data_payroll_copy_commands($month,$year,$type_payroll){
         $exists_data = true;
-        $query = "select * from payroll_copy_commands where mes = $month::INTEGER and a_o = $year::INTEGER and reimbursement = $reimbursement::BOOLEAN;";
+        $query = "select * from payroll_copy_commands where mes = $month::INTEGER and a_o = $year::INTEGER and type_payroll = '$type_payroll';";
         $verify_data = DB::connection('db_aux')->select($query);
 
         if($verify_data == []) $exists_data = false;
@@ -393,11 +392,11 @@ class ImportPayrollCommandController extends Controller
     }
 
     //borrado de datos de la tabla payroll_copy_commands paso 1
-    public function delete_payroll_copy_commands($month, $year,$reimbursement)
+    public function delete_payroll_copy_commands($month, $year,$type_payroll)
     {
-             if($this->exists_data_payroll_copy_commands($month,$year,$reimbursement))
+             if($this->exists_data_payroll_copy_commands($month,$year,$type_payroll))
              {
-                $query = "delete from payroll_copy_commands where a_o = $year::INTEGER and mes = $month::INTEGER and reimbursement = $reimbursement::BOOLEAN;";
+                $query = "delete from payroll_copy_commands where a_o = $year::INTEGER and mes = $month::INTEGER and type_payroll = '$type_payroll';";
                 $query = DB::connection('db_aux')->select($query);
                 DB::commit();
                 return true;
@@ -418,7 +417,7 @@ class ImportPayrollCommandController extends Controller
      *          required=true,
      *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
      *             @OA\Property(property="date_payroll", type="string",description="fecha de planilla required",example= "2022-03-01"),
-     *              @OA\Property(property="reimbursement", type="boolean", description="Es reintegro required", example= false)
+     *             @OA\Property(property="type_payroll", type="string", description="Tipo de planilla required: mensual, reintegro, regularizacion", example="mensual")
      *            )
      *          ),
      *     ),
@@ -444,27 +443,27 @@ class ImportPayrollCommandController extends Controller
     {
        $request->validate([
            'date_payroll' => 'required|date_format:"Y-m-d"',
-           'reimbursement' => 'required'
+           'type_payroll' => 'required|in:mensual,reintegro,regularizacion'
          ]);
        DB::beginTransaction();
        try{
            $result['delete_step_1'] = false;
            $valid_rollback = false;
            $date_payroll = Carbon::parse($request->date_payroll);
-           $reimbursement = $request->reimbursement;
+           $type_payroll = $request->type_payroll;
 
            $year = (int)$date_payroll->format("Y");
            $month = (int)$date_payroll->format("m");
     
-           if($this->exists_data_payroll_copy_commands($month,$year,$reimbursement) && !PayrollCommand::data_period($month,$year,$reimbursement)['exist_data']){
-               $result['delete_step_1'] = $this->delete_payroll_copy_commands($month,$year,$reimbursement);
+           if($this->exists_data_payroll_copy_commands($month,$year,$type_payroll) && !PayrollCommand::data_period($month,$year,$type_payroll)['exist_data']){
+               $result['delete_step_1'] = $this->delete_payroll_copy_commands($month,$year,$type_payroll);
 
                if($result['delete_step_1'] == true){
                    $valid_rollback = true;
                    $message = "Realizado con éxito!";
                }
            }else{
-               if(PayrollCommand::data_period($month,$year,$reimbursement)['exist_data'])
+               if(PayrollCommand::data_period($month,$year,$type_payroll)['exist_data'])
                    $message = "No se puede rehacer, por que ya realizó la validación del la planilla de Comando General";
                else
                    $message = "No existen datos para rehacer";
@@ -523,102 +522,125 @@ class ImportPayrollCommandController extends Controller
 
     public function list_months_validate_command(Request $request)
     {
-       $request->validate([
-           'period_year' => 'required|date_format:"Y"',
-           'with_data_count'=>'boolean'
-       ]);
-       $with_data_count = !isset($request->with_data_count) || is_null($request->with_data_count)? true:$request->with_data_count;
+        $request->validate([
+            'period_year' => 'required|date_format:Y',
+            'with_data_count' => 'boolean'
+        ]);
+
+        $with_data_count = !isset($request->with_data_count) || is_null($request->with_data_count) ? true : $request->with_data_count;
         $period_year = $request->get('period_year');
-    //     ///Obtener para registro de planilla
-    //     $query = "SELECT  distinct month_p,year_p,  to_char( (to_date(year_p|| '-' ||month_p, 'YYYY/MM/DD')), 'TMMonth') as period_month_name from payroll_commands where deleted_at  is null and year_p =$period_year and reimbursement=false group by month_p, year_p";
-    //     $query = DB::select($query);
-    //     $query_months = "select id as period_month ,name  as period_month_name from months order by id asc";
-    //     $query_months = DB::select($query_months);
-      
-    //     foreach ($query_months as $month) {
-    //        $month->state_importation = false;
-    //        foreach ($query as $month_payroll) {
-    //            if($month->period_month == $month_payroll->month_p){
-    //                $month->state_importation = true;
-    //                break;
-    //            }
-    //        }
-    //        if($with_data_count)
-    //        $month->data_count = $this->data_count_payroll_command($month->period_month,$period_year,'false');
-    //     }
 
-    //     ///obtener para reintegros
-    //     $query_re = "SELECT  distinct month_p,year_p,  to_char( (to_date(year_p|| '-' ||month_p, 'YYYY/MM/DD')), 'TMMonth') as period_month_name from payroll_commands where deleted_at  is null and year_p =$period_year and reimbursement=true group by month_p, year_p";
-    //     $query_re = DB::select($query_re);
-    //     $query_months_re = "select id as period_month ,name  as period_month_name from months order by id asc";
-    //     $query_months_re = DB::select($query_months_re);
-      
-    //     foreach ($query_months_re as $month_re) {
-    //        $month_re->state_importation = false;
-    //        foreach ($query_re as $month_payroll_re) {
-    //            if($month_re->period_month == $month_payroll_re->month_p){
-    //                $month_re->state_importation = true;
-    //                break; 
-    //            }
-    //        }
-    //        if($with_data_count)
-    //        $month_re->data_count = $this->data_count_payroll_command($month_re->period_month,$period_year,'true');
-    //     }
-
-    //     return response()->json([
-    //        'message' => "Exito",
-    //        'payload' => [
-    //            'list_months' =>  $query_months,
-    //            'count_months' =>  count($query),
-    //            'list_months_re' =>  $query_months_re,
-    //            'count_months_re' =>  count($query_re)
-    //        ],
-    //    ]);
-        ///Obtener para registro de planilla
-        $months = collect(DB::select("SELECT id as period_month, name as period_month_name FROM months ORDER BY id ASC"));
+        // Obtener meses
+        $months = collect(
+            DB::select("SELECT id as period_month, name as period_month_name FROM months ORDER BY id ASC")
+        );
         $months_ids = $months->pluck('period_month');
 
-        $query = "SELECT  distinct month_p,year_p,  to_char( (to_date(year_p|| '-' ||month_p, 'YYYY/MM/DD')), 'TMMonth') as period_month_name from payroll_commands where deleted_at  is null and year_p =$period_year and reimbursement=false group by month_p, year_p";
-        $periods =collect(DB::select($query));
-        $periods = $periods->pluck('month_p');
+        //PLANILLA MENSUAL
+         $periods = collect(
+            DB::select("
+                SELECT DISTINCT month_p
+                FROM payroll_commands
+                WHERE deleted_at IS NULL
+                    AND year_p = ?
+                    AND type_payroll = ?
+            ", [$period_year, 'mensual'])
+        )->pluck('month_p');
 
         $months_not_import = $months_ids->diff($periods);
         $months_import = $months_ids->intersect($periods);
 
-        $months_not_import_with_name = $months->whereIn('period_month', $months_not_import)->values();
-        $months_import_with_name = $months->whereNotIn('period_month', $months_not_import)->values();
+        $months_not_import_with_name = collect(
+            $months->whereIn('period_month', $months_not_import)
+                ->map(fn($item) => clone $item)
+                ->values()
+        );
 
-        if($with_data_count) {
-            foreach($months_import_with_name->all() as $months_import) {
-                $months_import->data_count = $this->data_count_payroll_command($months_import->period_month, $period_year, 'false');
+        $months_import_with_name = collect(
+            $months->whereIn('period_month', $months_import)
+                ->map(fn($item) => clone $item)
+                ->values()
+        );
+
+        if ($with_data_count) {
+            foreach ($months_import_with_name as $month_import) {
+                $month_import->data_count = $this->data_count_payroll_command($month_import->period_month, $period_year, 'mensual');
             }
         }
 
-        ///obtener para reintegros
-        $query_re = "SELECT  distinct month_p,year_p,  to_char( (to_date(year_p|| '-' ||month_p, 'YYYY/MM/DD')), 'TMMonth') as period_month_name from payroll_commands where deleted_at  is null and year_p =$period_year and reimbursement=true group by month_p, year_p";
-        $periods_re = collect(DB::select($query_re));
-        $periods_re = $periods_re->pluck('month_p');
+        //REINTEGROS
+        $periods_re = collect(
+            DB::select("
+                SELECT DISTINCT month_p
+                FROM payroll_commands
+                WHERE deleted_at IS NULL
+                    AND year_p = ?
+                    AND type_payroll = ?
+            ", [$period_year, 'reintegro'])
+        )->pluck('month_p');
 
         $months_not_import_re = $months_ids->diff($periods_re);
         $months_import_re = $months_ids->intersect($periods_re);
 
-        $months_not_import_with_name_re = $months->whereIn('period_month', $months_not_import_re)->values();
-        $months_import_with_name_re = $months->whereNotIn('period_month', $months_not_import_re)->values();
+        $months_not_import_with_name_re = collect(
+            $months->whereIn('period_month', $months_not_import_re)
+                ->map(fn($item) => clone $item)
+                ->values()
+        );
 
-        if($with_data_count) {
-            foreach($months_import_with_name_re->all() as $month_import_re) {
-                $month_import_re->data_count = $this->data_count_payroll_command($month_import_re->period_month, $period_year, 'true');
+        $months_import_with_name_re = collect(
+            $months->whereIn('period_month', $months_import_re)
+                ->map(fn($item) => clone $item)
+                ->values()
+        );
+
+        if ($with_data_count) {
+            foreach ($months_import_with_name_re as $month_import_re) {
+                $month_import_re->data_count = $this->data_count_payroll_command($month_import_re->period_month, $period_year, 'reintegro');
             }
+        }
 
+        //ADCIONAL
+        $periods_ad = collect(
+            DB::select("
+                SELECT DISTINCT month_p
+                FROM payroll_commands
+                WHERE deleted_at IS NULL
+                    AND year_p = ?
+                    AND type_payroll = ?
+            ", [$period_year, 'regularizacion'])
+        )->pluck('month_p');
+
+        $months_not_import_ad = $months_ids->diff($periods_ad);
+        $months_import_ad = $months_ids->intersect($periods_ad);
+
+        $months_not_import_with_name_ad = collect(
+            $months->whereIn('period_month', $months_not_import_ad)
+                ->map(fn($item) => clone $item)
+                ->values()
+        );
+
+        $months_import_with_name_ad = collect(
+            $months->whereIn('period_month', $months_import_ad)
+                ->map(fn($item) => clone $item)
+                ->values()
+        );
+
+        if ($with_data_count) {
+            foreach ($months_import_with_name_ad as $month_import_ad) {
+                $month_import_ad->data_count = $this->data_count_payroll_command($month_import_ad->period_month, $period_year, 'regularizacion');
+            }
         }
 
         return response()->json([
-            'message' => "Exito",
+            'message' => 'Exito',
             'payload' => [
-                'list_months' =>  $months_import_with_name->all(),
-                'list_months_not_import' => $months_not_import_with_name->all(),
-                'list_months_re' =>  $months_import_with_name_re->all(),
-                'list_months_not_import_re' => $months_not_import_with_name_re->all(),
+                'list_months' => $months_import_with_name->values(),
+                'list_months_not_import' => $months_not_import_with_name->values(),
+                'list_months_re' => $months_import_with_name_re->values(),
+                'list_months_not_import_re' => $months_not_import_with_name_re->values(),
+                'list_months_ad' => $months_import_with_name_ad->values(),
+                'list_months_not_import_ad' => $months_not_import_with_name_ad->values(),
             ],
         ]);
     }
@@ -635,7 +657,7 @@ class ImportPayrollCommandController extends Controller
      *          required=true,
      *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
      *             @OA\Property(property="date_payroll", type="string",description="fecha de planilla required",example= "2022-03-01"),
-     *              @OA\Property(property="reimbursement", type="boolean",description="Es reintegro",example= false)
+     *              @OA\Property(property="type_payroll", type="string",description="Tipo de planilla",example= "mensual")
      *            )
      *          ),
      *     ),
@@ -660,7 +682,7 @@ class ImportPayrollCommandController extends Controller
     public function validation_payroll_command(Request $request){
         $request->validate([
         'date_payroll' => 'required|date_format:"Y-m-d"',
-        'reimbursement' => 'required'
+        'type_payroll' => 'required|in:mensual,reintegro,regularizacion'
         ]);
         try{
                 DB::beginTransaction();
@@ -671,30 +693,30 @@ class ImportPayrollCommandController extends Controller
                 $date_payroll = Carbon::parse($request->date_payroll);
                 $year = (int)$date_payroll->format("Y");
                 $month = (int)$date_payroll->format("m");
-                $reimbursement=$request->reimbursement;
+                $type_payroll=$request->type_payroll;
                 $last_date = Carbon::parse($year.'-'.$month)->toDateString();
                 $num_data_no_validated = 0;
                 $connection_db_aux = Util::connection_db_aux();
 
-                if($this->exists_data_payroll_copy_commands($month,$year,$reimbursement)){
-                    if(!PayrollCommand::data_period($month,$year,$reimbursement)['exist_data']){
+                if($this->exists_data_payroll_copy_commands($month,$year,$type_payroll)){
+                    if(!PayrollCommand::data_period($month,$year,$type_payroll)['exist_data']){
 
-                        $query = "select registration_payroll_command('$connection_db_aux',$month,$year,$reimbursement,$user_id);";
+                        $query = "select registration_payroll_command('$connection_db_aux',$month,$year,'$type_payroll',$user_id);";
                         $data_validated = DB::select($query);
 
-                        if(PayrollCommand::data_period($month,$year,$reimbursement)['exist_data']){
+                        if(PayrollCommand::data_period($month,$year,$type_payroll)['exist_data']){
                             $successfully =true;
-                            $update_validated ="update payroll_copy_commands set is_validated = true where mes =$month and a_o = $year and reimbursement = $reimbursement::BOOLEAN";
+                            $update_validated ="update payroll_copy_commands set is_validated = true where mes =$month and a_o = $year and type_payroll = '$type_payroll'";
                             $update_validated = DB::connection('db_aux')->select($update_validated);
                             $message = 'Exito';
                             $update_affiliate ="select update_affiliate_command('$date_payroll_format',$user_id,$year,$month)";
                             $update_affiliate = DB::select($update_affiliate);
                         }
-                        if(PayrollCommand::data_count($month,$year,$reimbursement)['new']>0){
+                        if(PayrollCommand::data_count($month,$year,$type_payroll)['new']>0){
                             $message = 'Excel';
                         }
                         DB::commit();
-                        $data_count= $this->data_count_payroll_command($month,$year,$reimbursement);
+                        $data_count= $this->data_count_payroll_command($month,$year,$type_payroll);
 
                         return response()->json([
                             'message' => $message,
@@ -745,7 +767,7 @@ class ImportPayrollCommandController extends Controller
      *          required=true,
      *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
      *             @OA\Property(property="date_payroll", type="string",description="fecha de planilla required",example= "2022-03-01"),
-     *              @OA\Property(property="reimbursement", type="boolean",description="Es reintegro? required",example= false)
+     *              @OA\Property(property="type_payroll", type="string",description="Tipo de planilla required",example="mensual")
      *            )
      *          ),
      *     ),
@@ -771,7 +793,7 @@ class ImportPayrollCommandController extends Controller
 
         $request->validate([
             'date_payroll' => 'required|date_format:"Y-m-d"',
-            'reimbursement' => 'required'
+            'type_payroll' => 'required|in:mensual,reintegro,regularizacion'
         ]);
 
         DB::beginTransaction();
@@ -785,8 +807,8 @@ class ImportPayrollCommandController extends Controller
         $date_payroll = Carbon::parse($request->date_payroll);
         $year = (int)$date_payroll->format("Y");
         $month = (int)$date_payroll->format("m");
-        $reimbursement = $request->reimbursement;
-        $data_payroll_command = "select  * from  payroll_commands  where month_p ='$month' and year_p='$year' and reimbursement='$reimbursement::BOOLEAN' and affiliate_type = 'NUEVO'";
+        $type_payroll = $request->type_payroll;
+        $data_payroll_command = "select  * from  payroll_commands  where month_p ='$month' and year_p='$year' and type_payroll='$type_payroll' and affiliate_type = 'NUEVO'";
                     $data_payroll_command = DB::select($data_payroll_command);
                             if(count($data_payroll_command)> 0){
                                 $message = "Excel";
@@ -821,7 +843,7 @@ class ImportPayrollCommandController extends Controller
      *          required=true,
      *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
      *             @OA\Property(property="date_payroll", type="string",description="fecha de planilla required",example= "2022-03-01"),
-     *              @OA\Property(property="reimbursement", type="boolean",description="Es reintegro? required",example= false)
+     *              @OA\Property(property="type_payroll", type="string",description="Tipo de planilla required",example="mensual")
      * 
      *            )
      *          ),
@@ -848,7 +870,7 @@ class ImportPayrollCommandController extends Controller
 
         $request->validate([
             'date_payroll' => 'required|date_format:"Y-m-d"',
-            'reimbursement' => 'required'
+            'type_payroll' => 'required|in:mensual,reintegro,regularizacion'
         ]);
 
         DB::beginTransaction();
@@ -858,7 +880,7 @@ class ImportPayrollCommandController extends Controller
 
         $date_payroll_format = $request->date_payroll;
         $data_cabeceras=array(array("ID","UNIDAD","DESGLOSE","CATEGORÍA","MES","AÑO","CARNET","APELLIDO PATERNO","APELLIDO MATERNO",
-        "AP_CASADA","PRIMER NOMBRE","SEGUNDO NOMBRE","ESTADO CIVIL","JERARQUIA","GRADO","GENERO","SUELDO BASE","BONO ANTIGÜEDAD","BONO ESTUDIO",
+        "AP_CASADA","PRIMER NOMBRE","SEGUNDO NOMBRE","ESTADO CIVIL","JERARQUIA","GRADO","GENERO","DÍAS TRABAJADOS","SUELDO BASE","BONO ANTIGÜEDAD","BONO ESTUDIO",
         "BONO A CARGO","BONO FRONTERA","BONO ORIENTE","TOTAL GANADO","TOTAL APORTE","LIQUIDO PAGABLE","FECHA DE NACIMIENTO",
         "FECHA DE INGRESO","TIPO DE AFILIADO"
     ));
@@ -866,15 +888,14 @@ class ImportPayrollCommandController extends Controller
         $date_payroll = Carbon::parse($request->date_payroll);
         $year = (int)$date_payroll->format("Y");
         $month = (int)$date_payroll->format("m");
-        $reimbursement = $request->reimbursement;
-        $data_payroll_command = PayrollCommand::whereMonth_p($month)->whereYear_p($year)->whereReimbursement($reimbursement)->get();
+        $type_payroll = $request->type_payroll;
+        $data_payroll_command = PayrollCommand::whereMonth_p($month)->whereYear_p($year)->whereTypePayroll($type_payroll)->get();
 
         $message = "Excel";
             foreach ($data_payroll_command as $row){
                 array_push($data_cabeceras, array($row->id,$row->unit->name,$row->breakdown->name, isset($row->category->name) ? $row->category->name:'',
                 $row->month_p, $row->year_p, $row->identity_card, $row->last_name, $row->mothers_last_name, $row->surname_husband, 
-                $row->first_name, $row->second_name, $row->civil_status, $row->hierarchy->name, $row->degree->name, $row->gender, 
-                $row->base_wage, $row->seniority_bonus, $row->study_bonus, $row->position_bonus, $row->border_bonus, $row->east_bonus,
+                $row->first_name, $row->second_name, $row->civil_status, $row->hierarchy->name, $row->degree->name, $row->gender, $row->days_worked, $row->base_wage, $row->seniority_bonus, $row->study_bonus, $row->position_bonus, $row->border_bonus, $row->east_bonus,
                 $row->gain, $row->total, $row->payable_liquid, $row->birth_date, $row->date_entry,
                 $row->affiliate_type
               ));
@@ -883,8 +904,7 @@ class ImportPayrollCommandController extends Controller
             $export = new ArchivoPrimarioExport($data_cabeceras);
             $file_name = "Planilla_Comando";
             $extension = '.xls';
-            $re = filter_var($request->reimbursement ?? false, FILTER_VALIDATE_BOOLEAN) ?'reintegro':'';
-            return Excel::download($export, $file_name.$re.$month.$year.$extension);    
+            return Excel::download($export, $file_name."_".$type_payroll."_".$month.$year.$extension);    
     }
 
 }

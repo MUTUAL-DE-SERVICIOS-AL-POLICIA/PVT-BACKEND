@@ -6,6 +6,7 @@ use App\Exports\AffiliatesSimilarExport;
 use App\Exports\AffiliatesSpousesExport;
 use App\Exports\ArchivoPrimarioExport;
 use App\Exports\EcoComMovementsExport;
+use App\Exports\ProceduresFrcamExport;
 use App\Models\Affiliate\Affiliate;
 use App\Models\Contribution\ContributionType;
 use App\Models\RetirementFund\RetirementFund;
@@ -584,4 +585,140 @@ class ReportController extends Controller
         $list = DB::select($sql);
         return Excel::download(new AffiliatesSimilarExport($list), 'affiliates_similar.xls');
     }
+        /**
+     * @OA\Post(
+     *      path="/api/report/report_procedures_frcam",
+     *      tags={"REPORTES"},
+     *      summary="GENERA REPORTE DE TRAMITES DE FONDO DE RETIRO, CUOTA Y AUXILIO MORTUORIO",
+     *      operationId="report_procedures_frcam",
+     *      description="Genera reporte de los trámites de fondo de retiro, cuota y auxilio mortuorio",
+     *      @OA\RequestBody(
+     *          description= "Reporte de trámites de fondo de retiro, cuota y auxilio mortuorio",
+     *          required=true,
+     *          @OA\JsonContent(
+     *              type="object",
+     *              @OA\Property(property="start_date", type="date",description="Fecha inicio del reporte", example="2026-02-01"),
+     *              @OA\Property(property="end_date", type="date",description="Fecha final del reporte", example="2026-02-28")
+     *         ),
+     *     ),
+     *     security={
+     *         {"bearerAuth": {}}
+     *     },
+     *      @OA\Response(
+     *          response=200,
+     *          description="Success",
+     *          @OA\JsonContent(
+     *            type="object"
+     *         )
+     *      )
+     * )
+     *
+     * @param Request $request
+     * @return void
+     */
+
+    public function report_procedures_frcam(Request $request)
+    {        
+        $date = date('Y-m-d');
+        
+        if ($request->start_date == NULL || $request->end_date == NULL) {
+            $start_date = $date;
+            $end_date = $date;
+        } else {
+            $start_date = Carbon::parse($request->start_date)->toDateString(); // Devuelve 'YYYY-MM-DD'
+            $end_date = Carbon::parse($request->end_date)->toDateString();
+        }
+
+        $sql = "
+            WITH last_adress AS (
+                SELECT DISTINCT ON (ad.addressable_id)
+                    ad.addressable_id AS affiliate_id,
+                    c.name AS city,
+                    ad2.zone,
+                    ad2.street,
+                    ad2.housing_unit,
+                    ad2.number_address,
+                    ad2.description
+                FROM addressables ad
+                JOIN addresses ad2 
+                    ON ad.address_id = ad2.id
+                LEFT JOIN cities c 
+                    ON c.id = ad2.city_address_id
+                WHERE ad.addressable_type ILIKE '%affiliates%'
+                ORDER BY ad.addressable_id, ad2.updated_at DESC
+            ),
+
+            procedures AS (
+                SELECT 
+                    rf.code,
+                    rf.procedure_modality_id,
+                    rf.reception_date,
+                    rf.city_start_id,
+                    rf.affiliate_id
+                FROM retirement_funds rf
+                WHERE rf.code NOT ILIKE '%a%'
+                AND rf.deleted_at IS NULL
+                AND rf.reception_date BETWEEN :start_date AND :end_date
+
+                UNION ALL
+
+                SELECT 
+                    qam.code,
+                    qam.procedure_modality_id,
+                    qam.reception_date,
+                    qam.city_start_id,
+                    qam.affiliate_id
+                FROM quota_aid_mortuaries qam
+                WHERE qam.code NOT ILIKE '%a%'
+                AND qam.deleted_at IS NULL
+                AND qam.reception_date BETWEEN :start_date AND :end_date
+            )
+
+            SELECT
+                pro.code,
+                pt.name AS pt_name,
+                pm.name as pm_name,
+                pm.shortened AS pm_shortened,
+                pro.reception_date,
+                c.name AS city_start,
+                a.id AS nup,
+                a.first_name,
+                a.second_name,
+                a.last_name,
+                a.mothers_last_name,
+                a.identity_card,
+                a.date_entry,
+                a.date_derelict,
+                d.shortened AS degree_shortened,
+                a.birth_date,
+                a.date_death,
+                a.civil_status,
+                a.gender,
+                la.city as city_address,
+                la.zone,
+                la.street,
+                la.housing_unit,
+                la.number_address,
+                la.description
+            FROM procedures pro
+            JOIN affiliates a 
+                ON a.id = pro.affiliate_id
+            JOIN procedure_modalities pm 
+                ON pm.id = pro.procedure_modality_id
+            JOIN procedure_types pt 
+                ON pm.procedure_type_id = pt.id
+            JOIN cities c 
+                ON pro.city_start_id = c.id
+            JOIN degrees d 
+                ON d.id = a.degree_id
+            LEFT JOIN last_adress la
+                ON la.affiliate_id = pro.affiliate_id
+            ORDER BY nup, pm_shortened";
+        
+        $list = DB::select($sql, [
+            'start_date' => $start_date,
+            'end_date'   => $end_date
+        ]);
+        return Excel::download(new ProceduresFrcamExport($list), 'procedures_frcam_report.xls');
+     }
 }

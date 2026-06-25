@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Affiliate\Affiliate;
 use App\Models\Contribution\Contribution;
-use App\Models\Contribution\PayrollCommand;
 use App\Models\Affiliate\Unit;
 use App\Models\Affiliate\Degree;
 use App\Models\Affiliate\Breakdown;
@@ -49,7 +48,7 @@ class PayrollCommand extends Model
         'birth_date',
         'date_entry',
         'affiliate_type',
-        'reimbursement'
+        'type_payroll'
     ];
     
     public function payroll_command_contribution()
@@ -81,11 +80,11 @@ class PayrollCommand extends Model
     {
         return $this->belongsTo(Hierarchy::class);
     }
-    public static function data_period($month,$year,$reimbursement)
+    public static function data_period($month,$year,$type_payroll)
     {
         $data = collect([]);
         $exists_data = true;
-        $payroll = PayrollCommand::whereMonth_p($month)->whereYear_p($year)->whereReimbursement($reimbursement)->count('id');
+        $payroll = PayrollCommand::whereMonth_p($month)->whereYear_p($year)->whereTypePayroll($type_payroll)->count('id');
         if($payroll == 0) $exists_data = false;
 
         $data['exist_data'] = $exists_data;
@@ -93,12 +92,12 @@ class PayrollCommand extends Model
 
         return  $data;
     }
-    public static function data_count($month,$year,$reimbursement)
+    public static function data_count($month,$year,$type_payroll)
     {
         $data = collect([]);
-        $data['validated'] = PayrollCommand::whereMonth_p($month)->whereYear_p($year)->whereReimbursement($reimbursement)->count('id');
-        $data['regular'] = PayrollCommand::whereMonth_p($month)->whereYear_p($year)->whereReimbursement($reimbursement)->whereAffiliate_type('REGULAR')->count('id');
-        $data['new'] = PayrollCommand::whereMonth_p($month)->whereYear_p($year)->whereReimbursement($reimbursement)->whereAffiliate_type('NUEVO')->count('id');
+        $data['validated'] = PayrollCommand::whereMonth_p($month)->whereYear_p($year)->whereTypePayroll($type_payroll)->count('id');
+        $data['regular'] = PayrollCommand::whereMonth_p($month)->whereYear_p($year)->whereTypePayroll($type_payroll)->whereAffiliate_type('REGULAR')->count('id');
+        $data['new'] = PayrollCommand::whereMonth_p($month)->whereYear_p($year)->whereTypePayroll($type_payroll)->whereAffiliate_type('NUEVO')->count('id');
 
         return  $data;
     }
