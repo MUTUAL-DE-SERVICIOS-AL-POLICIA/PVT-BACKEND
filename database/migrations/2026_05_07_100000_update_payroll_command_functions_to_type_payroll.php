@@ -289,7 +289,7 @@ return new class extends Migration
                             --CASO2: Porcentaje distinto
                             ELSIF (percentage <> round(cr_mortuary_quota,2) and total>0) THEN
                                 retirement_fund_into:=get_retirement_fund_reimbursement_calculator(date_period,total,affiliate_id);
-                                RAISE NOTICE 'retirement_fund_into'
+                                RAISE NOTICE 'retirement_fund_into';
                             else
                                 RAISE EXCEPTION 'Ocurrio un error al calcular el monto, revisar';
                             end if;
