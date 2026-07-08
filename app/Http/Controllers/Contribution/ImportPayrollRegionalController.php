@@ -150,6 +150,9 @@ class ImportPayrollRegionalController extends Controller
                         cotizable::DECIMAL(13,2), aporte::DECIMAL(13,2), porcentaje_aporte::DECIMAL(13,2), current_timestamp , current_timestamp
                         FROM payroll_copy_regional_tmp";
                         $insert = DB::connection('db_aux')->select($insert);
+
+                        $query = "SELECT * FROM format_payroll_copy_regionals('$date_import');";
+                        $data_format = DB::connection('db_aux')->select($query);
                         
                         $drop = "DROP TABLE IF EXISTS payroll_copy_regional_tmp";
                         $drop = DB::connection('db_aux')->select($drop);
