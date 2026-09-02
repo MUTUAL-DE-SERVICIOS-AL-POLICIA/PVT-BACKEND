@@ -33,10 +33,10 @@ return new class extends Migration
      					---CASO 1: Porcentajes segun Contrib.Rates
                          if (percentage = round(cr_retirement_fund+cr_mortuary_quota,2)) then
                             retirement_fund_into:= total * cr_retirement_fund/percentage;
-                         elseif (percentage = round(cr_mortuary_quota,2)) THEN
+                         elsif (percentage = round(cr_mortuary_quota,2)) THEN
                              retirement_fund_into:=0;
                          --CASO2: Porcentaje distinto
-                         elseif (percentage <> round(cr_mortuary_quota,2) and (percentage <> round(cr_mortuary_quota,2) and total>0)) THEN
+                         elsif (percentage <> round(cr_mortuary_quota,2) and (percentage <> round(cr_mortuary_quota,2) and total>0)) THEN
                              retirement_fund_into:=get_retirement_fund_reimbursement_calculator(date_period,total,affiliate_id);
                          raise notice 'dif';
                          else

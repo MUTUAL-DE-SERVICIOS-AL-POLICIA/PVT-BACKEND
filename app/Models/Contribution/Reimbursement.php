@@ -42,7 +42,8 @@ class Reimbursement extends Model
         'updated_at',
         'deleted_at',
         'interest',
-        'valid'
+        'valid',
+        'type_payroll'
     ];
 
     public function affiliate()                      
@@ -66,11 +67,11 @@ class Reimbursement extends Model
         return $this->belongsTo(Breakdown::class);
     }
 
-    public static function data_period_reimbursement($month_year)
+    public static function data_period_reimbursement($month_year, $type_payroll)
     {
         $data = collect([]);
         $exists_data = true;
-        $contribution =  Reimbursement::whereMonth_year($month_year)->whereContributionable_type('payroll_commands')->count('id');
+        $contribution =  Reimbursement::whereMonth_year($month_year)->whereContributionable_type('payroll_commands')->whereType_payroll($type_payroll)->count('id');
         if($contribution == 0) $exists_data = false;
 
         $data['exist_data'] = $exists_data;
@@ -79,9 +80,9 @@ class Reimbursement extends Model
         return  $data;
     }
 
-    public static function sum_total_reimbursement($month_year)
+    public static function sum_total_reimbursement($month_year, $type_payroll)
     {
-        $contribution =  Reimbursement::whereMonth_year($month_year)->whereContributionable_type('payroll_commands')->sum('total');
+        $contribution =  Reimbursement::whereMonth_year($month_year)->whereContributionable_type('payroll_commands')->whereType_payroll($type_payroll)->sum('total');
         return $contribution;
     }
 

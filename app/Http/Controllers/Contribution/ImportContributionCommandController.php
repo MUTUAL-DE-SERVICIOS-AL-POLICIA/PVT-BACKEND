@@ -77,14 +77,14 @@ class ImportContributionCommandController extends Controller
                     break;
                 }
             }
-            $month->state_validated_payroll = PayrollCommand::data_period($month->period_month,$period_year,'false')['exist_data'];
+            $month->state_validated_payroll = PayrollCommand::data_period($month->period_month,$period_year,'mensual')['exist_data'];
             $date_payroll_format = Carbon::parse($period_year.'-'.$month->period_month.'-'.'01')->toDateString();
             if($with_data_count)
-            $month->data_count = $this->data_count_contribution($month->period_month,$period_year,$date_payroll_format,'false');
+            $month->data_count = $this->data_count_contribution($month->period_month,$period_year,$date_payroll_format,'mensual');
          }
 
          //Importacion reintegros
-         $query_re = "SELECT distinct month_year, to_char( month_year, 'TMMonth') as period_month_name, extract(year from month_year) as period_year,extract(month from month_year) as period_month  from reimbursements where deleted_at is null and (extract(year from month_year::timestamp)) = $period_year and contributionable_type = 'payroll_commands' group by month_year;";
+         $query_re = "SELECT distinct month_year, to_char( month_year, 'TMMonth') as period_month_name, extract(year from month_year) as period_year,extract(month from month_year) as period_month  from reimbursements where deleted_at is null and (extract(year from month_year::timestamp)) = $period_year and contributionable_type = 'payroll_commands' group by month_year, type_payroll;";
          $query_re = DB::select($query_re);
 
          $query_months_re = "select id as period_month ,name as period_month_name from months order by id asc";
@@ -98,10 +98,31 @@ class ImportContributionCommandController extends Controller
                     break;
                 }
             }
-            $month_re->state_validated_payroll = PayrollCommand::data_period($month_re->period_month,$period_year,'true')['exist_data'];
+            $month_re->state_validated_payroll = PayrollCommand::data_period($month_re->period_month,$period_year,'reintegro')['exist_data'];
             $date_payroll_format_re = Carbon::parse($period_year.'-'.$month_re->period_month.'-'.'01')->toDateString();
             if($with_data_count)
-            $month_re->data_count = $this->data_count_contribution($month_re->period_month,$period_year,$date_payroll_format_re,'true');
+            $month_re->data_count = $this->data_count_contribution($month_re->period_month,$period_year,$date_payroll_format_re,'reintegro');
+         }
+
+         //Importacion adicionales
+         $query_ad = "SELECT distinct month_year, to_char( month_year, 'TMMonth') as period_month_name, extract(year from month_year) as period_year,extract(month from month_year) as period_month from reimbursements where deleted_at is null and (extract(year from month_year::timestamp)) = $period_year and contributionable_type = 'payroll_commands' and type_payroll = 'regularizacion' group by month_year, type_payroll;";
+         $query_ad = DB::select($query_ad);
+
+         $query_months_ad = "select id as period_month ,name as period_month_name from months order by id asc";
+         $query_months_ad = DB::select($query_months_ad);
+
+         foreach ($query_months_ad as $month_ad) {
+            $month_ad->state_importation = false;
+            foreach ($query_ad as $month_contribution_ad) {
+                if($month_ad->period_month == $month_contribution_ad->period_month){
+                    $month_ad->state_importation = true;
+                    break;
+                }
+            }
+            $month_ad->state_validated_payroll = PayrollCommand::data_period($month_ad->period_month,$period_year,'regularizacion')['exist_data'];
+            $date_payroll_format_ad = Carbon::parse($period_year.'-'.$month_ad->period_month.'-'.'01')->toDateString();
+            if($with_data_count)
+            $month_ad->data_count = $this->data_count_contribution($month_ad->period_month,$period_year,$date_payroll_format_ad,'regularizacion');
          }
 
 
@@ -111,36 +132,37 @@ class ImportContributionCommandController extends Controller
                 'list_months' =>  $query_months,
                 'count_months' =>  count($query),
                 'list_months_re' =>  $query_months_re,
-                'count_months_re' =>  count($query_re)
+                'count_months_re' =>  count($query_re),
+                'list_months_ad' =>  $query_months_ad,
+                'count_months_ad' =>  count($query_ad)
             ],
         ]);
     }
 
-    public function data_count($month,$year,$date_payroll_format,$reimbursement){
+    public function data_count($month,$year,$date_payroll_format,$type_payroll){
         $data_count['num_total_data_copy'] = 0;
         $data_count['num_data_validated'] = 0;
         $data_count['num_data_regular'] = 0;
         $data_count['num_data_new'] = 0;
         $data_count['num_total_data_contributions'] = 0;
         $data_count['sum_amount_total_contributions'] = 0;
-        $reimbursement = filter_var($reimbursement ?? false, FILTER_VALIDATE_BOOLEAN);
 
 
         //---TOTAL DE DATOS DEL ARCHIVO
-        $query_total_data = "SELECT count(id) FROM payroll_copy_commands where mes = $month::INTEGER and a_o = $year::INTEGER;";
+        $query_total_data = "SELECT count(id) FROM payroll_copy_commands where mes = $month::INTEGER and a_o = $year::INTEGER and type_payroll = '$type_payroll';";
         $query_total_data = DB::connection('db_aux')->select($query_total_data);
         $data_count['num_total_data_copy'] = $query_total_data[0]->count;
         // TOTAL VALIDADOS
-        $data_count['num_data_validated'] =PayrollCommand::data_count($month,$year,$reimbursement)['validated'];
+        $data_count['num_data_validated'] =PayrollCommand::data_count($month,$year,$type_payroll)['validated'];
         //CANTIDAD DE AFILIADOS REGULARES
-        $data_count['num_data_regular'] = PayrollCommand::data_count($month,$year,$reimbursement)['regular'];
+        $data_count['num_data_regular'] = PayrollCommand::data_count($month,$year,$type_payroll)['regular'];
         //CANTIDAD DE AFILIADOS NUEVOS
-        $data_count['num_data_new'] =PayrollCommand::data_count($month,$year,$reimbursement)['new'];
+        $data_count['num_data_new'] =PayrollCommand::data_count($month,$year,$type_payroll)['new'];
 
-        if($reimbursement){
-            $data_count['num_total_data_contributions'] = Reimbursement::data_period_reimbursement($date_payroll_format)['count_data'];
+        if($type_payroll != 'mensual'){
+            $data_count['num_total_data_contributions'] = Reimbursement::data_period_reimbursement($date_payroll_format, $type_payroll)['count_data'];
             //---suma monto total reintegro
-            $data_count['sum_amount_total_contributions'] = floatval(Reimbursement::sum_total_reimbursement($date_payroll_format)); 
+            $data_count['sum_amount_total_contributions'] = floatval(Reimbursement::sum_total_reimbursement($date_payroll_format, $type_payroll)); 
         }else{
             $data_count['num_total_data_contributions'] = Contribution::data_period_command($date_payroll_format)['count_data'];
             //---suma monto total contribucion
@@ -151,18 +173,17 @@ class ImportContributionCommandController extends Controller
 
         return  $data_count;
     }
-    public function data_count_contribution($month,$year,$date_payroll_format,$reimbursement){
+    public function data_count_contribution($month,$year,$date_payroll_format,$type_payroll){
         $data_count['num_data_validated'] = 0;
         $data_count['num_total_data_contributions'] = 0;
         $data_count['sum_amount_total_contributions'] = 0;
-        $reimbursement = filter_var($reimbursement ?? false, FILTER_VALIDATE_BOOLEAN);
 
         // TOTAL VALIDADOS
-        $data_count['num_data_validated'] =PayrollCommand::data_count($month,$year,$reimbursement)['validated'];
-        if($reimbursement){
-            $data_count['num_total_data_contributions'] = Reimbursement::data_period_reimbursement($date_payroll_format)['count_data'];
-            //---suma monto total contribucion
-            $data_count['sum_amount_total_contributions'] = floatval(Reimbursement::sum_total_reimbursement($date_payroll_format));
+        $data_count['num_data_validated'] =PayrollCommand::data_count($month,$year,$type_payroll)['validated'];
+        if($type_payroll != 'mensual'){
+            $data_count['num_total_data_contributions'] = Reimbursement::data_period_reimbursement($date_payroll_format, $type_payroll)['count_data'];
+            //---suma monto total reintegro
+            $data_count['sum_amount_total_contributions'] = floatval(Reimbursement::sum_total_reimbursement($date_payroll_format, $type_payroll)); 
         }else{
             $data_count['num_total_data_contributions'] = Contribution::data_period_command($date_payroll_format)['count_data'];
             //---suma monto total contribucion
@@ -185,7 +206,7 @@ class ImportContributionCommandController extends Controller
      *          @OA\JsonContent(
      *              type="object",
      *              @OA\Property(property="period_contribution", type="string",description="fecha de aporte required",example= "2022-03-01"),
-     *              @OA\Property(property="reimbursement", type="boolean",description="Es reintegro? required",example= "2023-04-01")
+     *              @OA\Property(property="type_payroll", type="string",description="Tipo de planilla required",example= "mensual")
      *            )
      *     ),
      *     security={
@@ -208,7 +229,7 @@ class ImportContributionCommandController extends Controller
     public function import_contribution_command(Request $request){
         $request->validate([
         'period_contribution' => 'required|date_format:"Y-m-d"',
-        'reimbursement' => 'required'
+        'type_payroll' => 'required|in:mensual,reintegro,regularizacion'
         ]);
      try{
         DB::beginTransaction();
@@ -219,17 +240,17 @@ class ImportContributionCommandController extends Controller
         $period_contribution = Carbon::parse($request->period_contribution);
         $year = (int)$period_contribution->format("Y");
         $month = (int)$period_contribution->format("m");
-        $reimbursement = filter_var($request->reimbursement ?? false, FILTER_VALIDATE_BOOLEAN);
+        $type_payroll = $request->type_payroll;
 
-        if($reimbursement){
-            $count_registered = Reimbursement::data_period_reimbursement($request->period_contribution)['count_data'];
+        if($type_payroll != 'mensual'){
+            $count_registered = Reimbursement::data_period_reimbursement($request->period_contribution, $type_payroll)['count_data'];
             if((int)$count_registered > 0){
                 $message ="Error al realizar la importación, el periodo ya fue importado.";
             }else{
                 if(Contribution::exist_contribution_rate($request->period_contribution)){
-                    $query ="select import_period_reimbursement_command('$request->period_contribution',$user_id,$year,$month)";
+                    $query ="select import_period_reimbursement_command('$request->period_contribution',$user_id,$year,$month, '$type_payroll')";
                     $query = DB::select($query);
-                    $count_created = Reimbursement::data_period_reimbursement($request->period_contribution)['count_data'];
+                    $count_created = Reimbursement::data_period_reimbursement($request->period_contribution, $type_payroll)['count_data'];
                     DB::commit();
                     $successfully = true;
                     $message ="Realizado con éxito!";
@@ -269,15 +290,16 @@ class ImportContributionCommandController extends Controller
             ]);
         }
 
-     }catch(Exception $e){
+     }catch(\Throwable $e){
         DB::rollBack();
         return response()->json([
-            'message' => 'Error al realizar la importación',
+             preg_match('/ERROR:\s+(.*?)CONTEXT/s', $e->getMessage(), $matches),
+             'message' => $matches[1] ?? 'Ocurrió un error al procesar la operación.',
             'payload' => [
                 'successfully' => false,
-                'error' => $e->getMessage(),
+                'error' => $matches[1] ?? 'Ocurrió un error al procesar la operación.',
             ],
-        ]);
+        ],500);
      }
     }
 
@@ -387,7 +409,8 @@ class ImportContributionCommandController extends Controller
      *          description= "Provide auth credentials",
      *          required=true,
      *          @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(
-     *             @OA\Property(property="date_contribution", type="string",description="fecha de planilla required",example= "2022-03-01")
+     *             @OA\Property(property="date_contribution", type="string",description="fecha de planilla required",example= "2022-03-01"),
+     *             @OA\Property(property="type_payroll", type="string", description="Tipo de planilla: reintegro, regularizacion", example="reintegro")
      *            )
      *          ),
      *     ),
@@ -412,12 +435,14 @@ class ImportContributionCommandController extends Controller
 
         $request->validate([
             'date_contribution' => 'required|date_format:"Y-m-d"',
+            'type_payroll' => 'required|in:reintegro,regularizacion'
         ]);
 
         DB::beginTransaction();
         $message = "No hay datos";
         ini_set('max_execution_time', '300000');
         $date_contribution_format = $request->date_contribution;
+        $type_payroll = $request->type_payroll;
 
         $data_cabeceras=array(array("PERIODO","TIPO","ID_AFILIADO","CÉDULA_DE_IDENTIDAD","UNIDAD","DESGLOSE","PATERNO",
         "MATERNO","AP_CASADA", "P_NOMBRE","S_NOMBRE","ESTADO_CIVIL","GRADO","SUELDO_BASE","BONO_ANTIGÜEDAD", "BONO_ESTUDIO",
@@ -441,8 +466,8 @@ class ImportContributionCommandController extends Controller
         on b.id = r.breakdown_id 
         inner join degrees d 
         on d.id = r.degree_id
-        and r.month_year = '$date_contribution'
-        and r.type = 'Planilla'";
+        where r.month_year = '$date_contribution'
+        and r.type = 'Planilla' and r.type_payroll = '$type_payroll'";
                     $data_contribution_command = DB::select($data_contribution_command);
 
                             if(count($data_contribution_command)> 0){
