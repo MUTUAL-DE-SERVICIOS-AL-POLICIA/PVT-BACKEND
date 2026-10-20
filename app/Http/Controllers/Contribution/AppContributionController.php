@@ -57,7 +57,8 @@ class AppContributionController extends Controller
 
         $reimbursements = Reimbursement::whereAffiliateId($affiliate_id)
             ->orderBy('month_year', 'asc')
-            ->get();
+            ->get()
+            ->groupBy('month_year');
 
         for ($i = $year_min; $i <= $year_max; $i++) {
             $contributions = collect();
@@ -97,12 +98,13 @@ class AppContributionController extends Controller
                 $contribution_total = $contributions_active->total;
                 $reimbursement_total = 0;
                 $full_total = $contributions_active->total;
-                foreach ($reimbursements as $reimbursement) {
-                    if ($contributions_active->month_year == $reimbursement->month_year) {
-                        $reimbursement_total = $reimbursement->total;
-                        $full_total = $contribution_total + $reimbursement_total;
-                    }
+                $monthReimbursements = $reimbursements[$contributions_active->month_year] ?? collect();
+
+                foreach ($monthReimbursements as $reimbursement) {
+                    $reimbursement_total += $reimbursement->total;
                 }
+                $full_total += $reimbursement_total;
+                
                 $contributions->push([
                     'state' => 'ACTIVO',
                     'id' => $contributions_active->id,
@@ -114,8 +116,25 @@ class AppContributionController extends Controller
                     'contribution_total' => Util::money_format($contribution_total),
                     'reimbursement_total' => Util::money_format($reimbursement_total),
                     'total' => Util::money_format($full_total),
+                    'type_payroll' => '',
                     'type' => $contributions_active->contributionable_type
                 ]);
+                foreach ($monthReimbursements as $reimbursement) {
+                $contributions->push([
+                    'state' => 'ACTIVO',
+                    'id' => $reimbursement->id,
+                    'month_year' => $reimbursement->month_year,
+                    'description' => null,
+                    'quotable' => Util::money_format($reimbursement->quotable),
+                    'retirement_fund' => Util::money_format($reimbursement->retirement_fund),
+                    'mortuary_quota' => Util::money_format($reimbursement->mortuary_quota),
+                    'contribution_total' => null,
+                    'reimbursement_total' => Util::money_format($reimbursement->total),
+                    'total' => Util::money_format($reimbursement->total),
+                    'type_payroll' => $reimbursement->type_payroll,
+                    'type' => 'reimbursement'
+                ]);
+}
             }
             $contributions_total->push([
                 'year' => $i . "",
@@ -343,7 +362,7 @@ class AppContributionController extends Controller
         ];
     }
 
-    public function printCertificationContributionActive(Request $request, $affiliate_id)
+    public function printCertificationContributionActive(Request $request, $affiliate_id) //movil
     {
         $request['affiliate_id'] = $affiliate_id;
         $request->validate([
