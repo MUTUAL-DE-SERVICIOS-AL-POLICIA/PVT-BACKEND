@@ -793,6 +793,12 @@ class ReportController extends Controller
                         'affiliates.id'
                     )
                     ->leftJoin(
+                        'wf_states as ws_retirement',
+                        'ws_retirement.id',
+                        '=',
+                        'retirement_funds.wf_state_current_id'
+                    )
+                    ->leftJoin(
                         'cities',
                         'cities.id',
                         '=',
@@ -868,6 +874,7 @@ class ReportController extends Controller
                         'affiliates.identity_card as identity_card',
 
                         // Beneficiario.
+                        'ws_retirement.first_shortened as location',
                         'ret_fun_beneficiaries.id as beneficiary_id',
                         'ret_fun_beneficiaries.type as beneficiary_type',
                         'ret_fun_beneficiaries.state as beneficiary_state',
@@ -917,6 +924,7 @@ class ReportController extends Controller
                         'affiliates.surname_husband',
                         'affiliates.identity_card',
 
+                        'ws_retirement.first_shortened',
                         'ret_fun_beneficiaries.id',
                         'ret_fun_beneficiaries.type',
                         'ret_fun_beneficiaries.state',
@@ -953,6 +961,7 @@ class ReportController extends Controller
                         'beneficiary_type' => $row->beneficiary_type,
                         'beneficiary_state' => $row->beneficiary_state,
                         'beneficiary_table' => $beneficiaryTable,
+                        'location' => $row->location,
 
                         'beneficiary_identity_card' => $row->beneficiary_identity_card,
                         'beneficiary_first_name' => $row->beneficiary_first_name,
@@ -990,6 +999,12 @@ class ReportController extends Controller
                         'qam.affiliate_id',
                         '=',
                         'affiliates.id'
+                    )
+                    ->leftJoin(
+                        'wf_states as ws_quota',
+                        'ws_quota.id',
+                        '=',
+                        'qam.wf_state_current_id'
                     )
                     ->leftJoin(
                         'procedure_modalities as pm',
@@ -1045,10 +1060,11 @@ class ReportController extends Controller
                         'affiliates.last_name',
                         'affiliates.mothers_last_name',
                         'qam.code',
-
-                        // Número y fecha de resolución para Cuota/Auxilio.
                         'qac_res.date as fecha_resolucion',
                         'qac_liq.date as fecha_liquidacion',
+
+                        // Ubicación del trámite.
+                        'ws_quota.first_shortened as location',
 
                         // Beneficiario.
                         'qab.id as beneficiary_id',
@@ -1072,9 +1088,7 @@ class ReportController extends Controller
                         'affiliates.last_name',
                         'affiliates.mothers_last_name',
                         'qam.code',
-
-                        'qac_res.date',
-                        'qac_liq.date',
+                        'ws_quota.first_shortened',
 
                         'qab.id',
                         'qab.type',
@@ -1087,7 +1101,10 @@ class ReportController extends Controller
                         'qab.mothers_last_name',
                         'qab.identity_card',
                         'k.name',
-                        'qab.paid_amount'
+                        'qab.paid_amount',
+                        
+                        'qac_res.date',
+                        'qac_liq.date'
                     )
                     ->orderBy('affiliates.identity_card')
                     ->get();
@@ -1107,6 +1124,7 @@ class ReportController extends Controller
                         'beneficiary_type' => $row->beneficiary_type,
                         'beneficiary_state' => $row->beneficiary_state,
                         'beneficiary_table' => $beneficiaryTable,
+                        'location' => $row->location,
 
                         'beneficiary_identity_card' => $row->beneficiary_identity_card,
                         'beneficiary_first_name' => $row->beneficiary_first_name,
@@ -1408,7 +1426,7 @@ class ReportController extends Controller
                 ]);
             }
 
-            $location = filter_var(
+            $documents = filter_var(
                 $row['beneficiary_state'],
                 FILTER_VALIDATE_BOOLEAN
             )
@@ -1427,7 +1445,8 @@ class ReportController extends Controller
                 $address ? $address['address'] : null,
                 $row['phone_number'],
                 $row['cell_phone_number'],
-                $location,
+                $row['location'],
+                $documents,
             ]);
 
             $data[] = $result;

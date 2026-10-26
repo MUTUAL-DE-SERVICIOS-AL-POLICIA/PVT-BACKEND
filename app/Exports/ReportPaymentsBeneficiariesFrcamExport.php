@@ -83,6 +83,7 @@ class ReportPaymentsBeneficiariesFrcamExport implements
             'BEN_TELÉFONO',
             'BEN_CELULAR',
             'UBICACIÓN',
+            'DOCUMENTOS',
         ]);
 
         return $headings;
