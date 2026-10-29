@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
 use App\Exports\QualificationReportExport;
+use App\Exports\ReportPaymentsBeneficiariesFrcamExport;
 
 class ReportController extends Controller
 {
@@ -205,7 +206,7 @@ class ReportController extends Controller
         return Excel::download($export, $file_name . $extension);
         
     } 
-
+///
     /**
      * @OA\Post(
      *      path="/api/report/report_payments_beneficiaries",
@@ -238,7 +239,7 @@ class ReportController extends Controller
      * @param Request $request
      * @return void
      */
-    public function report_payments_beneficiaries(Request $request)
+    public function report_payments_beneficiaries2(Request $request)
     {
         ini_set('max_execution_time', '300000');
         $date = date('Y-m-d');
@@ -263,10 +264,10 @@ class ReportController extends Controller
                     ->leftJoin('discount_types', 'discount_types.id', '=', 'discount_type_retirement_fund.discount_type_id')
                     ->leftJoin('ret_fun_correlatives', 'ret_fun_correlatives.retirement_fund_id', '=', 'retirement_funds.id')
                     ->whereBetween(DB::raw('DATE(retirement_funds.created_at)'), [$start_date, $end_date])
-                    ->where('ret_fun_correlatives.wf_state_id', '=', 26)
+                    //->where('ret_fun_correlatives.wf_state_id', '=', 26)
                     ->where('retirement_funds.ret_fun_state_id', '!=', 3)
                     ->whereNull('ret_fun_correlatives.deleted_at')
-                    ->whereIn('discount_type_retirement_fund.discount_type_id', [1, 2, 3])
+                   //->whereIn('discount_type_retirement_fund.discount_type_id', [1, 2, 3])
                     ->select(
                         'affiliates.id as nup',
                         'retirement_funds.code as code',
@@ -585,6 +586,7 @@ class ReportController extends Controller
         $list = DB::select($sql);
         return Excel::download(new AffiliatesSimilarExport($list), 'affiliates_similar.xls');
     }
+    ///////
         /**
      * @OA\Post(
      *      path="/api/report/report_procedures_frcam",
@@ -721,4 +723,742 @@ class ReportController extends Controller
         ]);
         return Excel::download(new ProceduresFrcamExport($list), 'procedures_frcam_report.xls');
      }
+
+
+    /**
+     * @OA\Post(
+     *     path="/api/report/report_payments_beneficiaries",
+     *     tags={"REPORTES"},
+     *     summary="GENERA REPORTE DE PAGOS Y DERECHOHABIENTES FRCAM",
+     *     operationId="report_payments_beneficiaries",
+     *     description="Genera reporte de trámites, titulares, beneficiarios y domicilios",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="start_date",
+     *                 type="string",
+     *                 format="date",
+     *                 example="2026-02-01"
+     *             ),
+     *             @OA\Property(
+     *                 property="end_date",
+     *                 type="string",
+     *                 format="date",
+     *                 example="2026-02-28"
+     *             ),
+     *             @OA\Property(
+     *                 property="type",
+     *                 type="string",
+     *                 example="Cuota Mortuoria"
+     *             )
+     *         )
+     *     ),
+     *     security={{"bearerAuth": {}}},
+     *     @OA\Response(response=200, description="Success")
+     * )
+     */
+
+    public function report_payments_beneficiaries(Request $request)
+    {
+        ini_set('max_execution_time', '300000');
+
+        $date = date('Y-m-d');
+
+        if ($request->start_date == null || $request->end_date == null) {
+            $start_date = $date;
+            $end_date = $date;
+        } else {
+            $start_date = Carbon::parse($request->start_date)->toDateString();
+            $end_date = Carbon::parse($request->end_date)->toDateString();
+        }
+
+        $mainRows = [];
+        $beneficiaryTable = null;
+
+        /*
+        * 1. CONSULTA PRINCIPAL
+        */
+        switch ($request->type) {
+
+            case 'Fondo de Retiro Policial':
+
+                $beneficiaryTable = 'ret_fun_beneficiaries';
+
+                $list = Affiliate::leftJoin(
+                        'retirement_funds',
+                        'retirement_funds.affiliate_id',
+                        '=',
+                        'affiliates.id'
+                    )
+                    ->leftJoin(
+                        'wf_states as ws_retirement',
+                        'ws_retirement.id',
+                        '=',
+                        'retirement_funds.wf_state_current_id'
+                    )
+                    ->leftJoin(
+                        'cities',
+                        'cities.id',
+                        '=',
+                        'affiliates.city_identity_card_id'
+                    )
+                    ->leftJoin(
+                        'ret_fun_beneficiaries',
+                        'ret_fun_beneficiaries.retirement_fund_id',
+                        '=',
+                        'retirement_funds.id'
+                    )
+                    ->leftJoin(
+                        'kinships',
+                        'kinships.id',
+                        '=',
+                        'ret_fun_beneficiaries.kinship_id'
+                    )
+                    ->leftJoin(
+                        'procedure_modalities',
+                        'procedure_modalities.id',
+                        '=',
+                        'retirement_funds.procedure_modality_id'
+                    )
+                    ->leftJoin(
+                        'discount_type_retirement_fund',
+                        'discount_type_retirement_fund.retirement_fund_id',
+                        '=',
+                        'retirement_funds.id'
+                    )
+                    ->leftJoin(
+                        'discount_types',
+                        'discount_types.id',
+                        '=',
+                        'discount_type_retirement_fund.discount_type_id'
+                    )
+                    // Resolución: 26
+                    ->leftJoin('ret_fun_correlatives as rfc_res', function ($join) {
+                        $join->on(
+                            'rfc_res.retirement_fund_id',
+                            '=',
+                            'retirement_funds.id'
+                        )
+                        ->where('rfc_res.wf_state_id', '=', 26)
+                        ->whereNull('rfc_res.deleted_at');
+                    })
+
+                    // Liquidación: 86
+                    ->leftJoin('ret_fun_correlatives as rfc_liq', function ($join) {
+                        $join->on(
+                            'rfc_liq.retirement_fund_id',
+                            '=',
+                            'retirement_funds.id'
+                        )
+                        ->where('rfc_liq.wf_state_id', '=', 86)
+                        ->whereNull('rfc_liq.deleted_at');
+                    })
+                    ->whereBetween(
+                        DB::raw('DATE(retirement_funds.created_at)'),
+                        [$start_date, $end_date]
+                    )
+                    ->where('retirement_funds.ret_fun_state_id', '!=', 3)
+
+                    ->select(
+                        'affiliates.id as nup',
+                        'retirement_funds.code as code',
+                        'procedure_modalities.name as procedure_modality',
+
+                        'affiliates.first_name as first_name',
+                        'affiliates.second_name as second_name',
+                        'affiliates.last_name as last_name',
+                        'affiliates.mothers_last_name as mothers_last_name',
+                        'affiliates.surname_husband as surname_husband',
+                        'affiliates.identity_card as identity_card',
+
+                        // Beneficiario.
+                        'ws_retirement.first_shortened as location',
+                        'ret_fun_beneficiaries.id as beneficiary_id',
+                        'ret_fun_beneficiaries.type as beneficiary_type',
+                        'ret_fun_beneficiaries.state as beneficiary_state',
+                        'ret_fun_beneficiaries.phone_number as phone_number',
+                        'ret_fun_beneficiaries.cell_phone_number as cell_phone_number',
+                        'ret_fun_beneficiaries.identity_card as beneficiary_identity_card',
+                        'ret_fun_beneficiaries.first_name as beneficiary_first_name',
+                        'ret_fun_beneficiaries.second_name as beneficiary_second_name',
+                        'ret_fun_beneficiaries.last_name as beneficiary_last_name',
+                        'ret_fun_beneficiaries.mothers_last_name as beneficiary_mothers_last_name',
+                        'kinships.name as kinship',
+                        'ret_fun_beneficiaries.amount_ret_fun as amount',
+
+                        // Campos exclusivos de Fondo de Retiro.
+                        'retirement_funds.total_ret_fun as total_ret_fun',
+                        'retirement_funds.total_availability as total_availability',
+                        'rfc_res.date as fecha_resolucion',
+                        'rfc_liq.date as fecha_liquidacion',
+
+                        DB::raw(
+                            'MAX(CASE
+                                WHEN discount_types.id = 1
+                                THEN discount_type_retirement_fund.amount
+                            END) AS advance_ret_fun'
+                        ),
+                        DB::raw(
+                            'MAX(CASE
+                                WHEN discount_types.id = 2
+                                THEN discount_type_retirement_fund.amount
+                            END) AS loan_retention'
+                        ),
+                        DB::raw(
+                            'MAX(CASE
+                                WHEN discount_types.id = 3
+                                THEN discount_type_retirement_fund.amount
+                            END) AS guarantor_retention'
+                        )
+                    )
+                    ->groupBy(
+                        'affiliates.id',
+                        'retirement_funds.code',
+                        'procedure_modalities.name',
+                        'affiliates.first_name',
+                        'affiliates.second_name',
+                        'affiliates.last_name',
+                        'affiliates.mothers_last_name',
+                        'affiliates.surname_husband',
+                        'affiliates.identity_card',
+
+                        'ws_retirement.first_shortened',
+                        'ret_fun_beneficiaries.id',
+                        'ret_fun_beneficiaries.type',
+                        'ret_fun_beneficiaries.state',
+                        'ret_fun_beneficiaries.phone_number',
+                        'ret_fun_beneficiaries.cell_phone_number',
+                        'ret_fun_beneficiaries.identity_card',
+                        'ret_fun_beneficiaries.first_name',
+                        'ret_fun_beneficiaries.second_name',
+                        'ret_fun_beneficiaries.last_name',
+                        'ret_fun_beneficiaries.mothers_last_name',
+                        'ret_fun_beneficiaries.amount_ret_fun',
+                        'kinships.name',
+
+                        'retirement_funds.total_ret_fun',
+                        'retirement_funds.total_availability',
+                        'rfc_res.date',
+                        'rfc_liq.date'
+                    )
+                    ->orderBy('affiliates.id')
+                    ->get();
+
+                foreach ($list as $row) {
+                    $mainRows[] = [
+                        'code' => $row->code,
+                        'nup' => $row->nup,
+
+                        'identity_card' => $row->identity_card,
+                        'first_name' => $row->first_name,
+                        'second_name' => $row->second_name,
+                        'last_name' => $row->last_name,
+                        'mothers_last_name' => $row->mothers_last_name,
+
+                        'beneficiary_id' => $row->beneficiary_id,
+                        'beneficiary_type' => $row->beneficiary_type,
+                        'beneficiary_state' => $row->beneficiary_state,
+                        'beneficiary_table' => $beneficiaryTable,
+                        'location' => $row->location,
+
+                        'beneficiary_identity_card' => $row->beneficiary_identity_card,
+                        'beneficiary_first_name' => $row->beneficiary_first_name,
+                        'beneficiary_second_name' => $row->beneficiary_second_name,
+                        'beneficiary_last_name' => $row->beneficiary_last_name,
+                        'beneficiary_mothers_last_name' => $row->beneficiary_mothers_last_name,
+                        'kinship' => $row->kinship,
+                        'amount' => $row->amount,
+                        'phone_number' => $row->phone_number,
+                        'cell_phone_number' => $row->cell_phone_number,
+
+                        'total_ret_fun' => $row->total_ret_fun,
+                        'total_availability' => $row->total_availability,
+                        'fecha_resolucion' => $row->fecha_resolucion,
+                        'fecha_liquidacion' => $row->fecha_liquidacion,
+                        'advance_ret_fun' => $row->advance_ret_fun,
+                        'loan_retention' => $row->loan_retention,
+                        'guarantor_retention' => $row->guarantor_retention,
+                    ];
+                }
+
+                break;
+
+            case 'Cuota Mortuoria':
+            case 'Auxilio Mortuorio':
+
+                $beneficiaryTable = 'quota_aid_beneficiaries';
+
+                $modalities = $request->type == 'Cuota Mortuoria'
+                    ? [8, 9]
+                    : [13, 14, 15];
+
+                $list = Affiliate::leftJoin(
+                        'quota_aid_mortuaries as qam',
+                        'qam.affiliate_id',
+                        '=',
+                        'affiliates.id'
+                    )
+                    ->leftJoin(
+                        'wf_states as ws_quota',
+                        'ws_quota.id',
+                        '=',
+                        'qam.wf_state_current_id'
+                    )
+                    ->leftJoin(
+                        'procedure_modalities as pm',
+                        'pm.id',
+                        '=',
+                        'qam.procedure_modality_id'
+                    )
+                    ->leftJoin(
+                        'quota_aid_beneficiaries as qab',
+                        'qab.quota_aid_mortuary_id',
+                        '=',
+                        'qam.id'
+                    )
+                    ->leftJoin(
+                        'kinships as k',
+                        'k.id',
+                        '=',
+                        'qab.kinship_id'
+                    )
+                    // Resolución: 40
+                    ->leftJoin('quota_aid_correlatives as qac_res', function ($join) {
+                        $join->on(
+                            'qac_res.quota_aid_mortuary_id',
+                            '=',
+                            'qam.id'
+                        )
+                        ->where('qac_res.wf_state_id', '=', 40)
+                        ->whereNull('qac_res.deleted_at');
+                    })
+
+                    // Liquidación: 61
+                    ->leftJoin('quota_aid_correlatives as qac_liq', function ($join) {
+                        $join->on(
+                            'qac_liq.quota_aid_mortuary_id',
+                            '=',
+                            'qam.id'
+                        )
+                        ->where('qac_liq.wf_state_id', '=', 61)
+                        ->whereNull('qac_liq.deleted_at');
+                    })
+                    ->whereBetween(
+                        DB::raw('DATE(qam.created_at)'),
+                        [$start_date, $end_date]
+                    )
+                    ->whereNull('qam.deleted_at')
+                    ->whereIn('qam.procedure_modality_id', $modalities)
+                    ->where('qam.code', 'not ilike', '%A')
+                    ->select(
+                        'affiliates.id as nup',
+                        'affiliates.identity_card',
+                        'affiliates.first_name',
+                        'affiliates.second_name',
+                        'affiliates.last_name',
+                        'affiliates.mothers_last_name',
+                        'qam.code',
+                        'qac_res.date as fecha_resolucion',
+                        'qac_liq.date as fecha_liquidacion',
+
+                        // Ubicación del trámite.
+                        'ws_quota.first_shortened as location',
+
+                        // Beneficiario.
+                        'qab.id as beneficiary_id',
+                        'qab.type as beneficiary_type',
+                        'qab.state as beneficiary_state',
+                        'qab.phone_number as phone_number',
+                        'qab.cell_phone_number as cell_phone_number',
+                        'qab.first_name as beneficiary_first_name',
+                        'qab.second_name as beneficiary_second_name',
+                        'qab.last_name as beneficiary_last_name',
+                        'qab.mothers_last_name as beneficiary_mothers_last_name',
+                        'qab.identity_card as beneficiary_identity_card',
+                        'k.name as kinship',
+                        'qab.paid_amount as amount'
+                    )
+                    ->groupBy(
+                        'affiliates.id',
+                        'affiliates.identity_card',
+                        'affiliates.first_name',
+                        'affiliates.second_name',
+                        'affiliates.last_name',
+                        'affiliates.mothers_last_name',
+                        'qam.code',
+                        'ws_quota.first_shortened',
+
+                        'qab.id',
+                        'qab.type',
+                        'qab.state',
+                        'qab.phone_number',
+                        'qab.cell_phone_number',
+                        'qab.first_name',
+                        'qab.second_name',
+                        'qab.last_name',
+                        'qab.mothers_last_name',
+                        'qab.identity_card',
+                        'k.name',
+                        'qab.paid_amount',
+                        
+                        'qac_res.date',
+                        'qac_liq.date'
+                    )
+                    ->orderBy('affiliates.identity_card')
+                    ->get();
+
+                foreach ($list as $row) {
+                    $mainRows[] = [
+                        'code' => $row->code,
+                        'nup' => $row->nup,
+
+                        'identity_card' => $row->identity_card,
+                        'first_name' => $row->first_name,
+                        'second_name' => $row->second_name,
+                        'last_name' => $row->last_name,
+                        'mothers_last_name' => $row->mothers_last_name,
+
+                        'beneficiary_id' => $row->beneficiary_id,
+                        'beneficiary_type' => $row->beneficiary_type,
+                        'beneficiary_state' => $row->beneficiary_state,
+                        'beneficiary_table' => $beneficiaryTable,
+                        'location' => $row->location,
+
+                        'beneficiary_identity_card' => $row->beneficiary_identity_card,
+                        'beneficiary_first_name' => $row->beneficiary_first_name,
+                        'beneficiary_second_name' => $row->beneficiary_second_name,
+                        'beneficiary_last_name' => $row->beneficiary_last_name,
+                        'beneficiary_mothers_last_name' => $row->beneficiary_mothers_last_name,
+                        'kinship' => $row->kinship,
+                        'amount' => $row->amount,
+                        'phone_number' => $row->phone_number,
+                        'cell_phone_number' => $row->cell_phone_number,
+
+                        // Fechas de resolución y liquidación para Cuota/Auxilio.
+                        'fecha_resolucion' => $row->fecha_resolucion,
+                        'fecha_liquidacion' => $row->fecha_liquidacion,
+                    ];
+                }
+
+                break;
+
+            default:
+                abort(422, 'Tipo de reporte no válido.');
+        }
+
+        /*
+        * 2. CONSULTA COMPLEMENTARIA DEL TRÁMITE
+        */
+        $procedureMap = [];
+
+        if (!empty($mainRows)) {
+            $pairs = [];
+            $bindings = [];
+            $seen = [];
+
+            foreach ($mainRows as $row) {
+                if ($row['nup'] === null || $row['code'] === null) {
+                    continue;
+                }
+
+                $key = $row['nup'] . '|' . $row['code'];
+
+                if (!isset($seen[$key])) {
+                    $seen[$key] = true;
+                    $pairs[] = '(pro.affiliate_id = ? AND pro.code = ?)';
+                    $bindings[] = $row['nup'];
+                    $bindings[] = $row['code'];
+                }
+            }
+
+            if (!empty($pairs)) {
+                $wherePairs = implode(' OR ', $pairs);
+
+                $sql = "
+                    WITH procedures AS (
+                        SELECT
+                            rf.code,
+                            rf.procedure_modality_id,
+                            rf.reception_date,
+                            rf.city_start_id,
+                            rf.affiliate_id
+                        FROM retirement_funds rf
+                        WHERE rf.deleted_at IS NULL
+
+                        UNION ALL
+
+                        SELECT
+                            qam.code,
+                            qam.procedure_modality_id,
+                            qam.reception_date,
+                            qam.city_start_id,
+                            qam.affiliate_id
+                        FROM quota_aid_mortuaries qam
+                        WHERE qam.deleted_at IS NULL
+                    )
+                    SELECT
+                        pro.code,
+                        pro.affiliate_id AS nup,
+                        pt.name AS type_name,
+                        pm.name AS modality_name,
+                        pm.shortened AS modality_shortened,
+                        pro.reception_date,
+                        c.name AS city_start,
+                        a.date_entry,
+                        a.date_derelict,
+                        d.shortened AS degree_shortened,
+                        a.birth_date,
+                        a.date_death,
+                        a.civil_status,
+                        a.gender
+                    FROM procedures pro
+                    JOIN affiliates a
+                        ON a.id = pro.affiliate_id
+                    JOIN procedure_modalities pm
+                        ON pm.id = pro.procedure_modality_id
+                    JOIN procedure_types pt
+                        ON pt.id = pm.procedure_type_id
+                    LEFT JOIN cities c
+                        ON c.id = pro.city_start_id
+                    LEFT JOIN degrees d
+                        ON d.id = a.degree_id
+                    WHERE ($wherePairs)
+                ";
+
+                $procedures = DB::select($sql, $bindings);
+
+                foreach ($procedures as $procedure) {
+                    $key = $procedure->nup . '|' . $procedure->code;
+                    $procedureMap[$key] = $procedure;
+                }
+            }
+        }
+
+        /*
+        * 3. DIRECCIONES DE BENEFICIARIOS TYPE = 'S'
+        */
+        $addressMap = [];
+
+        $retirementBeneficiaryIds = [];
+        $quotaBeneficiaryIds = [];
+
+        foreach ($mainRows as $row) {
+            if (
+                $row['beneficiary_id'] === null ||
+                $row['beneficiary_type'] !== 'S'
+            ) {
+                continue;
+            }
+
+            if ($row['beneficiary_table'] === 'ret_fun_beneficiaries') {
+                $retirementBeneficiaryIds[] = $row['beneficiary_id'];
+            } elseif ($row['beneficiary_table'] === 'quota_aid_beneficiaries') {
+                $quotaBeneficiaryIds[] = $row['beneficiary_id'];
+            }
+        }
+
+        $retirementBeneficiaryIds = array_values(
+            array_unique($retirementBeneficiaryIds)
+        );
+
+        $quotaBeneficiaryIds = array_values(
+            array_unique($quotaBeneficiaryIds)
+        );
+
+        // Dirección de beneficiarios de Fondo de Retiro.
+        if (!empty($retirementBeneficiaryIds)) {
+            $addresses = DB::table('ret_fun_beneficiaries as b')
+                ->join('addressables as ab', function ($join) {
+                    $join->on('ab.addressable_id', '=', 'b.id')
+                        ->where(
+                            'ab.addressable_type',
+                            '=',
+                            'ret_fun_beneficiaries'
+                        );
+                })
+                ->join('addresses as ad', 'ad.id', '=', 'ab.address_id')
+                ->leftJoin('cities as c', 'c.id', '=', 'ad.city_address_id')
+                ->where('b.type', '=', 'S')
+                ->whereIn('b.id', $retirementBeneficiaryIds)
+                ->select(
+                    'b.id as beneficiary_id',
+                    'c.name as city_address',
+                    'ad.zone',
+                    'ad.street',
+                    'ad.number_address'
+                )
+                ->get();
+
+            foreach ($addresses as $address) {
+                $parts = [
+                    $address->zone,
+                    $address->street,
+                    $address->number_address,
+                ];
+
+                $parts = array_filter($parts, function ($value) {
+                    return $value !== null && trim((string) $value) !== '';
+                });
+
+                $addressMap[
+                    'ret_fun_beneficiaries|' . $address->beneficiary_id
+                ] = [
+                    'city_address' => $address->city_address,
+                    'address' => implode(' ', $parts),
+                ];
+            }
+        }
+
+        // Dirección de beneficiarios de Cuota/Auxilio Mortuorio.
+        if (!empty($quotaBeneficiaryIds)) {
+            $addresses = DB::table('quota_aid_beneficiaries as b')
+                ->join('addressables as ab', function ($join) {
+                    $join->on('ab.addressable_id', '=', 'b.id')
+                        ->where(
+                            'ab.addressable_type',
+                            '=',
+                            'quota_aid_beneficiaries'
+                        );
+                })
+                ->join('addresses as ad', 'ad.id', '=', 'ab.address_id')
+                ->leftJoin('cities as c', 'c.id', '=', 'ad.city_address_id')
+                ->where('b.type', '=', 'S')
+                ->whereIn('b.id', $quotaBeneficiaryIds)
+                ->select(
+                    'b.id as beneficiary_id',
+                    'c.name as city_address',
+                    'ad.zone',
+                    'ad.street',
+                    'ad.number_address'
+                )
+                ->get();
+
+            foreach ($addresses as $address) {
+                $parts = [
+                    $address->zone,
+                    $address->street,
+                    $address->number_address,
+                ];
+
+                $parts = array_filter($parts, function ($value) {
+                    return $value !== null && trim((string) $value) !== '';
+                });
+
+                $addressMap[
+                    'quota_aid_beneficiaries|' . $address->beneficiary_id
+                ] = [
+                    'city_address' => $address->city_address,
+                    'address' => implode(' ', $parts),
+                ];
+            }
+        }
+
+        /*
+        * 4. CONSTRUCCIÓN DE FILAS
+        */
+        $data = [];
+        $counter = 1;
+
+        $isRetirementFund =
+            $request->type === 'Fondo de Retiro Policial';
+
+        foreach ($mainRows as $row) {
+            $procedureKey = $row['nup'] . '|' . $row['code'];
+
+            $extra = isset($procedureMap[$procedureKey])
+                ? $procedureMap[$procedureKey]
+                : null;
+
+            $addressKey = $row['beneficiary_table'] . '|'
+                . $row['beneficiary_id'];
+
+            $address = null;
+
+            if (
+                $row['beneficiary_type'] === 'S' &&
+                isset($addressMap[$addressKey])
+            ) {
+                $address = $addressMap[$addressKey];
+            }
+
+            // Primeras 20 columnas comunes.
+            $result = [
+                $counter++,
+                $row['code'],
+                $extra ? $extra->type_name : null,
+                $extra ? $extra->modality_name : null,
+                $extra ? $extra->modality_shortened : null,
+                $extra ? $extra->reception_date : null,
+                $extra ? $extra->city_start : null,
+                $row['nup'],
+                $row['identity_card'],
+                $row['first_name'],
+                $row['second_name'],
+                $row['last_name'],
+                $row['mothers_last_name'],
+                $extra ? $extra->date_entry : null,
+                $extra ? $extra->date_derelict : null,
+                $extra ? $extra->degree_shortened : null,
+                $extra ? $extra->birth_date : null,
+                $extra ? $extra->date_death : null,
+                $extra ? $extra->civil_status : null,
+                $extra ? $extra->gender : null,
+            ];
+
+            if ($isRetirementFund) {
+                // Siete columnas exclusivas de Fondo de Retiro.
+                $result = array_merge($result, [
+                    $row['total_ret_fun'],
+                    $row['total_availability'],
+                    $row['fecha_resolucion'],
+                    $row['fecha_liquidacion'],
+                    $row['advance_ret_fun'],
+                    $row['loan_retention'],
+                    $row['guarantor_retention'],
+                ]);
+            } else {
+                // Resolución para Cuota Mortuoria y Auxilio Mortuorio.
+                $result = array_merge($result, [
+                    $row['fecha_resolucion'],
+                    $row['fecha_liquidacion'],
+                ]);
+            }
+
+            $documents = filter_var(
+                $row['beneficiary_state'],
+                FILTER_VALIDATE_BOOLEAN
+            )
+                ? 'Documentos completos'
+                : 'Documentos incompletos';
+
+            $result = array_merge($result, [
+                $row['beneficiary_identity_card'],
+                $row['beneficiary_first_name'],
+                $row['beneficiary_second_name'],
+                $row['beneficiary_last_name'],
+                $row['beneficiary_mothers_last_name'],
+                $row['kinship'],
+                $row['amount'],
+                $address ? $address['city_address'] : null,
+                $address ? $address['address'] : null,
+                $row['phone_number'],
+                $row['cell_phone_number'],
+                $row['location'],
+                $documents,
+            ]);
+
+            $data[] = $result;
+        }
+
+        $export = new ReportPaymentsBeneficiariesFrcamExport(
+            $data,
+            $request->type
+        );
+
+        $file_name = 'reporte_pagos_derechohabientes_' . $date;
+
+        return Excel::download($export, $file_name . '.xls');
+    }
 }
