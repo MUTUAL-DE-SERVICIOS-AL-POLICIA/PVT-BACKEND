@@ -969,6 +969,7 @@ class ImportAffiliatesController extends Controller
      *          required=true,
      *          @OA\MediaType(mediaType="multipart/form-data",@OA\Schema(
      *              @OA\Property(property="file", type="file", description="file required", example="file"),
+     *              @OA\Property(property="type", type="string", enum={"mora", "estacional"}, description="Tipo de importación; por defecto mora", example="estacional"),
      *              )
      *          ),
      *      ),
@@ -988,7 +989,9 @@ class ImportAffiliatesController extends Controller
     {
         $request->validate([
             'file' => 'required|file|mimes:csv,txt',
+            'type' => 'sometimes|required|in:mora,estacional',
         ]);
+        $type = $request->input('type', 'mora');
         $path = $request->file->store('temp');
         $fullPath = storage_path('app/' . $path);
         Schema::dropIfExists('temporary_table');
@@ -996,6 +999,8 @@ class ImportAffiliatesController extends Controller
             $table->string('ci');
             $table->string('observacion');
             $table->string('nup')->nullable();
+            $table->string('mensaje')->default('');
+            $table->string('tipo')->default('mora');
         });
         if (($handle = fopen($fullPath, 'r')) !== FALSE) {
             fgetcsv($handle, 1000, ':');
@@ -1004,6 +1009,7 @@ class ImportAffiliatesController extends Controller
                     'ci' => $data[0],
                     'observacion' => $data[1],
                     'nup' => null,
+                    'tipo' => $type,
                 ]);
             }
             fclose($handle);
@@ -1022,27 +1028,54 @@ class ImportAffiliatesController extends Controller
                     ->update(['nup' => $spouse->affiliate_id]);
             }
         }
-        if(DB::table('temporary_table')->where('nup', null)->count() > 0)
+        if ($type === 'estacional') {
+            // Contar las observaciones estacionales que no fueron eliminadas
+            $observationCounts = Observation::where('observable_type', 'affiliates')
+                ->where('observation_type_id', 62)
+                ->whereNull('deleted_at')
+                ->whereIn('observable_id', DB::table('temporary_table')->whereNotNull('nup')->pluck('nup'))
+                ->select('observable_id', DB::raw('COUNT(*) AS cantidad_registros'))
+                ->groupBy('observable_id')
+                ->pluck('cantidad_registros', 'observable_id');
+
+            foreach (DB::table('temporary_table')->get() as $data) {
+                $quantity = (int) $observationCounts->get($data->nup, 0);
+                $message = $data->nup === null
+                    ? 'carnet incorrecto o inexistente'
+                    : ($quantity > 0 ? 'tiene '.$quantity.' observaciones de Préstamos estacional' : '');
+
+                DB::table('temporary_table')->where('ci', $data->ci)->update(['mensaje' => $message]);
+            }
+        }
+        if (DB::table('temporary_table')->whereNull('nup')->exists()
+            || ($type === 'estacional' && DB::table('temporary_table')->where('mensaje', '<>', '')->exists()))
         {
             $route = '/affiliate/download_error_observation_archive';
-            $route_file_name = 'mora_observados_archivo.xls';
+            $route_file_name = $type === 'estacional' ? 'estacional_observados_archivo.xls' : 'mora_observados_archivo.xls';
             return response()->json([
                 'message' => 'Excel',
                 'payload' => [
                     'successfully' => false,
-                    'error' => 'Existen carnets que no son incorrectos, favor revisar.',
+                    'error' => $type === 'estacional'
+                        ? 'Existen errores en el archivo, favor revisar.'
+                        : 'Existen carnets incorrectos, favor revisar.',
                     'route' =>$route,
                     'route_file_name' => $route_file_name
                 ]
             ]);
         }
         else{
+            $payload = [
+                'successfully' => true,
+                'data_count' => DB::table('temporary_table')->count(),
+            ];
+            if ($type === 'estacional') {
+                $payload['route'] = '/affiliate/download_error_observation_archive';
+                $payload['route_file_name'] = 'estacional_observados_archivo.xls';
+            }
             return response()->json([
                 'message' => 'Copiado correcto',
-                'payload' => [
-                    'successfully' => true,
-                    'data_count' => DB::table('temporary_table')->count(),
-                ]
+                'payload' => $payload,
             ]);
         }
     }
@@ -1073,10 +1106,16 @@ class ImportAffiliatesController extends Controller
     public function download_error_observation_archive(Request $request)
     {
         try{
-            $data_header = array(array("CI", "OBSERVACION"));
-            $data_error = DB::table('temporary_table')->where('nup', null)->get();
+            $isEstacional = DB::table('temporary_table')->where('tipo', 'estacional')->exists();
+            $data_header = array($isEstacional ? array("CI", "OBSERVACION", "MENSAJE") : array("CI", "OBSERVACION"));
+            $query = DB::table('temporary_table');
+            $data_error = ($isEstacional ? $query : $query->whereNull('nup'))->get();
             foreach($data_error as $row) {
-                array_push($data_header, array($row->ci, $row->observacion));
+                $rowData = array($row->ci, $row->observacion);
+                if ($isEstacional) {
+                    $rowData[] = $row->mensaje;
+                }
+                array_push($data_header, $rowData);
             }
             $export = new ArchivoPrimarioExport($data_header);
             $file_name = "observados";
@@ -1152,7 +1191,7 @@ class ImportAffiliatesController extends Controller
             {
                 if($affiliate->nup <> null){
                     $count++;
-                    if(Observation::where('observation_type_id', $observation_type->id)->where('observable_id', $affiliate->nup)->where('observable_type', 'affiliates')->where('enabled', false)->count() == 0)
+                    if(Observation::where('observation_type_id', $observation_type->id)->where('observable_id', $affiliate->nup)->where('observable_type', 'affiliates')->whereNull('deleted_at')->count() == 0)
                     {
                         Observation::create([
                             'user_id' => Auth::user()->id,
